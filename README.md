@@ -4,31 +4,57 @@ A full-featured Point of Sale system built with Electron, React, TypeScript, and
 
 ## Screenshots
 
-### Login Screen
-![Login Screen](screenshots/login.png)
+### Sign In
+![Sign In](screenshots/Sign_in.png)
 *PIN-based authentication with role selection*
 
 ### Point of Sale
-![POS Interface](screenshots/pos.png)
+![Point of Sale](screenshots/Point_Of_Sale.png)
 *Product scanning, cart management, and checkout*
 
-### Dashboard
-![Dashboard](screenshots/dashboard.png)
+### Manager Dashboard
+![Manager Dashboard](screenshots/Manager_Dashboard.png)
 *Sales overview and quick actions*
 
-### Inventory Management
-![Inventory](screenshots/inventory.png)
-*Product catalog with batch tracking and expiration monitoring*
+### Inventory
+![Inventory](screenshots/Inventory.png)
+*Product catalog with stock management*
+
+### Advanced Inventory Management
+![Advanced Inventory Management](screenshots/Advanced_Inventory_Management.png)
+*Batch tracking, expiration monitoring, and inventory counts*
+
+### Employee Management
+![Employee Management](screenshots/Employee_Management.png)
+*Add, edit, and manage employee accounts*
 
 ### Sales Reports
-![Reports](screenshots/reports.png)
+![Sales Reports](screenshots/Sales_Reports.png)
 *Analytics and business insights*
 
-### Manager Panel
-![Manager](screenshots/manager.png)
-*Employee management and system configuration*
+### Sales History
+![Sales History](screenshots/Sales_History.png)
+*Complete transaction history with search and filters*
 
-> **Note**: Screenshots to be added. Create a `screenshots/` folder in the project root and add images with the names shown above.
+### Returns and Refunds
+![Returns and Refunds](screenshots/Returns_and_Refunds.png)
+*Process returns with manager approval workflow*
+
+### System Settings
+![System Settings](screenshots/System_Settings.png)
+*Configure date formats, payment methods, and receipt templates*
+
+### Tax Settings
+![Tax Settings](screenshots/Tax_Settings.png)
+*Business information and tax rate configuration*
+
+### User Activity
+![User Activity](screenshots/User_Activity.png)
+*Audit trail of all user actions*
+
+### Admin Panel
+![Admin Panel](screenshots/Admin_Panel.png)
+*Hardware status, updates, and database management*
 
 ## Tech Stack
 
