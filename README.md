@@ -1,6 +1,8 @@
 # BMS Point of Sale System
 
-A full-featured Point of Sale system built with Electron, React, TypeScript, and .NET Core. Designed for retail operations with comprehensive inventory management, batch tracking, sales analytics, and returns processing.
+A comprehensive, full-stack Point-of-Sale (POS) system with advanced inventory, sales, and employee management features, built with Electron and .NET 8.
+
+> **⚠️ Development Status**: This project is currently under active development. Features and functionality may change as development progresses.
 
 ## Screenshots
 
