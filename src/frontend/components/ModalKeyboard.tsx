@@ -103,16 +103,8 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
   return (
     <div className="fixed inset-0 z-50">
       <div ref={backdropRef} className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div 
-        className="absolute bg-gray-100 rounded-t-2xl shadow-2xl overflow-auto"
-        style={{ 
-          bottom: 0, 
-          left: 0, 
-          right: 0, 
-          maxHeight: '70vh',
-          minHeight: '450px',
-          padding: '16px 8px 32px 8px'
-        }}
+      <div
+        className="absolute bg-gray-100 rounded-t-2xl shadow-2xl overflow-auto bottom-0 left-0 right-0 max-h-[70vh] min-h-[300px] sm:min-h-[450px] p-4 sm:p-6 pb-8"
       >
         <div className="flex items-center justify-between pb-3 px-2">
           <div className="text-sm font-medium text-gray-600">{title || (type === 'decimal' ? 'Enter amount' : type === 'numeric' ? 'Enter number' : 'Enter text')}</div>
@@ -143,18 +135,18 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
           <div className="px-3 space-y-3">
             {/* First row: numbers */}
             <div className="flex gap-2">
-              <KeyButton variant="special" className="h-12 w-16 text-sm">tab</KeyButton>
+              <KeyButton variant="special" className="h-12 w-12 sm:w-16 text-xs sm:text-sm">tab</KeyButton>
               {['1','2','3','4','5','6','7','8','9','0'].map((ch) => (
                 <KeyButton key={ch} className="h-12 flex-1" onClick={() => push(ch)}>
                   {ch}
                 </KeyButton>
               ))}
-              <KeyButton variant="special" className="h-12 w-20 text-sm" onClick={backspace}>delete</KeyButton>
+              <KeyButton variant="special" className="h-12 w-14 sm:w-20 text-xs sm:text-sm" onClick={backspace}>delete</KeyButton>
             </div>
 
             {/* Second row: symbols */}
             <div className="flex gap-2">
-              <KeyButton variant="special" className="h-12 w-24 text-sm">{symbolMode ? 'redo' : 'undo'}</KeyButton>
+              <KeyButton variant="special" className="h-12 w-16 sm:w-24 text-xs sm:text-sm">{symbolMode ? 'redo' : 'undo'}</KeyButton>
               {symbolMode ? (
                 // Show top symbols when #+= is pressed (Image #1)
                 ['€','£','¥','-','^','[',']','{','}'].map((ch) => (

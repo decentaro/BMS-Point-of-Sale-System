@@ -292,9 +292,9 @@ const Employees: React.FC = () => {
 
       {/* Body */}
       <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
-        <div className="h-full grid grid-cols-[320px_1fr] gap-2">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-2">
           {/* Left: list */}
-          <div className="overflow-hidden bg-white rounded-lg shadow-sm">
+          <div className="overflow-hidden bg-white rounded-lg shadow-sm max-h-80 lg:max-h-full">
             <div className="p-0 h-full">
               <div className="h-full flex flex-col">
                 <div className="p-2 bg-white">
@@ -352,8 +352,8 @@ const Employees: React.FC = () => {
           {/* Right: details form */}
           <div className="overflow-hidden bg-white rounded-lg shadow-sm">
             <div className="p-3">
-              <form className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+              <form className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="col-span-full">
                   <label className="text-xs font-semibold">Name</label>
                   <HybridInput 
                     className="w-full h-9 px-3 text-sm border rounded" 

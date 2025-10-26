@@ -573,9 +573,9 @@ const POS: React.FC = () => {
 
       {/* Body: left products, right cart/totals */}
       <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
-        <div className="h-full flex gap-2">
+        <div className="h-full flex flex-col lg:flex-row gap-2">
           {/* Left: product grid */}
-          <div className="h-full flex flex-col bg-white rounded-lg shadow-sm min-w-96" style={{ flex: '460' }}>
+          <div className="h-full flex flex-col bg-white rounded-lg shadow-sm flex-1 lg:flex-[3]">
             {/* Search and scanner */}
             <div className="p-2 bg-white border-b">
               <div className="mb-2">
@@ -594,7 +594,7 @@ const POS: React.FC = () => {
             
             {/* Product cards grid */}
             <div className="flex-1 overflow-y-auto p-2">
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2">
                 {loading ? (
                   <div className="col-span-full text-center py-8 text-sm text-slate-500">Loading products...</div>
                 ) : filteredProducts.length === 0 ? (
@@ -611,14 +611,13 @@ const POS: React.FC = () => {
                     return (
                       <div
                         key={product.id}
-                        className={`rounded-md hover:shadow-sm transition text-left overflow-hidden border cursor-pointer relative ${
-                          isOutOfStock 
-                            ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
-                            : isLowStock 
-                              ? 'bg-orange-50 border-orange-200 hover:border-orange-400' 
+                        className={`rounded-md bg-white hover:shadow-sm transition text-left overflow-hidden border cursor-pointer relative h-32 sm:h-36 md:h-40 lg:h-32 xl:h-36 ${
+                          isOutOfStock
+                            ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                            : isLowStock
+                              ? 'bg-orange-50 border-orange-200 hover:border-orange-400'
                               : 'bg-white border-slate-200 hover:border-blue-300'
                         }`}
-                        style={{height: '100px'}}
                         onClick={() => !isOutOfStock && addToCart(product)}
                       >
                         {/* Minus button - hide if out of stock */}
@@ -656,7 +655,7 @@ const POS: React.FC = () => {
                         )}
                         
                         {/* Product image */}
-                        <div className="w-full bg-slate-100 flex items-center justify-center overflow-hidden" style={{height: '60px'}}>
+                        <div className="w-full h-18 sm:h-22 md:h-26 lg:h-18 xl:h-22 bg-slate-100 flex items-center justify-center overflow-hidden">
                           {product.imageUrl && product.imageUrl.trim() !== '' ? (
                             <img 
                               src={product.imageUrl} 
@@ -669,8 +668,8 @@ const POS: React.FC = () => {
                         </div>
                         
                         {/* Product info */}
-                        <div className="p-1" style={{height: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
-                          <div className="text-xs font-medium text-slate-900 truncate" title={product.name}>{product.name}</div>
+                        <div className="p-1.5 flex-1 flex flex-col justify-between">
+                          <div className="text-xs font-medium text-slate-900 line-clamp-2 leading-tight" title={product.name}>{product.name}</div>
                           <div className="text-[10px] text-blue-600 font-semibold">{formatCurrency(product.price)}</div>
                         </div>
                       </div>
@@ -682,7 +681,7 @@ const POS: React.FC = () => {
           </div>
 
           {/* Right: cart and payment */}
-          <div className="h-full flex flex-col bg-white rounded-lg shadow-sm min-w-80 max-w-sm" style={{ flex: '310' }}>
+          <div className="h-full flex flex-col bg-white rounded-lg shadow-sm w-full lg:w-80 xl:w-96 lg:flex-1">
             {/* Cart items */}
             <div className="flex-1 overflow-hidden flex flex-col">
               <div className="p-2 border-b bg-white flex-shrink-0">

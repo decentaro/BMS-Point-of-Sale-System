@@ -142,11 +142,13 @@ const TaxSettings: React.FC = () => {
       </header>
 
       {/* Body */}
-      <main className="flex-1 p-4 bg-slate-50 overflow-auto">
+      <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+        <div className="pt-6">
+          <div className="max-w-4xl mx-auto space-y-6">
         {loading ? (
           <div className="text-center py-8">Loading tax settings...</div>
         ) : (
-          <div className="max-w-4xl mx-auto space-y-6">
+          <>
 
             {/* Business Information */}
             <div className="bg-white rounded-lg shadow-sm p-6">
@@ -346,10 +348,12 @@ const TaxSettings: React.FC = () => {
                 {saving ? 'Saving...' : 'Save Tax Settings'}
               </Button>
             </div>
-          </div>
+          </>
         )}
+          </div>
+        </div>
       </main>
-      
+
       <ModalKeyboard 
         open={kbOpen} 
         type={kbType} 

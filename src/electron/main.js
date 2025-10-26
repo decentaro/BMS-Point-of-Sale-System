@@ -385,63 +385,111 @@ ipcMain.handle('check-barcode-scanner', async () => {
 });
 
 ipcMain.handle('check-printer', async () => {
-    // Check for thermal printer connection
+    // Check for thermal printer connection - STRICT detection only
     try {
         const fs = require('fs');
         const { execSync } = require('child_process');
-        
-        // Check for USB printer devices
-        const printers = execSync('lpstat -p 2>/dev/null || echo "no-printers"', { encoding: 'utf8' });
-        
-        // Check for common thermal printer ports
-        const usbPorts = ['/dev/usb/lp0', '/dev/usb/lp1', '/dev/lp0', '/dev/lp1'];
-        const hasUSBPrinter = usbPorts.some(port => fs.existsSync(port));
-        
-        // More strict printer detection - check for actual available printers
-        const hasSystemPrinters = printers.includes('printer') && 
-                                 !printers.includes('no-printers') && 
-                                 !printers.includes('disabled');
-        
-        // Also check lsusb for thermal printer USB devices
-        let hasUSBThermalPrinter = false;
+
+        // Check system printers using lpstat
+        let availablePrinter = null;
+        let printerStatus = 'disconnected';
+
         try {
-            const usbDevices = execSync('lsusb 2>/dev/null || echo "no-usb"', { encoding: 'utf8' });
-            hasUSBThermalPrinter = usbDevices.toLowerCase().includes('printer') || 
-                                  usbDevices.toLowerCase().includes('thermal') ||
-                                  usbDevices.toLowerCase().includes('pos');
-        } catch (usbError) {
-            // USB check failed, continue without USB detection
+            // Get list of all printers
+            const printers = execSync('lpstat -p 2>/dev/null || echo "no-printers"', { encoding: 'utf8' });
+
+            // Check if there are any non-disabled printers
+            if (!printers.includes('no-printers') && printers.includes('printer')) {
+                // Try to find an active printer
+                const printerLines = printers.split('\n').filter(line => line.includes('printer'));
+                for (const line of printerLines) {
+                    if (!line.includes('disabled')) {
+                        const match = line.match(/printer (.+?) (is|idle)/);
+                        if (match) {
+                            availablePrinter = match[1].trim();
+                            printerStatus = 'found';
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (lpstatError) {
+            // lpstat failed, no printer system
         }
-        
-        const hasPrinter = hasUSBPrinter || hasSystemPrinters || hasUSBThermalPrinter;
-        
-        // Try to actually test printer communication if detected
-        let actuallyConnected = hasPrinter;
-        let testResult = '';
-        
-        if (hasPrinter) {
+
+        // STRICT TEST: Only mark as connected if we can actually communicate with the printer
+        let actuallyConnected = false;
+        let communicationDetails = '';
+
+        if (availablePrinter && printerStatus === 'found') {
             try {
-                // Try a simple printer test - send empty command to default printer
-                execSync('lpstat -d 2>/dev/null', { encoding: 'utf8', timeout: 2000 });
-                testResult = 'Communication test passed';
+                // Try to get printer status - this requires actual communication
+                const statusCheck = execSync(`lpstat -p "${availablePrinter}" 2>/dev/null`, {
+                    encoding: 'utf8',
+                    timeout: 3000
+                });
+
+                // Verify the printer is idle/ready (not disabled or in error)
+                if (statusCheck.includes('idle') || statusCheck.includes('printing')) {
+                    // Critical check: verify the USB device is actually connected
+                    // Get the printer's device URI
+                    try {
+                        const deviceUri = execSync(`lpstat -v 2>/dev/null | grep "${availablePrinter}"`, {
+                            encoding: 'utf8',
+                            timeout: 2000
+                        });
+
+                        // If it's a USB printer, verify USB device exists
+                        if (deviceUri.includes('usb://')) {
+                            const usbDevices = execSync('lsusb 2>/dev/null || echo "no-usb"', { encoding: 'utf8' });
+
+                            // Check for actual printer/POS/thermal USB devices
+                            const hasUSBPrinter = usbDevices.toLowerCase().includes('printer') ||
+                                                usbDevices.toLowerCase().includes('pos-80') ||
+                                                usbDevices.toLowerCase().includes('thermal') ||
+                                                usbDevices.toLowerCase().includes('escpos');
+
+                            if (!hasUSBPrinter) {
+                                actuallyConnected = false;
+                                communicationDetails = `Printer "${availablePrinter}" configured but USB device not connected`;
+                            } else {
+                                actuallyConnected = true;
+                                communicationDetails = `Printer "${availablePrinter}" connected and ready`;
+                            }
+                        } else {
+                            // Non-USB printer (network, etc.) - assume connected if lpstat says idle
+                            actuallyConnected = true;
+                            communicationDetails = `Printer "${availablePrinter}" is responding`;
+                        }
+                    } catch (deviceCheckError) {
+                        actuallyConnected = false;
+                        communicationDetails = 'Could not verify printer connection';
+                    }
+                } else {
+                    communicationDetails = 'Printer found but not ready (may be disabled or in error state)';
+                }
             } catch (testError) {
-                // If we can't communicate, printer might be off/disconnected
-                actuallyConnected = false;
-                testResult = 'Device found but not responding (printer may be turned off)';
+                // Communication failed
+                communicationDetails = `Printer "${availablePrinter}" found but not responding`;
             }
         }
-        
-        return {
+
+        const result = {
             connected: actuallyConnected,
-            model: actuallyConnected ? 'Thermal Printer' : null,
-            port: hasUSBPrinter ? '/dev/usb/lp0' : null,
-            description: actuallyConnected ? 'Thermal printer ready' : (hasPrinter ? testResult : 'No thermal printer detected')
+            model: actuallyConnected ? availablePrinter : null,
+            port: actuallyConnected ? 'System Printer' : null,
+            description: actuallyConnected
+                ? `Thermal printer ready (${availablePrinter})`
+                : (availablePrinter ? communicationDetails : 'No thermal printer detected - check USB connection and printer power')
         };
+
+        console.log('🖨️ Printer check result:', result);
+        return result;
     } catch (error) {
         return {
             connected: false,
             model: null,
-            description: 'No thermal printer detected'
+            description: 'Printer detection failed - no printer system available'
         };
     }
 });

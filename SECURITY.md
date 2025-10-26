@@ -1,103 +1,88 @@
-# BMS POS Security Implementation
+# Security Policy
 
-## 🔐 Security Features Implemented
+## Reporting Security Vulnerabilities
 
-### 1. **PIN Hashing with BCrypt**
-- **All employee PINs are now hashed** using BCrypt with salt (work factor 12)
-- **Backward compatibility**: Existing plaintext PINs are automatically upgraded when users log in
-- **Secure verification**: PIN comparison uses constant-time hashing verification
+If you discover a security vulnerability in BMS POS, please report it by emailing the maintainers directly. Do not open a public issue for security vulnerabilities.
 
-### 2. **Environment Variable Configuration**
-- **Database credentials removed** from configuration files
-- **Environment variables**: All sensitive data now uses environment variables
-- **Desktop-friendly**: Includes setup scripts for Windows and Linux
+## Security Features
 
-## 🚀 Deployment Setup
+### Authentication and Access Control
 
-### **Windows Setup:**
-1. Run `setup-environment.bat`
-2. Set the database password:
-   ```cmd
-   set BMS_DB_PASSWORD=your_actual_password
-   ```
+**PIN Security**
+- Employee PINs are hashed using BCrypt with a work factor of 12
+- Legacy plaintext PINs are automatically upgraded to hashed versions on first login
+- PIN verification uses constant-time comparison to prevent timing attacks
 
-### **Linux/Mac Setup:**
-1. Run `setup-environment.sh`
-2. Set the database password:
-   ```bash
-   export BMS_DB_PASSWORD='your_actual_password'
-   ```
+**Role-Based Access Control**
+- Employee and Manager roles with distinct permission levels
+- Session-based authentication with automatic logout
+- Failed login attempt tracking and account lockout protection
 
-## 📋 Environment Variables
+### Data Protection
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `BMS_DB_USER` | Database username | `postgres.example` |
-| `BMS_DB_PASSWORD` | Database password | `your_secure_password` |
-| `BMS_DB_SERVER` | Database server | `your-server.supabase.com` |
-| `BMS_DB_PORT` | Database port | `5432` |
-| `BMS_DB_NAME` | Database name | `postgres` |
+**Database Security**
+- Database credentials stored in environment variables, not in source code
+- Connection strings use parameterized queries to prevent SQL injection
+- Support for PostgreSQL/Supabase with SSL connections
 
-## 🔒 Security Improvements
+**Environment Configuration**
+- Sensitive configuration values isolated in `.env` file
+- `.env` file excluded from version control via `.gitignore`
+- Template `.env.example` provided for deployment setup
 
-### **Before:**
-- ❌ PINs stored in plaintext
-- ❌ Database password in code files
-- ❌ Direct string comparison for authentication
+### Session Management
 
-### **After:**
-- ✅ PINs hashed with BCrypt + salt
-- ✅ Environment variable configuration
-- ✅ Constant-time PIN verification
-- ✅ Automatic legacy PIN upgrade
-- ✅ Secure desktop deployment
+- Secure session token generation and validation
+- Configurable auto-logout after inactivity period
+- Session data includes user context for audit trails
 
-## 🛡️ Security Rating
+## Environment Variables
 
-**Previous**: 4/10 - Basic security with critical vulnerabilities
-**Current**: 8/10 - Strong security suitable for production desktop deployment
+Required environment variables for deployment:
 
-## ⚠️ Important Notes
+| Variable | Description |
+|----------|-------------|
+| `BMS_DB_USER` | Database username |
+| `BMS_DB_PASSWORD` | Database password |
+| `BMS_DB_SERVER` | Database server hostname |
+| `BMS_DB_PORT` | Database port (default: 5432) |
+| `BMS_DB_NAME` | Database name |
 
-1. **PIN Migration**: Existing PINs are automatically upgraded on first login
-2. **Environment Setup**: Must run setup scripts before first use
-3. **Password Security**: Never commit database passwords to version control
-4. **Desktop Context**: Security model optimized for desktop/local deployment
+## Deployment Security
 
-## 🔧 Technical Details
+### Initial Setup
 
-### **PIN Hashing Implementation:**
-```csharp
-// Hash PIN (creation/update)
-string hashedPin = _pinSecurityService.HashPin(plainTextPin);
+1. Copy `.env.example` to `.env`
+2. Configure all required environment variables
+3. Ensure `.env` file permissions are restricted (chmod 600 on Linux/Mac)
+4. Never commit `.env` file to version control
 
-// Verify PIN (login)
-bool isValid = _pinSecurityService.VerifyPin(plainTextPin, hashedPin);
-```
+### Production Recommendations
 
-### **Backward Compatibility:**
-- Detects legacy (plaintext) PINs automatically
-- Upgrades to hashed version on successful login
-- No disruption to existing users
+- Use strong, unique passwords for all database accounts
+- Enable SSL/TLS for database connections when available
+- Regularly update dependencies to patch security vulnerabilities
+- Configure automatic backups for disaster recovery
+- Restrict physical access to devices running the POS system
+- Use hardware security features when available (TPM, secure boot)
 
-### **Environment Variable Processing:**
-```csharp
-// Connection string template
-"User Id={{DB_USER}};Password={{DB_PASSWORD}};Server={{DB_SERVER}}..."
+## Known Limitations
 
-// Runtime replacement
-processedConnectionString = secureConfig.ProcessConnectionString(template);
-```
+- Desktop application security model assumes physical device security
+- No built-in network encryption between Electron frontend and .NET backend (relies on localhost)
+- Session tokens stored in browser localStorage (appropriate for desktop kiosk mode)
+- Admin panel accessible to users with Manager role
 
-## 📊 Security Checklist
+## Security Roadmap
 
-- ✅ PIN hashing implemented
-- ✅ Environment variables configured
-- ✅ Backward compatibility maintained
-- ✅ Deployment scripts created
-- ✅ Documentation complete
-- ⏳ File system permissions (Phase 3)
-- ⏳ Application signing (Phase 3)
-- ⏳ Database encryption at rest (Phase 3)
+Future security improvements planned:
 
-Your BMS POS system now has **enterprise-grade security** for desktop deployment! 🎉
+- Two-factor authentication for Manager accounts
+- Enhanced audit logging with tamper protection
+- Database encryption at rest
+- Application code signing
+- Automated security scanning in CI/CD pipeline
+
+## Compliance
+
+This software is designed for small to medium business point-of-sale operations. Organizations with specific compliance requirements (PCI-DSS, HIPAA, etc.) should conduct their own security audit and implement additional controls as needed.
