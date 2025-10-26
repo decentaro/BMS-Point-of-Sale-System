@@ -12,6 +12,12 @@ A full-featured Point of Sale system built with Electron, React, TypeScript, and
 ![Point of Sale](screenshots/Point_Of_Sale.png)
 *Product scanning, cart management, and checkout*
 
+![Point of Sale - Cart View](screenshots/Point_of_Sale-1.png)
+*Multiple items in cart with payment options*
+
+![Point of Sale - Transaction Complete](screenshots/Point_of_Sale-2.png)
+*Receipt generation and change calculation*
+
 ### Manager Dashboard
 ![Manager Dashboard](screenshots/Manager_Dashboard.png)
 *Sales overview and quick actions*
@@ -20,9 +26,18 @@ A full-featured Point of Sale system built with Electron, React, TypeScript, and
 ![Inventory](screenshots/Inventory.png)
 *Product catalog with stock management*
 
+![Inventory - Product Details](screenshots/Inventory-1.png)
+*Edit product information and pricing*
+
 ### Advanced Inventory Management
 ![Advanced Inventory Management](screenshots/Advanced_Inventory_Management.png)
 *Batch tracking, expiration monitoring, and inventory counts*
+
+![Advanced Inventory - Batch Management](screenshots/Advanced_Inventory_Management-1.png)
+*Manage product batches with lot numbers and expiration dates*
+
+![Advanced Inventory - Stock Adjustments](screenshots/Advanced_Inventory_Management-2.png)
+*Inventory counts and stock adjustment tracking*
 
 ### Employee Management
 ![Employee Management](screenshots/Employee_Management.png)
@@ -36,6 +51,9 @@ A full-featured Point of Sale system built with Electron, React, TypeScript, and
 ![Sales History](screenshots/Sales_History.png)
 *Complete transaction history with search and filters*
 
+![Sales History - Transaction Details](screenshots/Sales_History-1.png)
+*Detailed view of individual sales with line items*
+
 ### Returns and Refunds
 ![Returns and Refunds](screenshots/Returns_and_Refunds.png)
 *Process returns with manager approval workflow*
@@ -43,6 +61,12 @@ A full-featured Point of Sale system built with Electron, React, TypeScript, and
 ### System Settings
 ![System Settings](screenshots/System_Settings.png)
 *Configure date formats, payment methods, and receipt templates*
+
+![System Settings - Receipt Configuration](screenshots/System_Settings-1.png)
+*Customize receipt headers, footers, and layout*
+
+![System Settings - Return Policies](screenshots/System_Settings-2.png)
+*Configure return policies and approval thresholds*
 
 ### Tax Settings
 ![Tax Settings](screenshots/Tax_Settings.png)
@@ -55,6 +79,12 @@ A full-featured Point of Sale system built with Electron, React, TypeScript, and
 ### Admin Panel
 ![Admin Panel](screenshots/Admin_Panel.png)
 *Hardware status, updates, and database management*
+
+![Admin Panel - Security Settings](screenshots/Admin_Panel-1.png)
+*Configure PIN security and login controls*
+
+![Admin Panel - Database Backup](screenshots/Admin_Panel-2.png)
+*Database backup and restore functionality*
 
 ## Tech Stack
 
