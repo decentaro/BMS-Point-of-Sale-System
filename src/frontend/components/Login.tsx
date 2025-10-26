@@ -140,9 +140,9 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="w-screen h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex overflow-hidden">
+    <div className="w-screen h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
       {/* Left Panel - Login Form */}
-      <div className="flex flex-col p-3 flex-[2] min-w-80">
+      <div className="flex flex-col p-3 flex-1 lg:flex-[2]">
         <div className="bg-white rounded-lg shadow-lg border border-slate-200 flex-1 flex flex-col p-4 max-w-none">
           <div className="mb-3 text-center">
             <h1 className="text-xl font-bold text-slate-900">
@@ -155,7 +155,7 @@ const Login: React.FC = () => {
             {/* Role Selection */}
             <div>
               <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block text-center">Role</label>
-              <div className="grid grid-cols-3 gap-2 w-full">
+              <div className="grid grid-cols-3 gap-2">
                 {(['Cashier', 'Inventory', 'Manager'] as Role[]).map((role) => (
                   <button
                     key={role}
@@ -260,7 +260,7 @@ const Login: React.FC = () => {
       </div>
 
       {/* Right Panel - Keypad */}
-      <div className="flex flex-col p-3 flex-1 min-w-72 max-w-sm">
+      <div className="flex flex-col p-3 flex-1 lg:max-w-sm">
         <div className="bg-white rounded-lg shadow-lg border border-slate-200 flex-1 p-4 flex flex-col">
           <h3 className="text-base font-semibold text-slate-800 mb-3 text-center">Keypad</h3>
           <div className="grid grid-cols-3 gap-2 flex-1 content-center">

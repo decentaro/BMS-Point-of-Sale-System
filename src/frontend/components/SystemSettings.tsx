@@ -184,15 +184,16 @@ const SystemSettings: React.FC = () => {
       </header>
 
       {/* Body */}
-      <main className="flex-1 p-4 bg-slate-50 overflow-y-auto">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+        <div className="pt-6">
+          <div className="max-w-4xl mx-auto space-y-6">
           
 
           {/* Regional Settings */}
           <Card>
             <CardContent className="p-6">
               <h2 className="text-lg font-semibold mb-4">Regional Settings</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
                 {/* Date Format */}
                 <div>
@@ -420,7 +421,7 @@ const SystemSettings: React.FC = () => {
                 <div className="space-y-4">
                   <h3 className="text-md font-medium text-gray-700 border-b pb-2">Printing Configuration</h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   
                   {/* Paper Size - Locked to 80mm */}
                   <div>
@@ -712,7 +713,7 @@ const SystemSettings: React.FC = () => {
                     <div className="space-y-4">
                       <h3 className="text-md font-medium text-gray-700 border-b pb-2">Return Limits</h3>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div>
                           <label className="block text-sm font-medium mb-2">Return Time Limit (Days)</label>
                           <HybridInput 
@@ -825,9 +826,6 @@ const SystemSettings: React.FC = () => {
             </Button>
           </div>
 
-        </div>
-      </main>
-
       {/* Modal Keyboard */}
       <ModalKeyboard 
         open={kbOpen} 
@@ -860,6 +858,9 @@ const SystemSettings: React.FC = () => {
           onClose={() => setShowReceiptPreview(false)}
         />
       )}
+          </div>
+        </div>
+      </main>
       </div>
     </SessionGuard>
   )

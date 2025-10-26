@@ -489,21 +489,20 @@ const Inventory: React.FC = () => {
             </div>
             {/* Full-height scrollable grid of product cards (2 columns) */}
             <div className="flex-1 overflow-y-auto p-1 min-h-0">
-              <div className="grid grid-cols-5 gap-1" style={{gridAutoRows: 'max-content'}}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-1" style={{gridAutoRows: 'max-content'}}>
                 {loading ? (
-                  <div className="col-span-5 text-center py-8 text-sm text-slate-500">Loading products...</div>
+                  <div className="col-span-full text-center py-8 text-sm text-slate-500">Loading products...</div>
                 ) : filteredProducts.length === 0 ? (
-                  <div className="col-span-5 text-center py-8 text-sm text-slate-500">
+                  <div className="col-span-full text-center py-8 text-sm text-slate-500">
                     {form.search ? 'No products found matching your search.' : 'No products available.'}
                   </div>
                 ) : (
                   filteredProducts.map((product) => (
                     <div
                       key={product.id}
-                      className={`rounded-md bg-white hover:shadow-sm transition text-left overflow-hidden border relative group ${
+                      className={`rounded-md bg-white hover:shadow-sm transition text-left overflow-hidden border relative group cursor-pointer h-32 sm:h-36 md:h-40 lg:h-32 xl:h-36 ${
                         selectedProduct === product.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'
                       }`}
-                      style={{height: '110px', cursor: 'pointer'}} // Fixed height for consistent grid
                       onClick={() => viewProduct(product)}
                     >
                       {/* Action buttons (appear on hover) */}
@@ -520,7 +519,7 @@ const Inventory: React.FC = () => {
                       </div>
                       
                       {/* Image placeholder */}
-                      <div className="w-full bg-slate-100 flex items-center justify-center overflow-hidden" style={{height: '60px'}}>
+                      <div className="w-full h-18 sm:h-22 md:h-26 lg:h-18 xl:h-22 bg-slate-100 flex items-center justify-center overflow-hidden">
                         {product.imageUrl && product.imageUrl.trim() !== '' ? (
                           <img 
                             src={product.imageUrl} 
@@ -538,11 +537,13 @@ const Inventory: React.FC = () => {
                           Image
                         </div>
                       </div>
-                      <div className="p-1" style={{height: '50px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
-                        <div className="text-xs font-medium text-slate-900 truncate" title={product.name}>{product.name}</div>
-                        <div className="text-[10px] text-slate-600">{formatCurrency(product.price)}</div>
-                        <div className={`text-[10px] ${product.stockQuantity === 0 ? 'text-red-600 font-semibold' : product.stockQuantity <= product.minStockLevel ? 'text-orange-600 font-semibold' : 'text-slate-600'}`}>
-                          {product.stockQuantity === 0 ? 'Out of Stock' : product.stockQuantity <= product.minStockLevel ? 'Low Stock' : `Qty: ${product.stockQuantity}`}
+                      <div className="p-1.5 flex-1 flex flex-col justify-between">
+                        <div className="text-xs font-medium text-slate-900 line-clamp-2 leading-tight" title={product.name}>{product.name}</div>
+                        <div className="flex justify-between items-end mt-auto">
+                          <div className="text-[10px] text-slate-600">{formatCurrency(product.price)}</div>
+                          <div className={`text-[10px] ${product.stockQuantity === 0 ? 'text-red-600 font-semibold' : product.stockQuantity <= product.minStockLevel ? 'text-orange-600 font-semibold' : 'text-slate-600'}`}>
+                            {product.stockQuantity === 0 ? 'Out of Stock' : product.stockQuantity <= product.minStockLevel ? 'Low Stock' : `Qty: ${product.stockQuantity}`}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -553,12 +554,12 @@ const Inventory: React.FC = () => {
           </div>
 
           {/* Right: product form inside white container */}
-          <div className="overflow-hidden bg-white rounded-lg shadow-sm flex flex-col flex-1 min-w-80 max-w-md">
+          <div className="overflow-hidden bg-white rounded-lg shadow-sm flex flex-col flex-1 w-full lg:w-96">
             {/* Scrollable fields */}
-            <div className="p-2 flex-1 overflow-y-auto" style={{maxHeight: 'calc(100% - 60px)'}}>
-              <form className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2 flex-1 overflow-y-auto max-h-[calc(100%-60px)]">
+              <form className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                 {/* Barcode first (full width) */}
-                <div className="col-span-2">
+                <div className="col-span-full">
                   <label className="text-[10px] font-semibold">Barcode</label>
                   <div className="flex gap-1">
                     <HybridInput 

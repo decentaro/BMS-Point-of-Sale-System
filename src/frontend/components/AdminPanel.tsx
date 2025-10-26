@@ -517,8 +517,9 @@ const AdminPanel: React.FC = () => {
         </header>
 
         {/* Body */}
-        <main className="flex-1 p-4 bg-slate-50 overflow-y-auto">
-          <div className="max-w-4xl mx-auto space-y-6">
+        <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+          <div className="pt-6">
+            <div className="max-w-7xl mx-auto space-y-6">
             
             {/* Warning */}
             <Card>
@@ -1065,6 +1066,7 @@ const AdminPanel: React.FC = () => {
               </Button>
             </div>
 
+              </div>
           </div>
         </main>
 

@@ -320,7 +320,7 @@ const InventoryManagement: React.FC = () => {
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-lg font-semibold mb-4">Create Stock Adjustment</h2>
                 <form onSubmit={handleCreateAdjustment} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="relative">
                       <label htmlFor="product" className="block text-sm font-medium text-gray-700 mb-1">
                         Product
@@ -379,7 +379,7 @@ const InventoryManagement: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="quantityChange" className="block text-sm font-medium text-gray-700 mb-1">
                         Quantity Change
@@ -582,7 +582,7 @@ const InventoryManagement: React.FC = () => {
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label htmlFor="manufacturing-date" className="block text-sm font-medium text-gray-700 mb-1">
                         Manufacturing Date
@@ -622,7 +622,7 @@ const InventoryManagement: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div>
                     <label htmlFor="batch-quantity" className="block text-sm font-medium text-gray-700 mb-1">
                       Quantity

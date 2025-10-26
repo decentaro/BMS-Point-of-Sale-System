@@ -491,8 +491,9 @@ const SalesHistory: React.FC = () => {
       </header>
 
       {/* Body */}
-      <main className="flex-1 p-4 bg-slate-50 overflow-y-auto">
-        <div className="max-w-6xl mx-auto space-y-4">
+      <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+        <div className="pt-6">
+          <div className="max-w-6xl mx-auto space-y-6">
           
 
           {/* Filters */}
@@ -632,6 +633,7 @@ const SalesHistory: React.FC = () => {
             </CardContent>
           </Card>
 
+          </div>
         </div>
       </main>
 
