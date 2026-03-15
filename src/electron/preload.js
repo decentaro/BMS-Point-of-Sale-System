@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const fs = require('fs');
 
-console.log('🚀 Preload script starting to load...');
+// In-memory JWT token — cleared on process restart (intentional for desktop app)
+let authToken = null;
 
 // HTTP helper function - now gets API URL dynamically
 async function apiRequest(endpoint, options = {}) {
@@ -13,11 +13,13 @@ async function apiRequest(endpoint, options = {}) {
     } catch (error) {
         console.warn('Failed to get API config from main process:', error);
     }
-    
+
     const url = `${baseUrl}${endpoint}`;
+    const authHeader = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
     const response = await fetch(url, {
         headers: {
             'Content-Type': 'application/json',
+            ...authHeader,
             ...options.headers
         },
         ...options
@@ -199,10 +201,14 @@ const electronAPI = {
     getApiConfig: () => ipcRenderer.invoke('get-api-config'),
     setApiConfig: (config) => ipcRenderer.invoke('set-api-config', config),
     
+    // Store JWT token for authenticated requests
+    setAuthToken: (token) => { authToken = token; },
+
+    // Clear JWT token on logout
+    clearAuthToken: () => { authToken = null; },
+
     // Debug function to test preload
     debug: () => "Preload script loaded successfully!"
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
-
-console.log('Preload script completed, electronAPI exposed via contextBridge');

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BMS_POS_API.Data;
 using BMS_POS_API.Models;
@@ -8,6 +9,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/system-settings")]
+    [Authorize]
     public class SystemSettingsController : ControllerBase
     {
         private readonly BmsPosDbContext _context;
@@ -19,8 +21,9 @@ namespace BMS_POS_API.Controllers
             _userActivityService = userActivityService;
         }
 
-        // GET: api/system-settings
+        // GET: api/system-settings (public - needed pre-login for business name and session timeout config)
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<SystemSettings>> GetSystemSettings()
         {
             // Get the single system settings record (should only be one per system)

@@ -1,5 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using BMS_POS_API.Data;
 using BMS_POS_API.Models;
 using BMS_POS_API.Services;
@@ -8,6 +14,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [AllowAnonymous]
     public class AuthController : ControllerBase
     {
         private readonly BmsPosDbContext _context;
@@ -15,32 +22,40 @@ namespace BMS_POS_API.Controllers
         private readonly IPinSecurityService _pinSecurityService;
         private readonly IServiceProvider _serviceProvider;
         private readonly IMetricsService _metricsService;
+        private readonly ILoginLockoutService _lockoutService;
+        private readonly JwtSecretHolder _jwtSecretHolder;
 
-        public AuthController(BmsPosDbContext context, IUserActivityService userActivityService, IPinSecurityService pinSecurityService, IServiceProvider serviceProvider, IMetricsService metricsService)
+        public AuthController(
+            BmsPosDbContext context,
+            IUserActivityService userActivityService,
+            IPinSecurityService pinSecurityService,
+            IServiceProvider serviceProvider,
+            IMetricsService metricsService,
+            ILoginLockoutService lockoutService,
+            JwtSecretHolder jwtSecretHolder)
         {
             _context = context;
             _userActivityService = userActivityService;
             _pinSecurityService = pinSecurityService;
             _serviceProvider = serviceProvider;
             _metricsService = metricsService;
+            _lockoutService = lockoutService;
+            _jwtSecretHolder = jwtSecretHolder;
         }
 
         // POST: api/auth/login
         [HttpPost("login")]
+        [EnableRateLimiting("auth")]
         public async Task<ActionResult<ApiResponse<LoginResponse>>> Login(LoginRequest request)
         {
             // Validate input
             var validationErrors = new List<string>();
-            
+
             if (string.IsNullOrWhiteSpace(request.EmployeeId))
-            {
                 validationErrors.Add("Employee ID is required");
-            }
 
             if (string.IsNullOrWhiteSpace(request.Pin))
-            {
                 validationErrors.Add("PIN is required");
-            }
 
             if (validationErrors.Any())
             {
@@ -51,13 +66,27 @@ namespace BMS_POS_API.Controllers
                 ));
             }
 
+            // Check account lockout before hitting the database
+            if (_lockoutService.IsLockedOut(request.EmployeeId))
+            {
+                return StatusCode(423, ApiResponse<LoginResponse>.ErrorResponse(
+                    "Account temporarily locked due to too many failed attempts. Try again in 15 minutes.",
+                    "ACCOUNT_LOCKED"
+                ));
+            }
+
             try
             {
+                // Load max attempts from admin settings (default 5)
+                var adminSettings = await _context.AdminSettings.FirstOrDefaultAsync();
+                var maxAttempts = adminSettings?.MaxFailedLoginAttempts ?? 5;
+
                 var employee = await _context.Employees
                     .FirstOrDefaultAsync(e => e.EmployeeId == request.EmployeeId && e.IsActive);
 
                 if (employee == null)
                 {
+                    _lockoutService.RecordFailedAttempt(request.EmployeeId, maxAttempts);
                     await LogFailedLoginAttempt(request.EmployeeId, "Employee not found", null);
                     await _metricsService.LogLoginAttempt(request.EmployeeId, false, "Employee not found");
                     return Unauthorized(ApiResponse<LoginResponse>.ErrorResponse(
@@ -68,6 +97,7 @@ namespace BMS_POS_API.Controllers
 
                 if (!IsValidPin(employee.Pin, request.Pin))
                 {
+                    _lockoutService.RecordFailedAttempt(request.EmployeeId, maxAttempts);
                     await LogFailedLoginAttempt(request.EmployeeId, "Invalid PIN", employee.Id);
                     await _metricsService.LogLoginAttempt(request.EmployeeId, false, "Invalid PIN");
                     return Unauthorized(ApiResponse<LoginResponse>.ErrorResponse(
@@ -81,6 +111,7 @@ namespace BMS_POS_API.Controllers
                     var employeeRole = employee.Role ?? (employee.IsManager ? "Manager" : "Cashier");
                     if (!employeeRole.Equals(request.SelectedRole, StringComparison.OrdinalIgnoreCase))
                     {
+                        _lockoutService.RecordFailedAttempt(request.EmployeeId, maxAttempts);
                         await LogFailedLoginAttempt(
                             request.EmployeeId,
                             $"Role mismatch - Employee: {employeeRole}, Selected: {request.SelectedRole}",
@@ -94,11 +125,17 @@ namespace BMS_POS_API.Controllers
                     }
                 }
 
+                // Success — reset lockout counter
+                _lockoutService.ResetAttempts(request.EmployeeId);
+
+                // Generate JWT
+                var token = GenerateJwt(employee);
+
                 // Log successful login
                 await _userActivityService.LogActivityAsync(
                     employee.Id,
                     employee.Name ?? employee.EmployeeId,
-                    $"User logged in successfully",
+                    "User logged in successfully",
                     $"Role: {employee.Role}, Manager: {employee.IsManager}",
                     "Employee",
                     employee.Id,
@@ -106,13 +143,13 @@ namespace BMS_POS_API.Controllers
                     HttpContext.Connection?.RemoteIpAddress?.ToString()
                 );
 
-                // Log successful login metric
                 await _metricsService.LogLoginAttempt(request.EmployeeId, true);
 
                 var loginResponse = new LoginResponse
                 {
                     Success = true,
                     Employee = employee,
+                    Token = token,
                     Message = "Login successful"
                 };
 
@@ -121,13 +158,34 @@ namespace BMS_POS_API.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"Database error during login: {ex.Message}");
-                
-                // Return user-friendly database error
                 return StatusCode(500, ApiResponse<LoginResponse>.ErrorResponse(
                     AuthErrorMessages.DATABASE_ERROR,
                     AuthErrorCodes.DATABASE_ERROR
                 ));
             }
+        }
+
+        private string GenerateJwt(Employee employee)
+        {
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecretHolder.Secret));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var role = employee.Role ?? (employee.IsManager ? "Manager" : "Cashier");
+
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, employee.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.UniqueName, employee.EmployeeId),
+                new Claim(ClaimTypes.Role, role),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            var token = new JwtSecurityToken(
+                claims: claims,
+                expires: DateTime.UtcNow.AddHours(12),
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         // POST: api/auth/validate-manager
@@ -250,6 +308,7 @@ namespace BMS_POS_API.Controllers
     {
         public bool Success { get; set; }
         public Employee? Employee { get; set; }
+        public string? Token { get; set; }
         public string Message { get; set; } = string.Empty;
     }
 

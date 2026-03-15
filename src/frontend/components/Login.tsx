@@ -18,15 +18,6 @@ const Login: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<Role>('Cashier')
   const [statusMessage, setStatusMessage] = useState('Please sign in')
   
-  // Debug: Check if Electron API is available
-  React.useEffect(() => {
-    console.log('Electron API availability:', {
-      electronAPI: !!window.electronAPI,
-      validateLogin: !!window.electronAPI?.validateLogin,
-      debug: window.electronAPI?.debug?.()
-    })
-  }, [])
-
   const inputNumber = (num: string) => {
     playKeySound()
     if (currentField === 'employeeId') {
@@ -88,11 +79,8 @@ const Login: React.FC = () => {
       // Check if Electron API is available, otherwise fallback to direct HTTP
       let result
       if (window.electronAPI?.validateLogin) {
-        console.log('Using Electron API for login')
         result = await window.electronAPI.validateLogin(employeeId, pin, selectedRole)
       } else {
-        console.log('Electron API not available, using direct HTTP fallback')
-        // Fallback to direct API call if Electron API is not available
         result = await ApiClient.postJson('/auth/login', { employeeId, pin, selectedRole }, false)
       }
 
@@ -100,6 +88,11 @@ const Login: React.FC = () => {
         const employeeRole = result.data.employee.role || (result.data.employee.isManager ? 'Manager' : 'Cashier')
 
         setStatusMessage(`Welcome ${result.data.employee.name}!`)
+
+        // Store JWT token for authenticated API requests
+        if (result.data?.token) {
+          SessionManager.setToken(result.data.token)
+        }
 
         // Create secure session
         await SessionManager.createSession({

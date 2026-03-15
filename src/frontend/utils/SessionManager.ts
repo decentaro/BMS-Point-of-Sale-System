@@ -18,11 +18,42 @@ class SessionManager {
   private static readonly DEFAULT_SESSION_TIMEOUT = 30 * 60 * 1000 // 30 minutes in milliseconds (fallback)
   private static readonly SESSION_KEY = 'currentUser'
   private static readonly SESSION_TOKEN_KEY = 'sessionToken'
-  
+  private static readonly JWT_TOKEN_KEY = 'jwtToken'
+
+  // In-memory JWT token (also persisted to sessionStorage as backup within the tab)
+  private static jwtToken: string | null = null
+
   private static activityTimer: NodeJS.Timeout | null = null
   private static lastActivityTime: number = Date.now()
   private static cachedTimeout: number | null = null
   private static warningShown: boolean = false
+
+  /**
+   * Store the JWT token received from the backend after login
+   */
+  static setToken(token: string): void {
+    this.jwtToken = token
+    sessionStorage.setItem(this.JWT_TOKEN_KEY, token)
+    // Pass to Electron preload so all apiRequest calls include Authorization header
+    if (typeof window !== 'undefined' && window.electronAPI?.setAuthToken) {
+      window.electronAPI.setAuthToken(token)
+    }
+  }
+
+  /**
+   * Restore JWT from sessionStorage (e.g. after hot-reload in dev)
+   */
+  private static restoreToken(): string | null {
+    if (this.jwtToken) return this.jwtToken
+    const stored = sessionStorage.getItem(this.JWT_TOKEN_KEY)
+    if (stored) {
+      this.jwtToken = stored
+      if (typeof window !== 'undefined' && window.electronAPI?.setAuthToken) {
+        window.electronAPI.setAuthToken(stored)
+      }
+    }
+    return this.jwtToken
+  }
 
   /**
    * Get session timeout from system settings
@@ -107,10 +138,7 @@ class SessionManager {
     sessionStorage.setItem(this.SESSION_TOKEN_KEY, sessionToken)
     this.lastActivityTime = now
     this.warningShown = false // Reset warning flag for new session
-    
-    console.log(`New session created: ${timeout / (60 * 1000)} minutes`)
-    console.log(`Session expires at: ${new Date(session.expiresAt).toLocaleTimeString()}`)
-    
+
     // Start fresh activity monitoring
     this.startActivityMonitoring()
     
@@ -210,12 +238,18 @@ class SessionManager {
   }
 
   /**
-   * Clear current session
+   * Clear current session and JWT token
    */
   static clearSession(): void {
     sessionStorage.removeItem(this.SESSION_KEY)
     sessionStorage.removeItem(this.SESSION_TOKEN_KEY)
-    
+    sessionStorage.removeItem(this.JWT_TOKEN_KEY)
+    this.jwtToken = null
+
+    if (typeof window !== 'undefined' && window.electronAPI?.clearAuthToken) {
+      window.electronAPI.clearAuthToken()
+    }
+
     if (this.activityTimer) {
       clearInterval(this.activityTimer)
       this.activityTimer = null
@@ -223,22 +257,27 @@ class SessionManager {
   }
 
   /**
-   * Get current user for API headers
+   * Get current user for API headers (includes JWT Authorization if available)
    */
   static getUserHeaders(): Record<string, string> {
     const session = this.getCurrentSession()
+    const token = this.restoreToken()
+
     if (!session) {
-      return {
-        'X-User-Id': '0',
-        'X-User-Name': 'Unknown'
-      }
+      return { 'X-User-Id': '0', 'X-User-Name': 'Unknown' }
     }
-    
-    return {
+
+    const headers: Record<string, string> = {
       'X-User-Id': session.id.toString(),
       'X-User-Name': session.name || session.employeeId,
       'X-Session-Token': session.sessionToken
     }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    return headers
   }
 
   /**

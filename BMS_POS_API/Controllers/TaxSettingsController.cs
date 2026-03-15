@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BMS_POS_API.Data;
 using BMS_POS_API.Models;
@@ -8,6 +9,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/tax-settings")]
+    [Authorize]
     public class TaxSettingsController : ControllerBase
     {
         private readonly BmsPosDbContext _context;
@@ -19,8 +21,9 @@ namespace BMS_POS_API.Controllers
             _userActivityService = userActivityService;
         }
 
-        // GET: api/tax-settings
+        // GET: api/tax-settings (public - needed pre-login for receipt tax display)
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<TaxSettings>> GetTaxSettings()
         {
             // Get the single tax settings record (should only be one per business)

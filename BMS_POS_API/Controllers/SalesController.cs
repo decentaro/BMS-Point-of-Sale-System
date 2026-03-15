@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BMS_POS_API.Data;
 using BMS_POS_API.Models;
@@ -8,6 +9,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class SalesController : ControllerBase
     {
         private readonly BmsPosDbContext _context;

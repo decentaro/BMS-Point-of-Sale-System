@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using BMS_POS_API.Services;
 using BMS_POS_API.Models;
 
@@ -6,6 +7,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UserActivityController : ControllerBase
     {
         private readonly IUserActivityService _userActivityService;

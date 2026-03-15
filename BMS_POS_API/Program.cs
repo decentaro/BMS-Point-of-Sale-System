@@ -1,4 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Threading.RateLimiting;
 using BMS_POS_API.Data;
 using BMS_POS_API.Services;
 using BMS_POS_API.Models;
@@ -62,6 +66,46 @@ builder.Services.AddScoped<IMetricsService, MetricsService>();
 
 // Add Supabase Backup service
 builder.Services.AddScoped<ISupabaseBackupService, SupabaseBackupService>();
+
+// Add memory cache (used by lockout service)
+builder.Services.AddMemoryCache();
+
+// Add login lockout service
+builder.Services.AddSingleton<ILoginLockoutService, LoginLockoutService>();
+
+// Add JWT secret holder (generates a random secret on startup)
+var jwtSecretHolder = new JwtSecretHolder();
+builder.Services.AddSingleton(jwtSecretHolder);
+
+// Add JWT authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretHolder.Secret)),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+// Add rate limiting on auth endpoints (10 requests per 5 minutes per IP)
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(5),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+    options.RejectionStatusCode = 429;
+});
 
 // Add Health Checks with secure connection string
 builder.Services.AddHealthChecks()
@@ -144,10 +188,15 @@ if (app.Environment.IsDevelopment())
 // Add Global Exception Handler (before other middleware)
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+// Add security headers
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 // Add comprehensive request logging (after exception handler)
 app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseCors("ElectronPolicy");
+
+app.UseRateLimiter();
 
 // Serve static files from uploads directory
 var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
@@ -162,6 +211,7 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/uploads"
 });
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Add Health Check endpoints
