@@ -50,36 +50,32 @@ namespace BMS_POS_API.Services
         }
 
         /// <summary>
-        /// Ensures all required environment variables are set with default values if not present
-        /// This is for desktop deployment - sets secure defaults
+        /// Ensures all required environment variables are set.
+        /// Logs a warning for any that are missing — no hardcoded defaults.
         /// </summary>
         public void EnsureEnvironmentVariables()
         {
-            var requiredEnvVars = new Dictionary<string, string>
+            var required = new[] { "BMS_DB_USER", "BMS_DB_PASSWORD", "BMS_DB_SERVER", "BMS_DB_PORT", "BMS_DB_NAME" };
+            var optional = new Dictionary<string, string>
             {
-                { "BMS_DB_USER", "your_supabase_db_user" },
-                { "BMS_DB_PASSWORD", "" }, // Will be set separately for security
-                { "BMS_DB_SERVER", "your_supabase_pooler_host" },
                 { "BMS_DB_PORT", "5432" },
                 { "BMS_DB_NAME", "postgres" }
             };
 
-            foreach (var envVar in requiredEnvVars)
+            foreach (var key in required)
             {
-                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVar.Key)))
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
                 {
-                    if (envVar.Key == "BMS_DB_PASSWORD")
+                    if (optional.TryGetValue(key, out var defaultValue))
                     {
-                        // For desktop deployment, you'll need to set this
-                        Console.WriteLine($"SECURITY WARNING: Environment variable '{envVar.Key}' is not set!");
-                        Console.WriteLine("Please set the database password using: ");
-                        Console.WriteLine($"  Windows: set {envVar.Key}=your_password");
-                        Console.WriteLine($"  Linux/Mac: export {envVar.Key}=your_password");
+                        Environment.SetEnvironmentVariable(key, defaultValue);
+                        Console.WriteLine($"Using default for {key}: {defaultValue}");
                     }
                     else
                     {
-                        Environment.SetEnvironmentVariable(envVar.Key, envVar.Value);
-                        Console.WriteLine($"Set default environment variable: {envVar.Key}");
+                        Console.WriteLine($"SECURITY WARNING: Required environment variable '{key}' is not set!");
+                        Console.WriteLine($"  Linux/Mac: export {key}=your_value");
+                        Console.WriteLine($"  Windows:   set {key}=your_value");
                     }
                 }
             }

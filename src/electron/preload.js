@@ -203,6 +203,6 @@ const electronAPI = {
     debug: () => "Preload script loaded successfully!"
 };
 
-window.electronAPI = electronAPI;
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
-console.log('✅ Preload script completed, electronAPI exposed to window');
+console.log('Preload script completed, electronAPI exposed via contextBridge');

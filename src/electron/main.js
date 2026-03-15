@@ -126,10 +126,10 @@ class BMSApp {
             y: centeredY,
             show: false,
             webPreferences: {
-                nodeIntegration: true,
-                contextIsolation: false,
+                nodeIntegration: false,
+                contextIsolation: true,
                 preload: path.join(__dirname, 'preload.js'),
-                webSecurity: false  // Allow external resources including images
+                webSecurity: true
             },
             // Kiosk mode settings (apply fullscreen/kiosk AFTER positioning to ensure correct monitor)
             frame: true,

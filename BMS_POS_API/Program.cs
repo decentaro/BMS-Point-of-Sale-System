@@ -67,12 +67,17 @@ builder.Services.AddScoped<ISupabaseBackupService, SupabaseBackupService>();
 builder.Services.AddHealthChecks()
     .AddNpgSql(secureConfig.ProcessConnectionString(builder.Configuration.GetConnectionString("DefaultConnection")!), name: "database");
 
-// Add CORS for Electron frontend
+// Add CORS for Electron frontend (localhost only - desktop app)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ElectronPolicy", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(origin =>
+              {
+                  if (string.IsNullOrEmpty(origin) || origin == "null") return true;
+                  var uri = new Uri(origin);
+                  return uri.Host == "localhost" || uri.Host == "127.0.0.1";
+              })
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -94,22 +99,22 @@ using (var scope = app.Services.CreateScope())
     
     if (!existingEmployees.Any())
     {
-        // Database is empty - create default manager account
+        // Database is empty - create default manager account with hashed PIN
+        var pinService = scope.ServiceProvider.GetRequiredService<IPinSecurityService>();
         var defaultManager = new BMS_POS_API.Models.Employee
         {
             EmployeeId = "0001",
-            Pin = "1234",
+            Pin = pinService.HashPin("1234"),
             Name = "Manager",
             Role = "Manager",
             IsManager = true,
             IsActive = true,
             CreatedDate = DateTime.UtcNow
         };
-        
+
         context.Employees.Add(defaultManager);
         context.SaveChanges();
-        Console.WriteLine("Created default manager account:");
-        Console.WriteLine("0001 = Manager (PIN: 1234)");
+        Console.WriteLine("Created default manager account (PIN is hashed). Change PIN immediately after first login.");
     }
     else
     {

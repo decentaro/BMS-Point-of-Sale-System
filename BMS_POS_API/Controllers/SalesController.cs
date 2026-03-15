@@ -64,6 +64,24 @@ namespace BMS_POS_API.Controllers
         [HttpPost]
         public async Task<ActionResult<Sale>> CreateSale(SaleCreateRequest request)
         {
+            if (request.Items == null || request.Items.Count == 0)
+                return BadRequest("Sale must contain at least one item.");
+            if (request.DiscountAmount < 0)
+                return BadRequest("Discount amount cannot be negative.");
+            if (request.DiscountAmount > request.Subtotal)
+                return BadRequest("Discount cannot exceed the subtotal.");
+            if (request.Total < 0)
+                return BadRequest("Total cannot be negative.");
+            if (request.AmountPaid < request.Total)
+                return BadRequest("Amount paid is less than the total.");
+            foreach (var item in request.Items)
+            {
+                if (item.Quantity <= 0)
+                    return BadRequest("Item quantity must be greater than zero.");
+                if (item.UnitPrice < 0)
+                    return BadRequest("Item unit price cannot be negative.");
+            }
+
             // Validate employee
             var employee = await _context.Employees.FindAsync(request.EmployeeId);
             if (employee == null)

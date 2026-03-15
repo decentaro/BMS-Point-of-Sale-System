@@ -1,3 +1,4 @@
+using BCrypt.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BMS_POS_API.Data;
@@ -21,8 +22,14 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/returns
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Return>>> GetReturns()
+        public async Task<ActionResult<IEnumerable<Return>>> GetReturns(
+            [FromQuery] int limit = 100,
+            [FromQuery] int offset = 0)
         {
+            if (limit > 500) limit = 500;
+            if (limit < 1) limit = 1;
+            if (offset < 0) offset = 0;
+
             return await _context.Returns
                 .Include(r => r.OriginalSale)
                 .Include(r => r.ProcessedByEmployee)
@@ -30,6 +37,8 @@ namespace BMS_POS_API.Controllers
                 .Include(r => r.ReturnItems)
                     .ThenInclude(ri => ri.Product)
                 .OrderByDescending(r => r.ReturnDate)
+                .Skip(offset)
+                .Take(limit)
                 .ToListAsync();
         }
 
@@ -102,9 +111,18 @@ namespace BMS_POS_API.Controllers
                         return BadRequest("Manager PIN is required for this return amount.");
                     }
 
-                    approvingManager = await _context.Employees
-                        .FirstOrDefaultAsync(e => e.Pin == request.ManagerPin && 
-                            (e.Role == "Manager" || e.IsManager == true));
+                    // Load managers and verify PIN with hashing support (never compare PIN in SQL)
+                    var managers = await _context.Employees
+                        .Where(e => (e.Role == "Manager" || e.IsManager == true) && e.IsActive)
+                        .ToListAsync();
+
+                    foreach (var m in managers)
+                    {
+                        bool isLegacy = !m.Pin.StartsWith("$2");
+                        bool pinMatch = isLegacy ? m.Pin == request.ManagerPin
+                                                 : BCrypt.Net.BCrypt.Verify(request.ManagerPin, m.Pin);
+                        if (pinMatch) { approvingManager = m; break; }
+                    }
 
                     if (approvingManager == null)
                     {

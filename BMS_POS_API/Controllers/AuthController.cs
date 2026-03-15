@@ -51,25 +51,15 @@ namespace BMS_POS_API.Controllers
                 ));
             }
 
-            Console.WriteLine($"Login attempt - Employee ID: {request.EmployeeId}, Selected Role: {request.SelectedRole}");
-            
             try
             {
-                // First, find the employee by ID (don't check PIN in query)
                 var employee = await _context.Employees
                     .FirstOrDefaultAsync(e => e.EmployeeId == request.EmployeeId && e.IsActive);
 
-                // Check if employee exists and verify PIN (with backward compatibility)
                 if (employee == null)
                 {
-                    Console.WriteLine($"Employee not found for Employee ID: {request.EmployeeId}");
-                    
-                    // Log failed login attempt
                     await LogFailedLoginAttempt(request.EmployeeId, "Employee not found", null);
-                    
-                    // Log business metric
                     await _metricsService.LogLoginAttempt(request.EmployeeId, false, "Employee not found");
-                    
                     return Unauthorized(ApiResponse<LoginResponse>.ErrorResponse(
                         AuthErrorMessages.EMPLOYEE_NOT_FOUND,
                         AuthErrorCodes.EMPLOYEE_NOT_FOUND
@@ -78,40 +68,25 @@ namespace BMS_POS_API.Controllers
 
                 if (!IsValidPin(employee.Pin, request.Pin))
                 {
-                    Console.WriteLine($"Wrong PIN for Employee ID: {request.EmployeeId}");
-                    
-                    // Log failed login attempt
                     await LogFailedLoginAttempt(request.EmployeeId, "Invalid PIN", employee.Id);
-                    
-                    // Log business metric
                     await _metricsService.LogLoginAttempt(request.EmployeeId, false, "Invalid PIN");
-                    
                     return Unauthorized(ApiResponse<LoginResponse>.ErrorResponse(
                         AuthErrorMessages.INVALID_PIN,
                         AuthErrorCodes.INVALID_PIN
                     ));
                 }
 
-                // Check role validation if selectedRole is provided
                 if (!string.IsNullOrEmpty(request.SelectedRole))
                 {
                     var employeeRole = employee.Role ?? (employee.IsManager ? "Manager" : "Cashier");
-                    Console.WriteLine($"Role validation - Employee role: {employeeRole}, Selected role: {request.SelectedRole}");
-                    
                     if (!employeeRole.Equals(request.SelectedRole, StringComparison.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine("Role mismatch detected");
-                        
-                        // Log failed login attempt due to role mismatch
                         await LogFailedLoginAttempt(
-                            request.EmployeeId, 
-                            $"Role mismatch - Employee: {employeeRole}, Selected: {request.SelectedRole}", 
+                            request.EmployeeId,
+                            $"Role mismatch - Employee: {employeeRole}, Selected: {request.SelectedRole}",
                             employee.Id
                         );
-                        
-                        // Log business metric
                         await _metricsService.LogLoginAttempt(request.EmployeeId, false, $"Role mismatch: {employeeRole} vs {request.SelectedRole}");
-                        
                         return Unauthorized(ApiResponse<LoginResponse>.ErrorResponse(
                             $"You are registered as a {employeeRole}. Please select '{employeeRole}' and try again.",
                             AuthErrorCodes.ROLE_MISMATCH
@@ -227,16 +202,13 @@ namespace BMS_POS_API.Controllers
                 
                 if (employee != null)
                 {
-                    // Hash the PIN and update database
                     employee.Pin = _pinSecurityService.HashPin(providedPin);
                     await separateContext.SaveChangesAsync();
-                    
-                    Console.WriteLine($"Upgraded legacy PIN for employee: {employee.EmployeeId}");
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error upgrading legacy PIN: {ex.Message}");
+                // Upgrade failure is non-fatal; PIN still works as legacy on next login
             }
         }
 
