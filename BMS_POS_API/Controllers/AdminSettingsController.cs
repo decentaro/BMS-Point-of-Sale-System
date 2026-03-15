@@ -5,6 +5,7 @@ using BMS_POS_API.Data;
 using BMS_POS_API.Models;
 using BMS_POS_API.Services;
 using Serilog;
+using BCrypt.Net;
 
 namespace BMS_POS_API.Controllers
 {
@@ -454,8 +455,30 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/AdminSettings/clear-database
         [HttpPost("clear-database")]
-        public async Task<ActionResult<ApiResponse<object>>> ClearDatabase()
+        public async Task<ActionResult<ApiResponse<object>>> ClearDatabase([FromBody] ClearDatabaseRequest request)
         {
+            // Require manager PIN as a second factor for this destructive operation
+            if (string.IsNullOrEmpty(request?.ManagerPin))
+            {
+                return BadRequest(new ApiResponse<object> { Success = false, Message = "Manager PIN is required to clear the database." });
+            }
+
+            var managers = await _context.Employees
+                .Where(e => (e.Role == "Manager" || e.IsManager == true) && e.IsActive)
+                .ToListAsync();
+
+            bool pinValid = managers.Any(m =>
+            {
+                bool isLegacy = !m.Pin.StartsWith("$2");
+                return isLegacy ? m.Pin == request.ManagerPin
+                                : BCrypt.Net.BCrypt.Verify(request.ManagerPin, m.Pin);
+            });
+
+            if (!pinValid)
+            {
+                return Unauthorized(new ApiResponse<object> { Success = false, Message = "Invalid manager PIN." });
+            }
+
             try
             {
                 _logger.LogInformation("Starting complete database clear");
@@ -629,5 +652,10 @@ namespace BMS_POS_API.Controllers
                 return false;
             }
         }
+    }
+
+    public class ClearDatabaseRequest
+    {
+        public string? ManagerPin { get; set; }
     }
 }

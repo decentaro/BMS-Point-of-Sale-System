@@ -132,11 +132,8 @@ const POS: React.FC = () => {
 
   // Validate manager PIN for discount approval
   const validateManagerPin = async (pin: string) => {
-    console.log('Validating manager PIN:', pin)
     try {
-      // Find a manager in the system to validate PIN against
       const response = await (window as any).electronAPI.validateManagerPin(pin)
-      console.log('Manager PIN validation response:', response)
       
       if (response.success) {
         // PIN is valid, apply the pending discount
@@ -286,7 +283,6 @@ const POS: React.FC = () => {
     try {
       const product = await ApiClient.getJson(`/products/barcode/${encodeURIComponent(barcode)}`)
       addToCart(product)
-      console.log(`Product added: ${product.name}`)
     } catch (err) {
       console.error('Error searching by barcode:', err)
       alert(`Product with barcode "${barcode}" not found`)
@@ -414,9 +410,6 @@ const POS: React.FC = () => {
       SessionManager.extendForBusinessAction('Sale completed')
       
       // Check if receipt preview is enabled
-      console.log('SystemSettings:', systemSettings)
-      console.log('Show receipt preview?', systemSettings?.showReceiptPreview)
-      
       if (systemSettings?.showReceiptPreview) {
         // Get current user for cashier name
         // session is already defined above
@@ -811,7 +804,6 @@ const POS: React.FC = () => {
         masked={kbTarget === 'managerPin'}
         onSubmit={applyKb} 
         onClose={() => {
-          console.log('Closing keyboard modal')
           setKbOpen(false)
         }} 
       />

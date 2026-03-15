@@ -61,11 +61,8 @@ const Employees: React.FC = () => {
   }
 
   const applyKb = async (val: string) => {
-    console.log('applyKb called with value:', val, 'isResettingPin:', isResettingPin)
-    
     if (isResettingPin) {
       // Handle PIN reset
-      console.log('Handling PIN reset, value length:', val.length)
       if (!val || val.length < 4 || val.length > 6 || !/^\d+$/.test(val)) {
         alert('PIN must be 4-6 digits')
         setKbOpen(false)
@@ -76,13 +73,11 @@ const Employees: React.FC = () => {
       try {
         const employee = employees.find(emp => emp.id === selectedEmployee)
         if (!employee) {
-          console.log('No employee found for selectedEmployee:', selectedEmployee)
           setKbOpen(false)
           setIsResettingPin(false)
           return
         }
 
-        console.log('Updating employee PIN for:', employee.name)
         const updatedEmployee = {
           ...employee,
           pin: val
@@ -90,7 +85,6 @@ const Employees: React.FC = () => {
 
         await ApiClient.put(`/employees/${selectedEmployee}`, updatedEmployee)
 
-        console.log('PIN reset successful, reloading employees')
         await loadEmployees() // Refresh the list
         setForm(prev => ({ ...prev, pin: val })) // Update form to show new PIN
         alert('PIN reset successfully')
@@ -114,7 +108,6 @@ const Employees: React.FC = () => {
     try {
       setLoading(true)
       const data = await ApiClient.getEmployees(showInactive)
-      console.log('Loaded employees:', data)
       setEmployees(data)
       setError(null)
     } catch (err) {
@@ -176,7 +169,6 @@ const Employees: React.FC = () => {
 
       await loadEmployees() // Refresh the list
       clearForm() // Clear the form
-      console.log('Employee created successfully')
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to create employee')
       console.error('Error creating employee:', err)

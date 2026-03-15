@@ -91,12 +91,7 @@ export const generateTextReceipt = (saleData: any, settings: SystemSettings) => 
     formatTime(new Date())
 
   let receipt = ''
-  
-  // DEBUG: Log which template is being used
-  console.log('🔥 RECEIPT DEBUG - Template:', settings.receiptTemplateLayout)
-  console.log('🔥 RECEIPT DEBUG - Logo path:', settings.businessLogoPath)
-  console.log('🔥 RECEIPT DEBUG - Show barcode:', settings.showReceiptBarcode)
-  
+
   // Switch based on receipt template layout (matching SharedReceiptRenderer)
   switch (settings.receiptTemplateLayout) {
     case 'Compact':

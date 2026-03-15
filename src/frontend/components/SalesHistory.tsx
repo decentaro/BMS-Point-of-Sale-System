@@ -196,7 +196,6 @@ const SalesHistory: React.FC = () => {
         const data = await ApiClient.getSettings<any>('tax')
         setTaxSettings(data)
       } catch (error) {
-        console.log('Tax settings not found')
         // Use default settings if none found
         setTaxSettings({
           enableTax: true,

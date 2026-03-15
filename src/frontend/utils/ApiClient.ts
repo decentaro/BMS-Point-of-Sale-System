@@ -170,11 +170,6 @@ class ApiClient {
           throw lastError
         }
         
-        // Success
-        if (attempt > 1) {
-          console.log(`API request succeeded on attempt ${attempt}/${retryConfig.maxRetries + 1}`)
-        }
-        
         return response
         
       } catch (error) {

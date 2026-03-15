@@ -43,7 +43,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         businessName = taxSettings.businessName || ''
       } catch (error) {
         // Tax settings don't exist yet - this is normal for new setup
-        console.log('Tax settings not configured yet - using empty business name')
       }
 
       setBusinessSettings({

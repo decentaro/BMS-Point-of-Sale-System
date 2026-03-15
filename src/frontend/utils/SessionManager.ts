@@ -96,11 +96,7 @@ class SessionManager {
       session.expiresAt = now + newTimeout
       this.lastActivityTime = now
       sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session))
-      
-      console.log(`Session timeout updated: ${newTimeout / (60 * 1000)} minutes from now`)
-      console.log(`Current time: ${new Date(now).toLocaleTimeString()}`)
-      console.log(`Expires at: ${new Date(session.expiresAt).toLocaleTimeString()}`)
-      
+
       // Restart monitoring with new interval
       this.startActivityMonitoring()
     }
@@ -192,8 +188,6 @@ class SessionManager {
     this.warningShown = false // Reset warning when session is extended
     
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session))
-    console.log(`Session manually extended: ${timeout / (60 * 1000)} minutes from now`)
-    console.log(`New expiry time: ${new Date(session.expiresAt).toLocaleTimeString()}`)
     return true
   }
 
@@ -204,17 +198,15 @@ class SessionManager {
   static async extendForBusinessAction(action: string): Promise<boolean> {
     const session = this.getCurrentSession()
     if (!session) return false
-    
+
     const now = Date.now()
     const timeout = await this.getSessionTimeout()
     session.lastActivity = now
     session.expiresAt = now + timeout
     this.lastActivityTime = now
     this.warningShown = false // Reset warning when session is extended
-    
+
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session))
-    console.log(`Session extended for business action: ${action}`)
-    console.log(`New expiry time: ${new Date(session.expiresAt).toLocaleTimeString()}`)
     return true
   }
 
@@ -356,8 +348,6 @@ class SessionManager {
       const sessionTimeLeft = session.expiresAt - now
       const warningThreshold = await this.getWarningThreshold()
       
-      console.log(`Session check: ${Math.floor(sessionTimeLeft / 1000)}s left, warning at ${Math.floor(warningThreshold / 1000)}s`)
-      
       // SessionStatus component handles warnings - don't show here
       // if (sessionTimeLeft <= warningThreshold && !this.warningShown) {
       //   console.log('Showing expiry warning')
@@ -367,7 +357,6 @@ class SessionManager {
       
       // Auto-logout if session expired
       if (sessionTimeLeft <= 0) {
-        console.log('Session expired - logging out')
         this.handleSessionExpiry()
         return
       }

@@ -190,6 +190,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/auth/validate-manager
         [HttpPost("validate-manager")]
+        [EnableRateLimiting("auth")]
         public async Task<ActionResult<ValidateManagerResponse>> ValidateManager(ValidateManagerRequest request)
         {
             // Find managers and verify PIN with hashing support

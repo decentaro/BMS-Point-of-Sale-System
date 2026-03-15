@@ -455,3 +455,6 @@ logs/
 # Development artifacts
 .vscode/settings.json
 .idea/
+
+# Installation scripts
+dotnet-install.sh
