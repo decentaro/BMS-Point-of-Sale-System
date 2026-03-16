@@ -1,9 +1,12 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  Package, Search, ScanBarcode, Plus, Save, Trash2,
+  X, ChevronDown, Tag, AlertTriangle, Edit2
+} from 'lucide-react'
 import { Button } from './ui/button'
 import HybridInput from './HybridInput'
 import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
-import { Card, CardContent } from './ui/card'
 import { formatCurrency } from '../utils/formatCurrency'
 import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
@@ -58,7 +61,7 @@ const Inventory: React.FC = () => {
   // State management
   const [products, setProducts] = React.useState<Product[]>([])
   const [loading, setLoading] = React.useState<boolean>(true)
-  const [systemSettings, setSystemSettings] = React.useState<SystemSettings | null>(null)
+  const [, setSystemSettings] = React.useState<SystemSettings | null>(null)
   const [availableCategories, setAvailableCategories] = React.useState<string[]>([])
   const [selectedCategoryFilter, setSelectedCategoryFilter] = React.useState<string>('')
   
@@ -284,22 +287,6 @@ const Inventory: React.FC = () => {
     }
   }
 
-  // Get user context for API headers
-  const getUserHeaders = () => {
-    const currentUser = sessionStorage.getItem('currentUser')
-    if (currentUser) {
-      const user = JSON.parse(currentUser)
-      return {
-        'X-User-Id': user.id?.toString() || '0',
-        'X-User-Name': user.name || user.employeeId || 'Unknown'
-      }
-    }
-    return {
-      'X-User-Id': '0',
-      'X-User-Name': 'Unknown'
-    }
-  }
-
   // Product action handlers
   const handleAdd = async () => {
     try {
@@ -446,392 +433,399 @@ const Inventory: React.FC = () => {
     return filtered
   }, [products, form.search, selectedCategoryFilter])
 
+  const inputCls = 'w-full h-8 px-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
+  const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+    <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">{children}</label>
+  )
+
+  const stockStatus = (p: Product) => {
+    if (p.stockQuantity === 0)                     return { label: 'Out of Stock', cls: 'bg-red-100 text-red-700' }
+    if (p.stockQuantity <= p.minStockLevel)        return { label: 'Low Stock',    cls: 'bg-amber-100 text-amber-700' }
+    return                                                { label: `Qty: ${p.stockQuantity}`, cls: 'bg-emerald-100 text-emerald-700' }
+  }
+
   return (
     <SessionGuard requiredPermission="inventory.view">
       <div className="w-full h-full flex flex-col bg-white overflow-hidden">
-      <PageHeader
-        title="Inventory"
-        subtitle="Manage products"
-        onBack={goBack}
-        right={<SessionStatus />}
-      />
+        <PageHeader
+          title="Inventory"
+          subtitle="Manage products"
+          onBack={goBack}
+          right={<SessionStatus />}
+        />
 
-      {/* Body: split panel like Employees */}
-      <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
-        <div className="h-full flex gap-2">
-          {/* Left: product list & filters inside white container */}
-          <div className="h-full flex flex-col bg-white rounded-lg shadow-sm min-h-0 flex-[2] min-w-96">
-            <div className="sticky top-0 z-10 p-1 bg-white">
-              <div className="grid grid-cols-[1fr_auto] gap-1 mb-1">
-                <HybridInput 
-                  placeholder="Search products..." 
-                  className="w-full h-8 px-2 text-sm border rounded" 
-                  value={form.search} 
-                  onChange={(value) => setForm({...form, search: value})}
-                  onTouchKeyboard={() => openKb('search', 'qwerty', 'Search Products')} 
-                />
-                <select 
-                  className="h-8 px-2 text-xs border rounded"
-                  value={selectedCategoryFilter}
-                  onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                >
-                  <option value="">All categories</option>
-                  {availableCategories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="text-[10px] text-slate-500 px-1">
-                {loading ? 'Loading...' : `${filteredProducts.length} products`}
-              </div>
-            </div>
-            {/* Full-height scrollable grid of product cards (2 columns) */}
-            <div className="flex-1 overflow-y-auto p-1 min-h-0">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-1" style={{gridAutoRows: 'max-content'}}>
-                {loading ? (
-                  <div className="col-span-full text-center py-8 text-sm text-slate-500">Loading products...</div>
-                ) : filteredProducts.length === 0 ? (
-                  <div className="col-span-full text-center py-8 text-sm text-slate-500">
-                    {form.search ? 'No products found matching your search.' : 'No products available.'}
+        <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
+          <div className="h-full flex gap-2">
+
+            {/* ── Left: product list ── */}
+            <div className="h-full flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm min-h-0 flex-[2] min-w-96">
+
+              {/* List header */}
+              <div className="p-2 border-b border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-100">
+                      <Package className="w-3.5 h-3.5 text-emerald-600" />
+                    </span>
+                    <span className="text-sm font-semibold text-slate-700">Products</span>
                   </div>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      className={`rounded-md bg-white hover:shadow-sm transition text-left overflow-hidden border relative group cursor-pointer h-32 sm:h-36 md:h-40 lg:h-32 xl:h-36 ${
-                        selectedProduct === product.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'
-                      }`}
-                      onClick={() => viewProduct(product)}
-                    >
-                      {/* Action buttons (appear on hover) */}
-                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            selectProduct(product)
-                          }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-2 py-1 rounded shadow"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                      
-                      {/* Image placeholder */}
-                      <div className="w-full h-18 sm:h-22 md:h-26 lg:h-18 xl:h-22 bg-slate-100 flex items-center justify-center overflow-hidden">
-                        {product.imageUrl && product.imageUrl.trim() !== '' ? (
-                          <img 
-                            src={product.imageUrl} 
-                            alt={product.name} 
-                            className="max-w-full max-h-full object-contain" 
-                            onLoad={() => console.log(`Image loaded for ${product.name}:`, product.imageUrl)}
-                            onError={(e) => {
-                              console.log(`Image failed to load for ${product.name}:`, product.imageUrl)
-                              e.currentTarget.style.display = 'none'
-                              e.currentTarget.nextElementSibling!.style.display = 'flex'
-                            }}
-                          />
-                        ) : (console.log(`No image URL for ${product.name}:`, product.imageUrl), null)}
-                        <div className="text-[10px] text-slate-400 text-center" style={{display: product.imageUrl && product.imageUrl.trim() !== '' ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%'}}>
-                          Image
-                        </div>
-                      </div>
-                      <div className="p-1.5 flex-1 flex flex-col justify-between">
-                        <div className="text-xs font-medium text-slate-900 line-clamp-2 leading-tight" title={product.name}>{product.name}</div>
-                        <div className="flex justify-between items-end mt-auto">
-                          <div className="text-[10px] text-slate-600">{formatCurrency(product.price)}</div>
-                          <div className={`text-[10px] ${product.stockQuantity === 0 ? 'text-red-600 font-semibold' : product.stockQuantity <= product.minStockLevel ? 'text-orange-600 font-semibold' : 'text-slate-600'}`}>
-                            {product.stockQuantity === 0 ? 'Out of Stock' : product.stockQuantity <= product.minStockLevel ? 'Low Stock' : `Qty: ${product.stockQuantity}`}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right: product form inside white container */}
-          <div className="overflow-hidden bg-white rounded-lg shadow-sm flex flex-col flex-1 w-full lg:w-96">
-            {/* Scrollable fields */}
-            <div className="p-2 flex-1 overflow-y-auto max-h-[calc(100%-60px)]">
-              <form className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                {/* Barcode first (full width) */}
-                <div className="col-span-full">
-                  <label className="text-[10px] font-semibold">Barcode</label>
-                  <div className="flex gap-1">
-                    <HybridInput 
-                      className="flex-1 h-8 px-2 text-xs border rounded" 
-                      placeholder="Scan or type barcode" 
-                      value={form.barcode} 
-                      onChange={(value) => setForm({...form, barcode: value})}
-                      onTouchKeyboard={() => openKb('barcode', 'qwerty', 'Barcode')} 
+                  <span className="text-xs text-slate-400 font-medium">
+                    {loading ? 'Loading…' : `${filteredProducts.length} shown`}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  {/* Search */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                    <HybridInput
+                      placeholder="Search products…"
+                      className="w-full h-8 pl-6 pr-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      value={form.search}
+                      onChange={(value) => setForm({...form, search: value})}
+                      onTouchKeyboard={() => openKb('search', 'qwerty', 'Search Products')}
                     />
-                    <Button 
-                      size="sm" 
-                      onClick={() => searchByBarcode(form.barcode)}
-                      disabled={!form.barcode.trim() || isSearching}
-                      className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
-                    >
-                      {isSearching ? (
-                        <div className="flex items-center gap-1">
-                          <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>Finding...</span>
-                        </div>
-                      ) : (
-                        'Find'
-                      )}
-                    </Button>
                   </div>
-                </div>
-
-                {/* Product Name | Variant / Size (side by side) */}
-                <div>
-                  <label className="text-[10px] font-semibold">Product Name</label>
-                  <HybridInput 
-                    className="w-full h-8 px-2 text-xs border rounded" 
-                    placeholder="Product name" 
-                    value={form.name} 
-                    onChange={(value) => setForm({...form, name: value})}
-                    onTouchKeyboard={() => openKb('name', 'qwerty', 'Product Name')} 
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold">Variant / Size</label>
-                  <HybridInput 
-                    className="w-full h-8 px-2 text-xs border rounded" 
-                    placeholder="e.g. 500ml, Large, 16GB" 
-                    value={form.variant} 
-                    onChange={(value) => setForm({...form, variant: value})}
-                    onTouchKeyboard={() => openKb('variant', 'qwerty', 'Variant / Size')} 
-                  />
-                </div>
-
-                {/* Brand and Category */}
-                <div>
-                  <label className="text-[10px] font-semibold">Brand</label>
-                  <HybridInput 
-                    className="w-full h-8 px-2 text-xs border rounded" 
-                    placeholder="Brand" 
-                    value={form.brand} 
-                    onChange={(value) => setForm({...form, brand: value})}
-                    onTouchKeyboard={() => openKb('brand', 'qwerty', 'Brand')} 
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold">Category</label>
-                  {availableCategories.length > 0 ? (
-                    <select 
-                      className="w-full h-8 px-2 text-xs border rounded"
-                      value={form.category}
-                      onChange={(e) => setForm({...form, category: e.target.value})}
+                  {/* Category filter */}
+                  <div className="relative">
+                    <select
+                      className="h-8 pl-2 pr-6 text-xs border border-slate-200 rounded-lg appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      value={selectedCategoryFilter}
+                      onChange={(e) => setSelectedCategoryFilter(e.target.value)}
                     >
-                      <option value="">Select category...</option>
-                      {availableCategories.map(category => (
-                        <option key={category} value={category}>{category}</option>
+                      <option value="">All</option>
+                      {availableCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
+                    <Tag className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Product grid */}
+              <div className="flex-1 overflow-y-auto p-1.5 min-h-0">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-1.5" style={{gridAutoRows: 'max-content'}}>
+                  {loading ? (
+                    <div className="col-span-full flex flex-col items-center py-10 gap-2 text-slate-400">
+                      <Package className="w-8 h-8 opacity-30" />
+                      <span className="text-sm">Loading products…</span>
+                    </div>
+                  ) : filteredProducts.length === 0 ? (
+                    <div className="col-span-full flex flex-col items-center py-10 gap-2 text-slate-400">
+                      <Package className="w-8 h-8 opacity-30" />
+                      <span className="text-sm">{form.search ? 'No products match your search.' : 'No products available.'}</span>
+                    </div>
                   ) : (
-                    <HybridInput 
-                      className="w-full h-8 px-2 text-xs border rounded" 
-                      placeholder="Category (set up categories in System Settings)" 
-                      value={form.category} 
-                      onChange={(value) => setForm({...form, category: value})}
-                      onTouchKeyboard={() => openKb('category', 'qwerty', 'Category')} 
-                    />
+                    filteredProducts.map((product) => {
+                      const ss = stockStatus(product)
+                      const isSelected = selectedProduct === product.id
+                      return (
+                        <div
+                          key={product.id}
+                          className={`rounded-lg bg-white transition text-left overflow-hidden border relative group cursor-pointer h-32 sm:h-36 lg:h-32 xl:h-36 flex flex-col ${
+                            isSelected
+                              ? 'border-emerald-500 ring-2 ring-emerald-200 shadow-sm'
+                              : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                          }`}
+                          onClick={() => viewProduct(product)}
+                        >
+                          {/* Edit button on hover */}
+                          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); selectProduct(product) }}
+                              className="inline-flex items-center gap-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded shadow"
+                            >
+                              <Edit2 className="w-2.5 h-2.5" />Edit
+                            </button>
+                          </div>
+
+                          {/* Image area */}
+                          <div className="w-full flex-1 bg-slate-50 flex items-center justify-center overflow-hidden">
+                            {product.imageUrl && product.imageUrl.trim() !== '' ? (
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="max-w-full max-h-full object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  const sib = e.currentTarget.nextElementSibling as HTMLElement | null
+                                  if (sib) sib.style.display = 'flex'
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className="w-full h-full items-center justify-center"
+                              style={{ display: product.imageUrl && product.imageUrl.trim() !== '' ? 'none' : 'flex' }}
+                            >
+                              <Package className="w-8 h-8 text-slate-200" />
+                            </div>
+                          </div>
+
+                          {/* Info footer */}
+                          <div className="p-1.5 border-t border-slate-100 flex flex-col gap-0.5">
+                            <p className="text-[10px] font-semibold text-slate-800 line-clamp-1 leading-tight" title={product.name}>{product.name}</p>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-emerald-700">{formatCurrency(product.price)}</span>
+                              <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${ss.cls}`}>{ss.label}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Right: product form ── */}
+            <div className="overflow-hidden bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col flex-1 w-full lg:w-96">
+
+              {/* Form header */}
+              <div className="px-3 pt-3 pb-2 border-b border-slate-100 flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-100">
+                  <Package className="w-4 h-4 text-emerald-600" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {isEditing ? `Edit: ${form.name || 'Product'}` : 'Add New Product'}
+                  </p>
+                  <p className="text-xs text-slate-400">{isEditing ? 'Update product details below' : 'Fill in details to add a product'}</p>
+                </div>
+              </div>
+
+              {/* Scrollable fields */}
+              <div className="p-2 flex-1 overflow-y-auto">
+                <form className="grid grid-cols-1 md:grid-cols-2 gap-2">
+
+                  {/* Barcode */}
+                  <div className="col-span-full">
+                    <FieldLabel>Barcode</FieldLabel>
+                    <div className="flex gap-1">
+                      <div className="relative flex-1">
+                        <ScanBarcode className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                        <HybridInput
+                          className="w-full h-8 pl-6 pr-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          placeholder="Scan or type barcode"
+                          value={form.barcode}
+                          onChange={(value) => setForm({...form, barcode: value})}
+                          onTouchKeyboard={() => openKb('barcode', 'qwerty', 'Barcode')}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => searchByBarcode(form.barcode)}
+                        disabled={!form.barcode.trim() || isSearching}
+                        className="h-8 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 gap-1"
+                      >
+                        {isSearching ? (
+                          <><div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />Finding…</>
+                        ) : (
+                          <><Search className="w-3 h-3" />Find</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Name + Variant */}
+                  <div>
+                    <FieldLabel>Product Name</FieldLabel>
+                    <HybridInput className={inputCls} placeholder="Product name" value={form.name}
+                      onChange={(v) => setForm({...form, name: v})} onTouchKeyboard={() => openKb('name', 'qwerty', 'Product Name')} />
+                  </div>
+                  <div>
+                    <FieldLabel>Variant / Size</FieldLabel>
+                    <HybridInput className={inputCls} placeholder="e.g. 500ml, Large" value={form.variant}
+                      onChange={(v) => setForm({...form, variant: v})} onTouchKeyboard={() => openKb('variant', 'qwerty', 'Variant / Size')} />
+                  </div>
+
+                  {/* Brand + Category */}
+                  <div>
+                    <FieldLabel>Brand</FieldLabel>
+                    <HybridInput className={inputCls} placeholder="Brand" value={form.brand}
+                      onChange={(v) => setForm({...form, brand: v})} onTouchKeyboard={() => openKb('brand', 'qwerty', 'Brand')} />
+                  </div>
+                  <div>
+                    <FieldLabel>Category</FieldLabel>
+                    {availableCategories.length > 0 ? (
+                      <div className="relative">
+                        <select
+                          className={`${inputCls} appearance-none pr-6`}
+                          value={form.category}
+                          onChange={(e) => setForm({...form, category: e.target.value})}
+                        >
+                          <option value="">Select category…</option>
+                          {availableCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                      </div>
+                    ) : (
+                      <HybridInput className={inputCls} placeholder="Category" value={form.category}
+                        onChange={(v) => setForm({...form, category: v})} onTouchKeyboard={() => openKb('category', 'qwerty', 'Category')} />
+                    )}
+                  </div>
+
+                  {/* Qty + Low Stock */}
+                  <div>
+                    <FieldLabel>Quantity</FieldLabel>
+                    <HybridInput type="decimal" className={inputCls} placeholder="0" value={form.qty}
+                      onChange={(v) => setForm({...form, qty: v})} onTouchKeyboard={() => openKb('qty', 'decimal', 'Quantity')} />
+                  </div>
+                  <div>
+                    <FieldLabel>Low Stock Alert</FieldLabel>
+                    <HybridInput type="decimal" className={inputCls} placeholder="5" value={form.low}
+                      onChange={(v) => setForm({...form, low: v})} onTouchKeyboard={() => openKb('low', 'decimal', 'Low Stock Alert')} />
+                  </div>
+
+                  {/* Cost + Price */}
+                  <div>
+                    <FieldLabel>Cost Price</FieldLabel>
+                    <HybridInput type="decimal" className={inputCls} placeholder="0.00" value={form.cost}
+                      onChange={(v) => setForm({...form, cost: v})} onTouchKeyboard={() => openKb('cost', 'decimal', 'Cost Price')} />
+                  </div>
+                  <div>
+                    <FieldLabel>Selling Price</FieldLabel>
+                    <HybridInput type="decimal" className={inputCls} placeholder="0.00" value={form.price}
+                      onChange={(v) => setForm({...form, price: v})} onTouchKeyboard={() => openKb('price', 'decimal', 'Selling Price')} />
+                  </div>
+
+                  {/* UPC image preview */}
+                  {upcImageUrl && (
+                    <div className="col-span-full">
+                      <FieldLabel>Product Image Preview</FieldLabel>
+                      <div className="w-full h-20 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden">
+                        <img
+                          src={upcImageUrl}
+                          alt="Product preview"
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => {
+                            const placeholder = `https://via.placeholder.com/200x200/f1f5f9/64748b?text=${encodeURIComponent(form.name || 'Product')}`
+                            e.currentTarget.src = placeholder
+                            setUpcImageUrl(placeholder)
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </form>
+              </div>
+
+              {/* Fixed action bar */}
+              <div className="px-2 py-2 border-t border-slate-100 bg-white flex gap-1.5 flex-shrink-0">
+                <Button size="sm" onClick={handleAdd} disabled={isEditing}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs">
+                  <Plus className="w-3.5 h-3.5" />Add
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={!isEditing || selectedProduct === null}
+                  className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,24%)] text-white gap-1 text-xs">
+                  <Save className="w-3.5 h-3.5" />{isEditing ? 'Save Changes' : 'Save'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDelete} disabled={selectedProduct === null}
+                  className="border-red-300 text-red-600 hover:bg-red-50 gap-1 text-xs">
+                  <Trash2 className="w-3.5 h-3.5" />Delete
+                </Button>
+                <Button variant="outline" size="sm" onClick={clearForm}
+                  className="border-slate-300 text-slate-600 hover:bg-slate-50 gap-1 text-xs">
+                  <X className="w-3.5 h-3.5" />Clear
+                </Button>
+              </div>
+            </div>
+
+            <ModalKeyboard open={kbOpen} type={kbType} title={kbTitle} initialValue={form[kbTarget] || ''} onSubmit={applyKb} onClose={() => setKbOpen(false)} />
+          </div>
+        </main>
+
+        {/* Product Detail Modal */}
+        {viewingProduct && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={closeProductModal} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-auto">
+
+              {/* Modal header */}
+              <div className="bg-[hsl(215,65%,30%)] px-4 py-3 flex items-center justify-between rounded-t-xl">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white/20">
+                    <Package className="w-4 h-4 text-white" />
+                  </span>
+                  <span className="text-white font-semibold text-sm">Product Details</span>
+                </div>
+                <button onClick={closeProductModal} className="text-white/70 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4">
+                {/* Image */}
+                <div className="w-full h-44 bg-slate-50 border border-slate-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
+                  {viewingProduct.imageUrl && viewingProduct.imageUrl.trim() !== '' ? (
+                    <img src={viewingProduct.imageUrl} alt={viewingProduct.name} className="max-w-full max-h-full object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-slate-300">
+                      <Package className="w-10 h-10" />
+                      <span className="text-xs">No Image</span>
+                    </div>
                   )}
                 </div>
 
-                {/* Quantity and Low Stock Alert */}
-                <div>
-                  <label className="text-[10px] font-semibold">Quantity</label>
-                  <HybridInput 
-                    type="decimal"
-                    className="w-full h-8 px-2 text-xs border rounded" 
-                    placeholder="0" 
-                    value={form.qty} 
-                    onChange={(value) => setForm({...form, qty: value})}
-                    onTouchKeyboard={() => openKb('qty', 'decimal', 'Quantity')} 
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold">Low Stock Alert</label>
-                  <HybridInput 
-                    type="decimal"
-                    className="w-full h-8 px-2 text-xs border rounded" 
-                    placeholder="5" 
-                    value={form.low} 
-                    onChange={(value) => setForm({...form, low: value})}
-                    onTouchKeyboard={() => openKb('low', 'decimal', 'Low Stock Alert')} 
-                  />
+                {/* Name + description */}
+                <div className="mb-3">
+                  <h3 className="font-semibold text-slate-900">{viewingProduct.name}</h3>
+                  {viewingProduct.description && <p className="text-xs text-slate-500 mt-0.5">{viewingProduct.description}</p>}
                 </div>
 
-                {/* Cost Price and Selling Price */}
-                <div>
-                  <label className="text-[10px] font-semibold">Cost Price</label>
-                  <HybridInput 
-                    type="decimal"
-                    className="w-full h-8 px-2 text-xs border rounded" 
-                    placeholder="0.00" 
-                    value={form.cost} 
-                    onChange={(value) => setForm({...form, cost: value})}
-                    onTouchKeyboard={() => openKb('cost', 'decimal', 'Cost Price')} 
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold">Selling Price</label>
-                  <HybridInput 
-                    type="decimal"
-                    className="w-full h-8 px-2 text-xs border rounded" 
-                    placeholder="0.00" 
-                    value={form.price} 
-                    onChange={(value) => setForm({...form, price: value})}
-                    onTouchKeyboard={() => openKb('price', 'decimal', 'Selling Price')} 
-                  />
-                </div>
-
-                {/* UPC Image Preview */}
-                {upcImageUrl && (
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-semibold">Product Image Preview</label>
-                    <div className="w-full h-20 bg-slate-100 border rounded flex items-center justify-center overflow-hidden">
-                      <img 
-                        src={upcImageUrl} 
-                        alt="Product preview" 
-                        className="max-w-full max-h-full object-contain"
-                        onError={(e) => {
-                          console.log('UPC image failed to load:', upcImageUrl)
-                          // Try to use a placeholder or default image
-                          const placeholder = `https://via.placeholder.com/200x200/f1f5f9/64748b?text=${encodeURIComponent(form.name || 'Product')}`
-                          console.log('Trying placeholder:', placeholder)
-                          e.currentTarget.src = placeholder
-                          setUpcImageUrl(placeholder)
-                        }}
-                        onLoad={() => console.log('UPC image loaded successfully:', upcImageUrl)}
-                      />
-                      <div className="text-[10px] text-slate-400" style={{display: 'none'}}>
-                        Image failed to load
-                      </div>
+                {/* Info grid */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    { label: 'Barcode',        value: <span className="font-mono text-xs">{viewingProduct.barcode}</span> },
+                    { label: 'Brand',           value: viewingProduct.brand || 'N/A' },
+                    { label: 'Category',        value: viewingProduct.category || 'N/A' },
+                    { label: 'Variant',         value: viewingProduct.variant || 'N/A' },
+                    { label: 'Selling Price',   value: <span className="font-semibold text-emerald-700">{formatCurrency(viewingProduct.price)}</span> },
+                    { label: 'Cost Price',      value: formatCurrency(viewingProduct.cost) },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                      <p className="text-[10px] text-slate-500 mb-0.5">{label}</p>
+                      <div className="text-xs text-slate-800">{value}</div>
                     </div>
-                  </div>
-                )}
-
-              </form>
-            </div>
-            {/* Fixed action bar */}
-            <div className="p-2 border-t bg-white flex gap-2 justify-end flex-shrink-0" style={{height: '60px', alignItems: 'center'}}>
-              <Button variant="outline" onClick={handleAdd} disabled={isEditing} size="sm" className="border-green-500 text-green-700 hover:bg-green-50">Add</Button>
-              <Button onClick={handleSave} disabled={!isEditing || selectedProduct === null} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                {isEditing ? 'Save Changes' : 'Save'}
-              </Button>
-              <Button variant="outline" onClick={handleDelete} disabled={selectedProduct === null} size="sm" className="border-red-500 text-red-700 hover:bg-red-50">Delete</Button>
-              <Button variant="outline" onClick={clearForm} size="sm" className="border-gray-500 text-gray-700 hover:bg-gray-50">Clear</Button>
-            </div>
-          </div>
-          <ModalKeyboard open={kbOpen} type={kbType} title={kbTitle} initialValue={form[kbTarget] || ''} onSubmit={applyKb} onClose={() => setKbOpen(false)} />
-        </div>
-      </main>
-
-      
-      {/* Product Detail Modal */}
-      {viewingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closeProductModal} />
-          <div className="relative bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-auto">
-            <div className="p-4">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Product Details</h2>
-                <button
-                  onClick={closeProductModal}
-                  className="text-slate-400 hover:text-slate-600 text-xl font-bold"
-                >
-                  ×
-                </button>
-              </div>
-              
-              {/* Product Image */}
-              <div className="w-full h-48 bg-slate-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
-                {viewingProduct.imageUrl && viewingProduct.imageUrl.trim() !== '' ? (
-                  <img 
-                    src={viewingProduct.imageUrl} 
-                    alt={viewingProduct.name} 
-                    className="max-w-full max-h-full object-contain"
-                  />
-                ) : (
-                  <div className="text-slate-400 text-sm">No Image Available</div>
-                )}
-              </div>
-              
-              {/* Product Information */}
-              <div className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-slate-900 mb-1">{viewingProduct.name}</h3>
-                  <p className="text-sm text-slate-600">{viewingProduct.description || 'No description available'}</p>
+                  ))}
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
+
+                {/* Stock status */}
+                <div className={`flex items-center gap-2 rounded-lg px-3 py-2 mb-4 ${
+                  viewingProduct.stockQuantity === 0 ? 'bg-red-50 border border-red-100' :
+                  viewingProduct.stockQuantity <= viewingProduct.minStockLevel ? 'bg-amber-50 border border-amber-100' :
+                  'bg-emerald-50 border border-emerald-100'
+                }`}>
+                  {viewingProduct.stockQuantity === 0 || viewingProduct.stockQuantity <= viewingProduct.minStockLevel
+                    ? <AlertTriangle className={`w-4 h-4 flex-shrink-0 ${viewingProduct.stockQuantity === 0 ? 'text-red-500' : 'text-amber-500'}`} />
+                    : <Package className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  }
                   <div>
-                    <span className="font-medium text-slate-700">Barcode:</span>
-                    <div className="text-slate-600">{viewingProduct.barcode}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700">Brand:</span>
-                    <div className="text-slate-600">{viewingProduct.brand || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700">Category:</span>
-                    <div className="text-slate-600">{viewingProduct.category || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700">Variant:</span>
-                    <div className="text-slate-600">{viewingProduct.variant || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700">Price:</span>
-                    <div className="text-slate-600 font-semibold">{formatCurrency(viewingProduct.price)}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700">Cost:</span>
-                    <div className="text-slate-600">{formatCurrency(viewingProduct.cost)}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700">Stock:</span>
-                    <div className={`font-medium ${viewingProduct.stockQuantity <= viewingProduct.minStockLevel ? 'text-red-600' : 'text-green-600'}`}>
-                      {viewingProduct.stockQuantity} {viewingProduct.unit}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700">Low Stock Alert:</span>
-                    <div className="text-slate-600">{viewingProduct.minStockLevel} {viewingProduct.unit}</div>
+                    <p className="text-xs font-semibold text-slate-700">
+                      {viewingProduct.stockQuantity} {viewingProduct.unit} in stock
+                    </p>
+                    <p className="text-[10px] text-slate-500">Low stock alert at {viewingProduct.minStockLevel} {viewingProduct.unit}</p>
                   </div>
                 </div>
-                
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-4 border-t">
-                  <Button 
-                    onClick={() => {
-                      selectProduct(viewingProduct)
-                      closeProductModal()
-                    }}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-3 border-t border-slate-100">
+                  <Button
+                    onClick={() => { selectProduct(viewingProduct); closeProductModal() }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
                   >
-                    Edit Product
+                    <Edit2 className="w-4 h-4" />Edit Product
                   </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={closeProductModal}
-                    className="flex-1"
-                  >
+                  <Button variant="outline" onClick={closeProductModal}
+                    className="flex-1 border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">
                     Close
                   </Button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-      
+        )}
       </div>
     </SessionGuard>
   )
