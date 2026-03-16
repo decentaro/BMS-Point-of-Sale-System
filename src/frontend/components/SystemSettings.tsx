@@ -11,6 +11,8 @@ import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
 import ApiClient from '../utils/ApiClient'
 import { clearDateFormatCache } from '../utils/dateFormat'
+import PageHeader from './ui/PageHeader'
+import { SectionLoader } from './ui/LoadingSpinner'
 
 // SystemSettings interface matching the API model
 interface SystemSettings {
@@ -150,42 +152,25 @@ const SystemSettings: React.FC = () => {
     navigate('/manager')
   }
 
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-gray-600">Loading system settings...</div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!settings) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-white">
-        <div className="text-center text-red-600">
-          Failed to load system settings
-        </div>
-      </div>
-    )
-  }
-
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-      {/* Header */}
-      <header className="h-14 px-4 border-b flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={goBack}>← Back</Button>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-emerald-600">System Settings</h1>
-          <p className="text-[10px] text-muted-foreground">Configure system preferences</p>
-        </div>
-        <SessionStatus />
-      </header>
+      <PageHeader
+        title="System Settings"
+        subtitle="Configure system preferences"
+        onBack={goBack}
+        right={<SessionStatus />}
+      />
 
       {/* Body */}
       <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+        {loading ? (
+          <SectionLoader message="Loading system settings..." />
+        ) : !settings ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-red-600 font-medium">Failed to load system settings</p>
+          </div>
+        ) : (
         <div className="pt-6">
           <div className="max-w-4xl mx-auto space-y-6">
           
@@ -861,6 +846,7 @@ const SystemSettings: React.FC = () => {
       )}
           </div>
         </div>
+        )}
       </main>
       </div>
     </SessionGuard>

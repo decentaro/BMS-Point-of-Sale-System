@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Package, Boxes, LogOut } from 'lucide-react'
 import { Button } from './ui/button'
 import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionGuard from './SessionGuard'
@@ -10,67 +11,61 @@ const InventoryDashboard: React.FC = () => {
   const navigate = useNavigate()
   const { businessSettings, loading } = useBusinessSettings()
 
-  // Get current user role from session
-  const session = SessionManager.getCurrentSession()
-  const userRole = session?.role || 'Inventory'
-
   return (
     <SessionGuard requiredRole="Inventory">
-      <div className="w-full h-full flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+      <div className="w-full h-full flex flex-col bg-slate-50">
         {/* Header */}
-        <header className="h-14 px-4 border-b flex items-center justify-between">
-          <Button 
-            variant="outline" 
-            size="sm" 
+        <header className="h-14 px-4 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
               SessionManager.clearSession()
               navigate('/login')
-            }} 
-            className="hover:bg-slate-50 text-red-600 border-red-300 hover:bg-red-50"
+            }}
+            className="gap-1.5 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
           >
+            <LogOut className="w-3.5 h-3.5" />
             Logout
           </Button>
+
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-emerald-600">
-              {loading ? 'Loading...' : (businessSettings.businessName || 'Business Name')}
+            <h1 className="text-2xl font-bold text-emerald-600 leading-tight">
+              {loading ? '—' : (businessSettings.businessName || 'Business Name')}
             </h1>
-            <p className="text-xs text-slate-600 font-medium">
-              Inventory Dashboard
-            </p>
+            <p className="text-[10px] text-slate-500 font-medium">Inventory Dashboard</p>
           </div>
+
           <SessionStatus />
         </header>
 
-        {/* Main content area */}
-        <main className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-6xl mx-auto space-y-6">
-            
-            {/* Main Actions Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              
-              {/* Basic Inventory */}
-              <Button
+        {/* Main content */}
+        <main className="flex-1 px-5 py-5 overflow-y-auto">
+          <div className="max-w-md mx-auto">
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-1">
+              Inventory Tools
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              <button
                 onClick={() => navigate('/inventory')}
-                className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
+                className="h-[80px] flex flex-col items-center justify-center gap-1.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-teal-300 hover:bg-teal-50 transition-all duration-150 active:scale-[0.97]"
               >
-                <span className="font-semibold">Basic Inventory</span>
-                <span className="text-xs opacity-80">Add/edit products</span>
-              </Button>
+                <Package className="w-6 h-6 text-teal-600" />
+                <span className="text-[13px] font-semibold text-slate-800">Basic Inventory</span>
+                <span className="text-[10px] text-slate-400">Add / edit products</span>
+              </button>
 
-              {/* Advanced Inventory */}
-              <Button
+              <button
                 onClick={() => navigate('/inventory-management')}
-                className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
+                className="h-[80px] flex flex-col items-center justify-center gap-1.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-teal-300 hover:bg-teal-50 transition-all duration-150 active:scale-[0.97]"
               >
-                <span className="font-semibold">Advanced Inventory</span>
-                <span className="text-xs opacity-80">Adjustments & tracking</span>
-              </Button>
-
+                <Boxes className="w-6 h-6 text-teal-600" />
+                <span className="text-[13px] font-semibold text-slate-800">Advanced Inventory</span>
+                <span className="text-[10px] text-slate-400">Adjustments & tracking</span>
+              </button>
             </div>
-
           </div>
         </main>
-
       </div>
     </SessionGuard>
   )

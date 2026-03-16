@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Delete } from 'lucide-react'
 import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionManager from '../utils/SessionManager'
 import { useKeyboardSound } from '../utils/useKeyboardSound'
@@ -17,7 +18,7 @@ const Login: React.FC = () => {
   const [pin, setPin] = useState('')
   const [selectedRole, setSelectedRole] = useState<Role>('Cashier')
   const [statusMessage, setStatusMessage] = useState('Please sign in')
-  
+
   const inputNumber = (num: string) => {
     playKeySound()
     if (currentField === 'employeeId') {
@@ -31,7 +32,6 @@ const Login: React.FC = () => {
     }
   }
 
-  // Update status message based on current field
   React.useEffect(() => {
     if (currentField === 'employeeId') {
       setStatusMessage('Enter your Employee ID')
@@ -75,8 +75,7 @@ const Login: React.FC = () => {
 
     try {
       setStatusMessage('Validating credentials...')
-      
-      // Check if Electron API is available, otherwise fallback to direct HTTP
+
       let result
       if (window.electronAPI?.validateLogin) {
         result = await window.electronAPI.validateLogin(employeeId, pin, selectedRole)
@@ -89,12 +88,10 @@ const Login: React.FC = () => {
 
         setStatusMessage(`Welcome ${result.data.employee.name}!`)
 
-        // Store JWT token for authenticated API requests
         if (result.data?.token) {
           SessionManager.setToken(result.data.token)
         }
 
-        // Create secure session
         await SessionManager.createSession({
           id: result.data.employee.id,
           employeeId: result.data.employee.employeeId,
@@ -103,14 +100,13 @@ const Login: React.FC = () => {
           isManager: result.data.employee.isManager || employeeRole === 'Manager'
         })
 
-        // Navigate based on role
         setTimeout(() => {
           switch (employeeRole) {
             case 'Manager':
               navigate('/manager')
               break
             case 'Cashier':
-              navigate('/manager')  // Cashiers also go to main dashboard
+              navigate('/manager')
               break
             case 'Inventory':
               navigate('/inventory-dashboard')
@@ -133,21 +129,29 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="w-screen h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
+    <div className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col lg:flex-row overflow-hidden">
       {/* Left Panel - Login Form */}
       <div className="flex flex-col p-3 flex-1 lg:flex-[2]">
-        <div className="bg-white rounded-lg shadow-lg border border-slate-200 flex-1 flex flex-col p-4 max-w-none">
-          <div className="mb-3 text-center">
+        <div className="bg-white rounded-xl shadow-md border border-slate-200 flex-1 flex flex-col p-5 max-w-none">
+          {/* Brand */}
+          <div className="mb-4 text-center">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-600 mb-2">
+              <span className="text-white font-bold text-lg">
+                {loading ? '?' : (businessSettings.businessName?.[0] || 'B')}
+              </span>
+            </div>
             <h1 className="text-xl font-bold text-slate-900">
               {loading ? 'Loading...' : (businessSettings.businessName || 'Business Login')}
             </h1>
-            <p className="text-xs text-slate-600">Sign in to continue</p>
+            <p className="text-xs text-slate-500">Sign in to continue</p>
           </div>
 
           <div className="flex-1 space-y-3">
             {/* Role Selection */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block text-center">Role</label>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5 block text-center">
+                Role
+              </label>
               <div className="grid grid-cols-3 gap-2">
                 {(['Cashier', 'Inventory', 'Manager'] as Role[]).map((role) => (
                   <button
@@ -158,10 +162,10 @@ const Login: React.FC = () => {
                       setSelectedRole(role)
                     }}
                     className={`
-                      py-2 rounded border text-sm font-medium transition-all
+                      py-2 rounded-lg border text-sm font-medium transition-all
                       ${selectedRole === role
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'
                       }
                     `}
                   >
@@ -173,7 +177,9 @@ const Login: React.FC = () => {
 
             {/* Employee ID */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">Employee ID</label>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5 block">
+                Employee ID
+              </label>
               <div className="relative">
                 <input
                   type="text"
@@ -185,17 +191,17 @@ const Login: React.FC = () => {
                   }}
                   readOnly
                   className={`
-                    w-full h-10 px-3 text-sm font-mono bg-white border-2 rounded 
+                    w-full h-10 px-3 text-sm font-mono bg-white border-2 rounded-lg
                     transition-all cursor-pointer
                     ${currentField === 'employeeId'
-                      ? 'border-blue-500 ring-1 ring-blue-100'
-                      : 'border-slate-200'
+                      ? 'border-emerald-500 ring-2 ring-emerald-100'
+                      : 'border-slate-200 hover:border-slate-300'
                     }
                   `}
                 />
                 {currentField === 'employeeId' && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                   </div>
                 )}
               </div>
@@ -203,7 +209,9 @@ const Login: React.FC = () => {
 
             {/* PIN */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2 block">PIN</label>
+              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5 block">
+                PIN
+              </label>
               <div className="relative">
                 <input
                   type="password"
@@ -215,36 +223,39 @@ const Login: React.FC = () => {
                   }}
                   readOnly
                   className={`
-                    w-full h-10 px-3 text-sm font-mono bg-white border-2 rounded 
+                    w-full h-10 px-3 text-sm font-mono bg-white border-2 rounded-lg
                     transition-all cursor-pointer
                     ${currentField === 'pin'
-                      ? 'border-blue-500 ring-1 ring-blue-100'
-                      : 'border-slate-200'
+                      ? 'border-emerald-500 ring-2 ring-emerald-100'
+                      : 'border-slate-200 hover:border-slate-300'
                     }
                   `}
                 />
                 {currentField === 'pin' && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                   </div>
                 )}
               </div>
             </div>
 
             {/* Status */}
-            <div className={`
-              p-2 rounded text-center text-xs font-medium
-              ${statusMessage.includes('Welcome') ? 'bg-green-50 text-green-700 border border-green-200' :
-                'bg-blue-50 text-blue-700 border border-blue-200'
-              }
-            `}>
+            <div
+              className={`
+                px-3 py-2 rounded-lg text-center text-xs font-medium border
+                ${statusMessage.includes('Welcome')
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-slate-50 text-slate-600 border-slate-200'
+                }
+              `}
+            >
               {statusMessage}
             </div>
 
-            {/* Currently Entering */}
+            {/* Active field indicator */}
             <div className="text-center">
-              <span className="text-xs text-slate-500">Entering: </span>
-              <span className="text-xs font-semibold text-blue-600">
+              <span className="text-[10px] text-slate-400">Entering: </span>
+              <span className="text-[10px] font-semibold text-emerald-600">
                 {currentField === 'employeeId' ? 'Employee ID' : 'PIN'}
               </span>
             </div>
@@ -254,40 +265,40 @@ const Login: React.FC = () => {
 
       {/* Right Panel - Keypad */}
       <div className="flex flex-col p-3 flex-1 lg:max-w-sm">
-        <div className="bg-white rounded-lg shadow-lg border border-slate-200 flex-1 p-4 flex flex-col">
-          <h3 className="text-base font-semibold text-slate-800 mb-3 text-center">Keypad</h3>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200 flex-1 p-4 flex flex-col">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3 text-center">Keypad</h3>
           <div className="grid grid-cols-3 gap-2 flex-1 content-center">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
               <button
                 key={num}
                 onClick={() => inputNumber(num.toString())}
-                className="aspect-square bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border border-slate-200 rounded text-base font-medium text-slate-700 transition-all min-h-[2.5rem] flex items-center justify-center"
+                className="aspect-square bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border border-slate-200 rounded-lg text-base font-semibold text-slate-700 transition-all min-h-[2.5rem] flex items-center justify-center"
               >
                 {num}
               </button>
             ))}
             <button
               onClick={clearCurrentField}
-              className="aspect-square bg-red-50 hover:bg-red-100 active:bg-red-200 border border-red-200 rounded text-xs font-medium text-red-700 transition-all min-h-[2.5rem] flex items-center justify-center"
+              className="aspect-square bg-red-50 hover:bg-red-100 active:bg-red-200 border border-red-200 rounded-lg text-xs font-semibold text-red-600 transition-all min-h-[2.5rem] flex items-center justify-center"
             >
-              Clear
+              CLR
             </button>
             <button
               onClick={() => inputNumber('0')}
-              className="aspect-square bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border border-slate-200 rounded text-base font-medium text-slate-700 transition-all min-h-[2.5rem] flex items-center justify-center"
+              className="aspect-square bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border border-slate-200 rounded-lg text-base font-semibold text-slate-700 transition-all min-h-[2.5rem] flex items-center justify-center"
             >
               0
             </button>
             <button
               onClick={backspace}
-              className="aspect-square bg-orange-50 hover:bg-orange-100 active:bg-orange-200 border border-orange-200 rounded text-base font-medium text-orange-700 transition-all min-h-[2.5rem] flex items-center justify-center"
+              className="aspect-square bg-amber-50 hover:bg-amber-100 active:bg-amber-200 border border-amber-200 rounded-lg text-base font-medium text-amber-700 transition-all min-h-[2.5rem] flex items-center justify-center"
             >
-              ⌫
+              <Delete className="w-4 h-4" />
             </button>
           </div>
           <button
             onClick={login}
-            className="mt-3 h-12 w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded text-sm font-semibold transition-all"
+            className="mt-3 h-12 w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-sm font-semibold transition-all shadow-sm"
           >
             Sign In
           </button>

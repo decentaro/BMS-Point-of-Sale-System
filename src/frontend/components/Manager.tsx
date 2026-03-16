@@ -1,175 +1,166 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  ShoppingCart,
+  History,
+  RotateCcw,
+  Package,
+  Boxes,
+  Users,
+  Receipt,
+  Settings,
+  BarChart2,
+  Activity,
+  ShieldAlert,
+  LogOut,
+} from 'lucide-react'
 import { Button } from './ui/button'
-import { Card, CardContent } from './ui/card'
 import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionGuard from './SessionGuard'
 import SessionStatus from './SessionStatus'
 import SessionManager from '../utils/SessionManager'
 
+interface NavCard {
+  route: string
+  label: string
+  sub: string
+  icon: React.ElementType
+  accent: string
+}
+
+const CASHIER_CARDS: NavCard[] = [
+  { route: '/pos',           label: 'Point of Sale',  sub: 'Start selling',      icon: ShoppingCart, accent: 'emerald' },
+  { route: '/sales-history', label: 'Sales History',  sub: 'View transactions',  icon: History,      accent: 'blue'    },
+  { route: '/returns',       label: 'Returns',        sub: 'Process refunds',    icon: RotateCcw,    accent: 'orange'  },
+]
+
+const MANAGEMENT_CARDS: NavCard[] = [
+  { route: '/inventory',            label: 'Basic Inventory',    sub: 'Add / edit products',    icon: Package,  accent: 'teal'   },
+  { route: '/inventory-management', label: 'Advanced Inventory', sub: 'Adjustments & tracking', icon: Boxes,    accent: 'teal'   },
+  { route: '/employees',            label: 'Employees',          sub: 'Manage staff',           icon: Users,    accent: 'violet' },
+  { route: '/tax-settings',         label: 'Tax Settings',       sub: 'Configure taxes',        icon: Receipt,  accent: 'navy'   },
+]
+
+const SYSTEM_CARDS: NavCard[] = [
+  { route: '/system-settings', label: 'System Settings', sub: 'Preferences',          icon: Settings,    accent: 'slate'  },
+  { route: '/reports',         label: 'Reports',         sub: 'Analytics',             icon: BarChart2,   accent: 'emerald'},
+  { route: '/user-activity',   label: 'User Activity',   sub: 'Audit trail',           icon: Activity,    accent: 'blue'   },
+  { route: '/admin',           label: 'Admin Panel',     sub: 'Technical settings',    icon: ShieldAlert, accent: 'red'    },
+]
+
+const ACCENT_CLASSES: Record<string, { icon: string; hover: string; bg: string }> = {
+  emerald: { icon: 'text-emerald-600', hover: 'hover:border-emerald-300 hover:bg-emerald-50', bg: 'bg-emerald-50' },
+  blue:    { icon: 'text-blue-600',    hover: 'hover:border-blue-300 hover:bg-blue-50',       bg: 'bg-blue-50'    },
+  orange:  { icon: 'text-orange-500',  hover: 'hover:border-orange-300 hover:bg-orange-50',   bg: 'bg-orange-50'  },
+  teal:    { icon: 'text-teal-600',    hover: 'hover:border-teal-300 hover:bg-teal-50',       bg: 'bg-teal-50'    },
+  violet:  { icon: 'text-violet-600',  hover: 'hover:border-violet-300 hover:bg-violet-50',   bg: 'bg-violet-50'  },
+  navy:    { icon: 'text-[hsl(215,65%,30%)]', hover: 'hover:border-slate-400 hover:bg-slate-100', bg: 'bg-slate-100' },
+  slate:   { icon: 'text-slate-600',   hover: 'hover:border-slate-300 hover:bg-slate-100',   bg: 'bg-slate-50'   },
+  red:     { icon: 'text-red-600',     hover: 'hover:border-red-300 hover:bg-red-50',         bg: 'bg-red-50'     },
+}
+
+const NavCardButton: React.FC<{ card: NavCard; onClick: () => void }> = ({ card, onClick }) => {
+  const ac = ACCENT_CLASSES[card.accent] ?? ACCENT_CLASSES.slate
+  const Icon = card.icon
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        h-[72px] w-full flex flex-col items-center justify-center gap-1
+        bg-white border border-slate-200 rounded-xl shadow-sm
+        transition-all duration-150 active:scale-[0.97]
+        ${ac.hover}
+      `}
+    >
+      <Icon className={`w-5 h-5 ${ac.icon}`} />
+      <span className="text-[13px] font-semibold text-slate-800 leading-tight">{card.label}</span>
+      <span className="text-[10px] text-slate-400 leading-none">{card.sub}</span>
+    </button>
+  )
+}
+
 const Manager: React.FC = () => {
   const navigate = useNavigate()
   const { businessSettings, loading } = useBusinessSettings()
 
-  // Get current user role from session
   const session = SessionManager.getCurrentSession()
   const userRole = session?.role || 'Cashier'
 
-  const goBack = () => {
-    // Users should use SessionStatus logout instead of back button
-    // navigate('/login')
-  }
-
   return (
     <SessionGuard>
-      <div className="w-full h-full flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      {/* Header with improved styling */}
-      <header className="h-14 px-4 border-b flex items-center justify-between">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => {
-            SessionManager.clearSession()
-            navigate('/login')
-          }} 
-          className="hover:bg-slate-50 text-red-600 border-red-300 hover:bg-red-50"
-        >
-          Logout
-        </Button>
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-emerald-600">
-            {loading ? 'Loading...' : (businessSettings.businessName || 'Business Name')}
-          </h1>
-          <p className="text-xs text-slate-600 font-medium">
-            {userRole === 'Cashier' ? 'Cashier Dashboard' : 'Manager Dashboard'}
-          </p>
-        </div>
-        <SessionStatus />
-      </header>
+      <div className="w-full h-full flex flex-col bg-slate-50">
+        {/* Header */}
+        <header className="h-14 px-4 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              SessionManager.clearSession()
+              navigate('/login')
+            }}
+            className="gap-1.5 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Logout
+          </Button>
 
-      {/* Main content area */}
-      <main className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-6xl mx-auto space-y-6">
-          
-          {/* Main Actions Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {/* POS - Primary action */}
-            <Button
-              onClick={() => navigate('/pos')}
-              className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-            >
-              <span className="font-semibold">Point of Sale</span>
-              <span className="text-xs opacity-80">Start selling</span>
-            </Button>
-
-            {/* Sales History */}
-            <Button
-              onClick={() => navigate('/sales-history')}
-              className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-            >
-              <span className="font-semibold">Sales History</span>
-              <span className="text-xs opacity-80">View transactions</span>
-            </Button>
-
-            {/* Returns & Refunds */}
-            <Button
-              onClick={() => navigate('/returns')}
-              className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-            >
-              <span className="font-semibold">Returns</span>
-              <span className="text-xs opacity-80">Process refunds</span>
-            </Button>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-emerald-600 leading-tight">
+              {loading ? '—' : (businessSettings.businessName || 'Business Name')}
+            </h1>
+            <p className="text-[10px] text-slate-500 font-medium">
+              {userRole === 'Cashier' ? 'Cashier Dashboard' : 'Manager Dashboard'}
+            </p>
           </div>
 
-          {/* Manager-only sections */}
-          {userRole === 'Manager' && (
-            <>
-              {/* Management Tools */}
-              <div>
-                <h2 className="text-lg font-semibold text-slate-700 mb-4">
-                  Management Tools
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  
-                  <Button
-                    onClick={() => navigate('/inventory')}
-                    className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-                  >
-                    <span className="font-semibold">Basic Inventory</span>
-                    <span className="text-xs opacity-80">Add/edit products</span>
-                  </Button>
+          <SessionStatus />
+        </header>
 
-                  <Button
-                    onClick={() => navigate('/inventory-management')}
-                    className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-                  >
-                    <span className="font-semibold">Advanced Inventory</span>
-                    <span className="text-xs opacity-80">Adjustments & tracking</span>
-                  </Button>
+        {/* Main content */}
+        <main className="flex-1 px-5 py-5 overflow-y-auto">
+          <div className="max-w-2xl mx-auto space-y-5">
 
-                  <Button
-                    onClick={() => navigate('/employees')}
-                    className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-                  >
-                    <span className="font-semibold">Employees</span>
-                    <span className="text-xs opacity-80">Manage staff</span>
-                  </Button>
-
-                  <Button
-                    onClick={() => navigate('/tax-settings')}
-                    className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-                  >
-                    <span className="font-semibold">Tax Settings</span>
-                    <span className="text-xs opacity-80">Configure taxes</span>
-                  </Button>
-                </div>
+            {/* Quick Actions */}
+            <section>
+              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
+                Quick Actions
+              </h2>
+              <div className="grid grid-cols-3 gap-3">
+                {CASHIER_CARDS.map(card => (
+                  <NavCardButton key={card.route} card={card} onClick={() => navigate(card.route)} />
+                ))}
               </div>
+            </section>
 
-              {/* System & Reports */}
-              <div>
-                <h2 className="text-lg font-semibold text-slate-700 mb-4">
-                  System & Reports
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  
-                  <Button 
-                    onClick={() => navigate('/system-settings')}
-                    className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-                  >
-                    <span className="font-semibold">System Settings</span>
-                    <span className="text-xs opacity-80">Preferences</span>
-                  </Button>
+            {/* Manager-only sections */}
+            {userRole === 'Manager' && (
+              <>
+                <section>
+                  <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
+                    Management Tools
+                  </h2>
+                  <div className="grid grid-cols-4 gap-3">
+                    {MANAGEMENT_CARDS.map(card => (
+                      <NavCardButton key={card.route} card={card} onClick={() => navigate(card.route)} />
+                    ))}
+                  </div>
+                </section>
 
-                  <Button 
-                    onClick={() => navigate('/reports')}
-                    className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-                  >
-                    <span className="font-semibold">Reports</span>
-                    <span className="text-xs opacity-80">Analytics</span>
-                  </Button>
+                <section>
+                  <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
+                    System &amp; Reports
+                  </h2>
+                  <div className="grid grid-cols-4 gap-3">
+                    {SYSTEM_CARDS.map(card => (
+                      <NavCardButton key={card.route} card={card} onClick={() => navigate(card.route)} />
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
 
-                  <Button 
-                    onClick={() => navigate('/user-activity')}
-                    className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-                  >
-                    <span className="font-semibold">User Activity</span>
-                    <span className="text-xs opacity-80">Audit Trail</span>
-                  </Button>
-
-                  <Button 
-                    onClick={() => navigate('/admin')}
-                    className="h-16 bg-slate-600 hover:bg-slate-700 text-white flex-col gap-1"
-                  >
-                    <span className="font-semibold">Admin Panel</span>
-                    <span className="text-xs opacity-80">Technical settings</span>
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </main>
-
+          </div>
+        </main>
       </div>
     </SessionGuard>
   )

@@ -8,6 +8,8 @@ import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
 import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
+import PageHeader from './ui/PageHeader'
+import { SectionLoader } from './ui/LoadingSpinner'
 
 interface TaxSettings {
   businessName: string
@@ -131,22 +133,19 @@ const TaxSettings: React.FC = () => {
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-      {/* Header */}
-      <header className="h-14 px-4 border-b flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={() => navigate('/manager')}>← Back</Button>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-emerald-600">Tax Settings</h1>
-          <p className="text-[10px] text-muted-foreground">Configure sales tax for your business</p>
-        </div>
-        <SessionStatus />
-      </header>
+      <PageHeader
+        title="Tax Settings"
+        subtitle="Configure sales tax for your business"
+        onBack={() => navigate('/manager')}
+        right={<SessionStatus />}
+      />
 
       {/* Body */}
       <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
         <div className="pt-6">
           <div className="max-w-4xl mx-auto space-y-6">
         {loading ? (
-          <div className="text-center py-8">Loading tax settings...</div>
+          <SectionLoader message="Loading tax settings..." />
         ) : (
           <>
 

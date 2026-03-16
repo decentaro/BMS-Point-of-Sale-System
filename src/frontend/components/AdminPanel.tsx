@@ -11,6 +11,8 @@ import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
 import { AdminSettings, ApiResponse, BackupCapabilities, LocalBackupInfo } from '../types/AdminSettings'
 import ApiClient from '../utils/ApiClient'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
+import PageHeader from './ui/PageHeader'
+import { SectionLoader } from './ui/LoadingSpinner'
 
 
 const AdminPanel: React.FC = () => {
@@ -480,44 +482,21 @@ const AdminPanel: React.FC = () => {
     }
   }
 
-  if (loading || !adminSettings) {
-    return (
-      <SessionGuard requiredPermission="admin.view">
-        <div className="w-full h-full flex flex-col bg-white">
-          <header className="h-14 px-4 border-b flex items-center justify-between">
-            <Button variant="outline" size="sm" onClick={goBack}>← Back</Button>
-            <div className="text-center">
-              <h1 className="text-xl font-semibold text-emerald-600">Admin Panel</h1>
-              <p className="text-[10px] text-muted-foreground">Technical settings</p>
-            </div>
-            <SessionStatus />
-          </header>
-          <main className="flex-1 p-6 bg-slate-50 overflow-y-auto flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-gray-600 mb-2">Loading admin settings...</div>
-              <div className="text-sm text-gray-500">Please wait while we load the technical settings</div>
-            </div>
-          </main>
-        </div>
-      </SessionGuard>
-    )
-  }
-
   return (
     <SessionGuard requiredPermission="admin.view">
       <div className="w-full h-full flex flex-col bg-white">
-        {/* Header */}
-        <header className="h-14 px-4 border-b flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={goBack}>← Back</Button>
-          <div className="text-center">
-            <h1 className="text-xl font-semibold text-emerald-600">Admin Panel</h1>
-            <p className="text-[10px] text-muted-foreground">Technical settings</p>
-          </div>
-          <SessionStatus />
-        </header>
+        <PageHeader
+          title="Admin Panel"
+          subtitle="Technical settings"
+          onBack={goBack}
+          right={<SessionStatus />}
+        />
 
         {/* Body */}
         <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+          {(loading || !adminSettings) ? (
+            <SectionLoader message="Loading admin settings..." />
+          ) : (
           <div className="pt-6">
             <div className="max-w-7xl mx-auto space-y-6">
             
@@ -1068,6 +1047,7 @@ const AdminPanel: React.FC = () => {
 
               </div>
           </div>
+          )}
         </main>
 
         {/* Modal Keyboard */}

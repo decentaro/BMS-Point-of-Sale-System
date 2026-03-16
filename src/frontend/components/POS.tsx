@@ -548,7 +548,7 @@ const POS: React.FC = () => {
 
   return (
     <SessionGuard>
-      <div className="w-screen h-screen flex flex-col bg-white overflow-hidden">
+      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
 
       {/* Top */}
       <header className="h-14 px-4 border-b flex items-center justify-between">

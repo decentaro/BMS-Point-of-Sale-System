@@ -9,6 +9,8 @@ import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
 import DateDisplay from './DateDisplay'
 import { formatDateForFile, formatDateSync, formatTime } from '../utils/dateFormat'
+import PageHeader from './ui/PageHeader'
+import { SectionLoader } from './ui/LoadingSpinner'
 
 interface UserActivityDto {
   id: number
@@ -163,34 +165,21 @@ const UserActivity: React.FC = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-gray-600">Loading user activities...</div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-      {/* Header */}
-      <header className="h-14 px-4 border-b flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={goBack}>← Back</Button>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-emerald-600">User Activity</h1>
-          <p className="text-[10px] text-muted-foreground">
-            System audit trail and user actions
-          </p>
-        </div>
-        <SessionStatus />
-      </header>
+      <PageHeader
+        title="User Activity"
+        subtitle="System audit trail and user actions"
+        onBack={goBack}
+        right={<SessionStatus />}
+      />
 
       {/* Body */}
       <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+        {loading ? (
+          <SectionLoader message="Loading user activities..." />
+        ) : (
         <div className="pt-6">
           <div className="max-w-6xl mx-auto space-y-6">
 
@@ -327,6 +316,7 @@ const UserActivity: React.FC = () => {
 
           </div>
         </div>
+        )}
       </main>
       </div>
     </SessionGuard>

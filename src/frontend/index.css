@@ -3,47 +3,47 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --foreground: 215 25% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 215 25% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 215 25% 12%;
+    --primary: 161 93% 30%;           /* emerald-600 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 65% 20%;         /* deep navy */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 210 16% 93%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 160 50% 93%;            /* emerald-50 tint */
+    --accent-foreground: 161 84% 22%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --border: 214 16% 87%;
+    --input: 214 16% 87%;
+    --ring: 161 93% 30%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 215 28% 8%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 215 25% 12%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
+    --popover: 215 25% 12%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
+    --primary: 161 84% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 40% 28%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
+    --muted: 215 20% 18%;
+    --muted-foreground: 215 16% 60%;
+    --accent: 215 20% 18%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --border: 215 20% 22%;
+    --input: 215 20% 22%;
+    --ring: 161 84% 42%;
   }
 }
 
@@ -64,19 +64,52 @@
     cursor: default;
     margin: 0;
     padding: 0;
-    /* revert: no global drag settings */
   }
 }
 
-/* Scaled canvas layout for 1024x640 design */
+/* Toast animations */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+.animate-toast-enter {
+  animation: toast-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Smooth spinner */
+@keyframes spin-smooth {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-smooth {
+  animation: spin-smooth 0.75s linear infinite;
+}
+
+/* Scaled canvas — design is authored at 1024×640.
+   JS computes scaleX/scaleY so the canvas stretches to fill the Electron window
+   exactly, at any resolution. No letterboxing, no bars. */
 
 .app-viewport {
   width: 100vw;
   height: 100vh;
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
   overflow: hidden;
 }
 
@@ -93,4 +126,5 @@
   left: 0;
   transform-origin: top left;
   transform: scale(var(--app-scale-x), var(--app-scale-y));
+  overflow: hidden;
 }

@@ -9,6 +9,7 @@ import ApiClient from '../utils/ApiClient'
 import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionManager from '../utils/SessionManager'
 import { formatDateSync } from '../utils/dateFormat'
+import PageHeader from './ui/PageHeader'
 
 interface Product {
   id: number
@@ -270,21 +271,12 @@ const InventoryManagement: React.FC = () => {
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-        {/* Header */}
-        <header className="h-14 px-4 border-b flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={goBack} className="hover:bg-slate-50">
-            ← Back
-          </Button>
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-emerald-600">
-              {businessSettings.businessName || 'Business Name'}
-            </h1>
-            <p className="text-xs text-slate-600 font-medium">
-              Advanced Inventory Management
-            </p>
-          </div>
-          <SessionStatus />
-        </header>
+        <PageHeader
+          title="Advanced Inventory"
+          subtitle="Stock adjustments & tracking"
+          onBack={goBack}
+          right={<SessionStatus />}
+        />
 
         {/* Tabs */}
         <div className="border-b bg-white">

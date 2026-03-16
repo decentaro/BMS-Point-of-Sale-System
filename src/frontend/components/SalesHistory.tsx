@@ -7,6 +7,8 @@ import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
 import ReceiptPreview from './ReceiptPreview'
 import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
+import PageHeader from './ui/PageHeader'
+import { SectionLoader } from './ui/LoadingSpinner'
 import { SystemSettings } from '../types/SystemSettings'
 import ApiClient from '../utils/ApiClient'
 import DateDisplay from './DateDisplay'
@@ -431,32 +433,21 @@ const SalesHistory: React.FC = () => {
     navigate('/manager')
   }
 
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-gray-600">Loading sales history...</div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <SessionGuard>
       <div className="w-full h-full flex flex-col bg-white">
-      {/* Header */}
-      <header className="h-14 px-4 border-b flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={goBack}>← Back</Button>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-emerald-600">Sales History</h1>
-          <p className="text-[10px] text-muted-foreground">View and reprint receipts</p>
-        </div>
-        <SessionStatus />
-      </header>
+      <PageHeader
+        title="Sales History"
+        subtitle="View and reprint receipts"
+        onBack={goBack}
+        right={<SessionStatus />}
+      />
 
       {/* Body */}
       <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+        {loading ? (
+          <SectionLoader message="Loading sales history..." />
+        ) : (
         <div className="pt-6">
           <div className="max-w-6xl mx-auto space-y-6">
           
@@ -600,6 +591,7 @@ const SalesHistory: React.FC = () => {
 
           </div>
         </div>
+        )}
       </main>
 
       {/* Modal Keyboard */}

@@ -10,6 +10,7 @@ import SessionGuard from './SessionGuard'
 import SessionManager from '../utils/SessionManager'
 import { SystemSettings } from '../types/SystemSettings'
 import ApiClient from '../utils/ApiClient'
+import PageHeader from './ui/PageHeader'
 
 // Product interface matching the API model
 interface Product {
@@ -447,16 +448,13 @@ const Inventory: React.FC = () => {
 
   return (
     <SessionGuard requiredPermission="inventory.view">
-      <div className="w-screen h-screen flex flex-col bg-white overflow-hidden">
-      {/* Top */}
-      <header className="h-14 px-4 border-b flex items-center justify-between flex-shrink-0">
-        <Button variant="outline" size="sm" onClick={goBack}>← Back</Button>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-emerald-600">Inventory</h1>
-          <p className="text-[10px] text-muted-foreground">Manage products</p>
-        </div>
-        <SessionStatus />
-      </header>
+      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+      <PageHeader
+        title="Inventory"
+        subtitle="Manage products"
+        onBack={goBack}
+        right={<SessionStatus />}
+      />
 
       {/* Body: split panel like Employees */}
       <main className="flex-1 p-2 bg-slate-50 overflow-hidden">

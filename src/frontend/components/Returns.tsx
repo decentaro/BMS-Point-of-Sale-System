@@ -12,6 +12,8 @@ import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
 import DateDisplay from './DateDisplay'
 import { formatDateSync } from '../utils/dateFormat'
+import PageHeader from './ui/PageHeader'
+import { SectionLoader } from './ui/LoadingSpinner'
 
 // Sale interface matching the API model
 interface Sale {
@@ -370,50 +372,29 @@ const Returns: React.FC = () => {
     }
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-gray-600">Loading returns system...</div>
-        </div>
-      </div>
-    )
-  }
-
-  // Show error if returns disabled
-  if (!systemSettings?.enableReturns) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="flex justify-center mb-4"><AlertTriangle className="w-16 h-16 text-red-600" /></div>
-          <h2 className="text-xl font-semibold mb-2">Returns System Disabled</h2>
-          <p className="text-gray-600 mb-4">The returns system is currently disabled.</p>
-          <p className="text-sm text-gray-500 mb-6">Enable it in System Settings to process returns.</p>
-          <Button onClick={goBack}>← Back to Dashboard</Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <SessionGuard>
       <div className="w-full h-full flex flex-col bg-white">
-      {/* Header */}
-      <header className="h-14 px-4 border-b flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={goBack}>← Back</Button>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-emerald-600">Returns & Refunds</h1>
-          <p className="text-[10px] text-muted-foreground">
-            Process customer returns • {systemSettings.returnTimeLimitDays}-day policy
-          </p>
-        </div>
-        <SessionStatus />
-      </header>
+      <PageHeader
+        title="Returns & Refunds"
+        subtitle={loading ? 'Loading...' : systemSettings ? `Process customer returns • ${systemSettings.returnTimeLimitDays}-day policy` : 'Process customer returns'}
+        onBack={goBack}
+        right={<SessionStatus />}
+      />
 
       {/* Body */}
       <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+        {loading ? (
+          <SectionLoader message="Loading returns system..." />
+        ) : !systemSettings?.enableReturns ? (
+          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <AlertTriangle className="w-14 h-14 text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Returns System Disabled</h2>
+            <p className="text-slate-600 mb-1">The returns system is currently disabled.</p>
+            <p className="text-sm text-slate-400 mb-6">Enable it in System Settings to process returns.</p>
+            <Button onClick={goBack}>← Back to Dashboard</Button>
+          </div>
+        ) : (
         <div className="pt-6">
           <div className="max-w-6xl mx-auto space-y-6">
           
@@ -631,6 +612,7 @@ const Returns: React.FC = () => {
 
           </div>
         </div>
+        )}
       </main>
 
       {/* Manager PIN Modal */}

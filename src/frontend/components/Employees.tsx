@@ -7,6 +7,7 @@ import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
 import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
+import PageHeader from './ui/PageHeader'
 
 // Employee interface matching the API model
 interface Employee {
@@ -272,15 +273,12 @@ const Employees: React.FC = () => {
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-      {/* Top */}
-      <header className="h-14 px-4 border-b flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={() => navigate('/manager')}>← Back</Button>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-emerald-600">Employees</h1>
-          <p className="text-[10px] text-muted-foreground">Manage employees</p>
-        </div>
-        <SessionStatus />
-      </header>
+      <PageHeader
+        title="Employees"
+        subtitle="Manage employees"
+        onBack={() => navigate('/manager')}
+        right={<SessionStatus />}
+      />
 
       {/* Body */}
       <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
