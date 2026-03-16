@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  ArrowUpDown, Package, Clock, CheckCircle2, XCircle,
+  ChevronDown, Plus, Search, CalendarDays, X,
+  ClipboardList, Layers, AlertTriangle, ScanBarcode
+} from 'lucide-react'
 import { Button } from './ui/button'
 import HybridInput from './HybridInput'
 import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
@@ -51,7 +56,7 @@ interface ProductBatch {
 
 const InventoryManagement: React.FC = () => {
   const navigate = useNavigate()
-  const { businessSettings } = useBusinessSettings()
+  useBusinessSettings()
   const [activeTab, setActiveTab] = useState('adjustments')
   
   // Stock Adjustments State
@@ -268,6 +273,72 @@ const InventoryManagement: React.FC = () => {
     }
   }
 
+  // Shared input class
+  const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
+
+  const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+    <label className="block text-xs font-semibold text-slate-600 mb-1">{children}</label>
+  )
+
+  const SectionHeader = ({ icon: Icon, title, count }: { icon: React.ElementType; title: string; count?: number }) => (
+    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-100">
+        <Icon className="w-4 h-4 text-emerald-600" />
+      </span>
+      <span className="text-sm font-semibold text-slate-700">{title}</span>
+      {count !== undefined && (
+        <span className="ml-auto text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{count}</span>
+      )}
+    </div>
+  )
+
+  // Product search dropdown shared across tabs
+  const ProductSearchField = () => (
+    <div className="relative">
+      <FieldLabel>Product</FieldLabel>
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+        <HybridInput
+          className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          value={productSearch}
+          onChange={setProductSearch}
+          onTouchKeyboard={() => openKb('productSearch', 'qwerty', 'Search Product')}
+          placeholder="Search by name or barcode..."
+        />
+      </div>
+      {showProductDropdown && productSearch && filteredProducts.length > 0 && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+          {filteredProducts.map(product => (
+            <div
+              key={product.id}
+              onClick={() => handleProductSelect(product)}
+              className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-emerald-50 border-b border-slate-50 last:border-b-0"
+            >
+              <ScanBarcode className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+              <div>
+                <div className="text-sm font-medium text-slate-800">{product.name}</div>
+                <div className="text-xs text-slate-500">{product.barcode} • Stock: {product.stockQuantity}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {selectedProductObj && (
+        <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span className="font-medium text-emerald-800">{selectedProductObj.name}</span>
+          <span className="text-emerald-600 text-xs ml-auto">Stock: {selectedProductObj.stockQuantity}</span>
+        </div>
+      )}
+    </div>
+  )
+
+  const tabs = [
+    { key: 'adjustments', label: 'Stock Adjustments', Icon: ArrowUpDown },
+    { key: 'expiring',    label: 'Expiring Products', Icon: Clock         },
+    { key: 'counting',   label: 'Physical Counting',  Icon: ClipboardList },
+  ]
+
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
@@ -279,122 +350,77 @@ const InventoryManagement: React.FC = () => {
         />
 
         {/* Tabs */}
-        <div className="border-b bg-white">
-          <div className="flex space-x-8 px-6">
-            {[
-              { key: 'adjustments', label: 'Stock Adjustments' },
-              { key: 'expiring', label: 'Expiring Products' },
-              { key: 'counting', label: 'Physical Counting' }
-            ].map((tab) => (
+        <div className="border-b border-slate-200 bg-white px-4">
+          <div className="flex gap-1">
+            {tabs.map(({ key, label, Icon }) => (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`py-3 border-b-2 font-medium text-sm ${
-                  activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === key
+                    ? 'border-emerald-500 text-emerald-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
               >
-                {tab.label}
+                <Icon className="w-3.5 h-3.5" />
+                {label}
               </button>
             ))}
           </div>
         </div>
 
         {/* Main content */}
-        <main className="flex-1 px-6 pb-6 overflow-y-auto">
-          <div className="pt-6">
+        <main className="flex-1 px-4 pb-4 pt-4 overflow-y-auto bg-slate-50">
+          <div className="space-y-4 max-w-4xl mx-auto">
 
-          {/* Stock Adjustments Tab */}
+          {/* ── Stock Adjustments Tab ── */}
           {activeTab === 'adjustments' && (
-            <div className="space-y-6">
+            <>
               {/* Create Adjustment Form */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold mb-4">Create Stock Adjustment</h2>
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                <SectionHeader icon={ArrowUpDown} title="Create Stock Adjustment" />
                 <form onSubmit={handleCreateAdjustment} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="relative">
-                      <label htmlFor="product" className="block text-sm font-medium text-gray-700 mb-1">
-                        Product
-                      </label>
-                      <HybridInput
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer"
-                        value={productSearch}
-                        onChange={setProductSearch}
-                        onTouchKeyboard={() => openKb('productSearch', 'qwerty', 'Search Product')}
-                        placeholder="Search by product name or barcode..."
-                      />
-                      
-                      {showProductDropdown && productSearch && filteredProducts.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                          {filteredProducts.map(product => (
-                            <div
-                              key={product.id}
-                              onClick={() => handleProductSelect(product)}
-                              className="px-3 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                            >
-                              <div className="font-medium text-gray-900">{product.name}</div>
-                              <div className="text-sm text-gray-500">
-                                Barcode: {product.barcode} • Stock: {product.stockQuantity}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {selectedProductObj && (
-                        <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-sm">
-                          <strong>Selected:</strong> {selectedProductObj.name} (Stock: {selectedProductObj.stockQuantity})
-                        </div>
-                      )}
-                    </div>
-
+                    <ProductSearchField />
                     <div>
-                      <label htmlFor="adjustmentType" className="block text-sm font-medium text-gray-700 mb-1">
-                        Adjustment Type
-                      </label>
-                      <select 
-                        id="adjustmentType"
-                        value={adjustmentType} 
-                        onChange={(e) => setAdjustmentType(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                        required
-                      >
-                        <option value="">Select adjustment type</option>
-                        <option value="DAMAGE">Damage</option>
-                        <option value="THEFT">Theft</option>
-                        <option value="EXPIRED">Expired</option>
-                        <option value="FOUND">Found/Discovered</option>
-                        <option value="CORRECTION">Correction</option>
-                        <option value="RETURN">Return to Stock</option>
-                      </select>
+                      <FieldLabel>Adjustment Type</FieldLabel>
+                      <div className="relative">
+                        <select
+                          value={adjustmentType}
+                          onChange={(e) => setAdjustmentType(e.target.value)}
+                          className={`${inputCls} appearance-none pr-8`}
+                          required
+                        >
+                          <option value="">Select adjustment type</option>
+                          <option value="DAMAGE">Damage</option>
+                          <option value="THEFT">Theft</option>
+                          <option value="EXPIRED">Expired</option>
+                          <option value="FOUND">Found / Discovered</option>
+                          <option value="CORRECTION">Correction</option>
+                          <option value="RETURN">Return to Stock</option>
+                        </select>
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                      </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="quantityChange" className="block text-sm font-medium text-gray-700 mb-1">
-                        Quantity Change
-                      </label>
+                      <FieldLabel>Quantity Change</FieldLabel>
                       <HybridInput
                         type="number"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer"
+                        className={inputCls}
                         value={quantityChange}
                         onChange={setQuantityChange}
                         onTouchKeyboard={() => openKb('quantityChange', 'numeric', 'Quantity Change')}
                         placeholder="Enter positive or negative number"
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Use negative numbers to remove stock
-                      </p>
+                      <p className="text-xs text-slate-400 mt-1">Use negative numbers to remove stock</p>
                     </div>
-
                     <div>
-                      <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
-                        Reason
-                      </label>
+                      <FieldLabel>Reason</FieldLabel>
                       <HybridInput
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer"
+                        className={inputCls}
                         value={reason}
                         onChange={setReason}
                         onTouchKeyboard={() => openKb('reason', 'qwerty', 'Adjustment Reason')}
@@ -404,42 +430,35 @@ const InventoryManagement: React.FC = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-                      Additional Notes (Optional)
-                    </label>
+                    <FieldLabel>Additional Notes (Optional)</FieldLabel>
                     <HybridInput
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none cursor-pointer"
+                      className={inputCls}
                       value={notes}
                       onChange={setNotes}
                       onTouchKeyboard={() => openKb('notes', 'qwerty', 'Additional Notes')}
-                      placeholder="Optional: Add any additional details about this adjustment"
+                      placeholder="Optional: add any extra details"
                     />
                   </div>
 
-                  <div className="flex space-x-3 pt-2">
-                    <Button 
-                      type="submit" 
+                  <div className="flex gap-2 pt-1 border-t border-slate-100">
+                    <Button
+                      type="submit"
                       disabled={loading}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
                     >
-                      {loading ? 'Creating...' : 'Create Adjustment'}
+                      <Plus className="w-4 h-4" />
+                      {loading ? 'Creating…' : 'Create Adjustment'}
                     </Button>
-                    
-                    <Button 
+                    <Button
                       type="button"
                       variant="outline"
+                      className="border-slate-300 text-slate-600 hover:bg-slate-50 gap-1.5 text-sm"
                       onClick={() => {
-                        setSelectedProduct('')
-                        setSelectedProductObj(null)
-                        setProductSearch('')
-                        setAdjustmentType('')
-                        setQuantityChange('')
-                        setReason('')
-                        setNotes('')
+                        setSelectedProduct(''); setSelectedProductObj(null); setProductSearch('')
+                        setAdjustmentType(''); setQuantityChange(''); setReason(''); setNotes('')
                       }}
-                      className="px-6 py-2 rounded-lg font-medium"
                     >
-                      Clear Form
+                      <X className="w-4 h-4" />Clear
                     </Button>
                   </div>
                 </form>
@@ -447,382 +466,298 @@ const InventoryManagement: React.FC = () => {
 
               {/* Pending Approvals */}
               {pendingAdjustments.length > 0 && (
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-lg font-semibold mb-4">Pending Approvals ({pendingAdjustments.length})</h2>
-                  <div className="space-y-3">
-                    {pendingAdjustments.map(adjustment => (
-                      <div key={adjustment.id} className="p-4 border rounded-lg bg-orange-50">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">{adjustment.product.name}</h4>
-                            <p className="text-sm text-gray-600">
-                              {getAdjustmentTypeDisplay(adjustment.adjustmentType)}: {adjustment.quantityChange > 0 ? '+' : ''}{adjustment.quantityChange} units
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Reason: {adjustment.reason}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Cost Impact: {adjustment.costImpact.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              By: {adjustment.adjustedByEmployee.name} • {formatDate(adjustment.adjustmentDate)}
-                            </p>
-                          </div>
-                          <Button 
-                            size="sm"
-                            onClick={() => handleApproveAdjustment(adjustment.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            Approve
-                          </Button>
+                <div className="bg-white rounded-lg border border-amber-200 shadow-sm p-4">
+                  <SectionHeader icon={AlertTriangle} title="Pending Approvals" count={pendingAdjustments.length} />
+                  <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                    {pendingAdjustments.map(adj => (
+                      <li key={adj.id} className="flex items-start gap-3 px-4 py-3 bg-amber-50">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800">{adj.product.name}</p>
+                          <p className="text-xs text-slate-600">
+                            {getAdjustmentTypeDisplay(adj.adjustmentType)}: <span className="font-medium">{adj.quantityChange > 0 ? '+' : ''}{adj.quantityChange} units</span>
+                          </p>
+                          <p className="text-xs text-slate-500">{adj.reason}</p>
+                          <p className="text-xs text-slate-400">
+                            Cost: <span className={adj.costImpact < 0 ? 'text-red-600' : 'text-emerald-600'}>{adj.costImpact.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
+                            {' · '}{adj.adjustedByEmployee.name} · {formatDate(adj.adjustmentDate)}
+                          </p>
                         </div>
-                      </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproveAdjustment(adj.id)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs flex-shrink-0"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />Approve
+                        </Button>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               )}
 
               {/* Recent Adjustments */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold mb-4">Recent Stock Adjustments</h2>
-                <div className="space-y-3">
-                  {adjustments.slice(0, 10).map(adjustment => (
-                    <div key={adjustment.id} className="p-4 border rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium">{adjustment.product.name}</h4>
-                          <p className="text-sm text-gray-600">
-                            {getAdjustmentTypeDisplay(adjustment.adjustmentType)}: {adjustment.quantityChange > 0 ? '+' : ''}{adjustment.quantityChange} units
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Stock: {adjustment.quantityBefore} → {adjustment.quantityAfter}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Reason: {adjustment.reason}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            By: {adjustment.adjustedByEmployee.name} • {formatDate(adjustment.adjustmentDate)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className={`text-sm font-medium ${adjustment.costImpact < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {adjustment.costImpact.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                          </div>
-                          {adjustment.requiresApproval && (
-                            <div className={`text-xs px-2 py-1 rounded mt-1 ${
-                              adjustment.isApproved ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
-                            }`}>
-                              {adjustment.isApproved ? 'Approved' : 'Pending'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Expiring Products Tab */}
-          {activeTab === 'expiring' && (
-            <div className="space-y-6">
-              {/* Add Product Batch Form */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold mb-4">Add Product Batch</h2>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="relative">
-                    <label htmlFor="expiring-product" className="block text-sm font-medium text-gray-700 mb-1">
-                      Product
-                    </label>
-                    <input 
-                      id="expiring-product"
-                      placeholder="Search by product name or barcode..." 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer" 
-                      onClick={() => { 
-                        setKbTarget('productSearch'); 
-                        setKbType('qwerty'); 
-                        setKbTitle('Product Search'); 
-                        setKbOpen(true);
-                        setShowProductDropdown(true);
-                      }} 
-                      value={productSearch} 
-                      readOnly 
-                    />
-                    
-                    {showProductDropdown && productSearch && filteredProducts.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {filteredProducts.map(product => (
-                          <div
-                            key={product.id}
-                            onClick={() => handleProductSelect(product)}
-                            className="px-3 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="font-medium text-gray-900">{product.name}</div>
-                            <div className="text-sm text-gray-500">
-                              Barcode: {product.barcode} • Stock: {product.stockQuantity}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {selectedProductObj && (
-                      <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-sm">
-                        <strong>Selected:</strong> {selectedProductObj.name} (Stock: {selectedProductObj.stockQuantity})
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="manufacturing-date" className="block text-sm font-medium text-gray-700 mb-1">
-                        Manufacturing Date
-                      </label>
-                      <input 
-                        id="manufacturing-date"
-                        type="date" 
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" 
-                        onChange={(e) => setAdjustmentType(e.target.value)} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="expiry-date" className="block text-sm font-medium text-gray-700 mb-1">
-                        Expiry Date
-                      </label>
-                      <input 
-                        id="expiry-date"
-                        type="date" 
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" 
-                        onChange={(e) => setReason(e.target.value)} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="lot-number" className="block text-sm font-medium text-gray-700 mb-1">
-                        Supplier Lot Number
-                      </label>
-                      <input 
-                        id="lot-number"
-                        placeholder="Supplier's lot number" 
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer" 
-                        onClick={() => { setKbTarget('notes'); setKbType('qwerty'); setKbTitle('Supplier Lot Number'); setKbOpen(true) }} 
-                        value={notes} 
-                        readOnly 
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <label htmlFor="batch-quantity" className="block text-sm font-medium text-gray-700 mb-1">
-                      Quantity
-                    </label>
-                    <input 
-                      id="batch-quantity"
-                      placeholder="Enter quantity" 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer" 
-                      onClick={() => { setKbTarget('quantityChange'); setKbType('decimal'); setKbTitle('Quantity'); setKbOpen(true) }} 
-                      value={quantityChange} 
-                      readOnly 
-                    />
-                  </div>
-                  <div className="flex items-end gap-3">
-                    <Button 
-                      onClick={async () => {
-                        if (!selectedProductObj || !quantityChange) {
-                          alert('Please select a product and enter quantity')
-                          return
-                        }
-                        
-                        // Generate unique batch number automatically
-                        const today = new Date()
-                        const dateStr = today.getFullYear().toString() + 
-                                       (today.getMonth() + 1).toString().padStart(2, '0') + 
-                                       today.getDate().toString().padStart(2, '0')
-                        const timeStr = today.getHours().toString().padStart(2, '0') + 
-                                       today.getMinutes().toString().padStart(2, '0') + 
-                                       today.getSeconds().toString().padStart(2, '0')
-                        const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-                        const autoBatchNumber = `BATCH-${dateStr}-${timeStr}-${randomSuffix}`
-                        
-                        try {
-                          await ApiClient.post(`/products/${selectedProductObj.id}/batches`, {
-                            batchNumber: autoBatchNumber,
-                            quantity: parseInt(quantityChange),
-                            costPerUnit: selectedProductObj.cost || 0,
-                            receivedDate: new Date().toISOString(),
-                            expirationDate: reason ? new Date(reason).toISOString() : null,
-                            manufacturingDate: adjustmentType ? new Date(adjustmentType).toISOString() : null,
-                            supplier: 'Manual Entry',
-                            lotNumber: notes || null
-                          })
-                          alert(`Product batch added successfully!\n\nBatch Number: ${autoBatchNumber}`)
-                          setProductSearch(''); setReason(''); setQuantityChange(''); setAdjustmentType(''); setNotes(''); setSelectedProductObj(null); setSelectedProduct('')
-                          setShowProductDropdown(false)
-                          await loadExpiringProducts()
-                          await loadProducts()
-                        } catch (error: any) { alert(`Failed to add batch!\n\n${error.message || 'Unknown error'}\n\nPlease try again.`) }
-                      }}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium"
-                    >
-                      Add Batch
-                    </Button>
-                    <Button 
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setProductSearch('')
-                        setSelectedProductObj(null)
-                        setSelectedProduct('')
-                        setReason('')
-                        setQuantityChange('')
-                        setAdjustmentType('')
-                        setNotes('')
-                      }}
-                      className="px-6 py-2 rounded-lg font-medium"
-                    >
-                      Clear Form
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold mb-4">Product Batches (All)</h2>
-                {expiringBatches.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-600 text-lg font-medium">No product batches found</p>
-                    <p className="text-gray-500 text-sm mt-2">Add batches above to track inventory by batch numbers</p>
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                <SectionHeader icon={Layers} title="Recent Stock Adjustments" />
+                {adjustments.length === 0 ? (
+                  <div className="flex flex-col items-center py-10 gap-2">
+                    <ArrowUpDown className="w-8 h-8 text-slate-200" />
+                    <p className="text-sm text-slate-400">No adjustments found</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {expiringBatches.map(batch => (
-                      <div key={batch.id} className="p-4 border rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">{batch.product.name}</h4>
-                            <p className="text-sm text-gray-600">
-                              Batch: {batch.batchNumber} • Qty: {batch.quantity}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Supplier: {batch.supplier || 'N/A'}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Expires: {batch.expirationDate ? formatDate(batch.expirationDate) : 'No expiry'}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className={`text-xs px-3 py-1 rounded-full font-medium ${getExpiryBadgeColor(batch.expiryStatus)}`}>
-                              {batch.expiryStatus}
-                            </div>
-                            {batch.daysUntilExpiry !== undefined && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {batch.daysUntilExpiry} days left
-                              </p>
-                            )}
-                            
-                            {batch.expiryStatus === 'CRITICAL' && (
-                              <Button 
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 border-red-300 hover:bg-red-50 mt-2"
-                                onClick={() => {
-                                  setSelectedProduct(batch.product.id.toString())
-                                  setAdjustmentType('EXPIRED')
-                                  setQuantityChange(`-${batch.quantity}`)
-                                  setReason(`Expired batch: ${batch.batchNumber}`)
-                                  setActiveTab('adjustments')
-                                }}
-                              >
-                                Mark as Expired
-                              </Button>
-                            )}
-                          </div>
+                  <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                    {adjustments.slice(0, 10).map(adj => (
+                      <li key={adj.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800">{adj.product.name}</p>
+                          <p className="text-xs text-slate-600">
+                            {getAdjustmentTypeDisplay(adj.adjustmentType)}: <span className="font-medium">{adj.quantityChange > 0 ? '+' : ''}{adj.quantityChange} units</span>
+                            {' · '}Stock: {adj.quantityBefore} → {adj.quantityAfter}
+                          </p>
+                          <p className="text-xs text-slate-500">{adj.reason}</p>
+                          <p className="text-xs text-slate-400">{adj.adjustedByEmployee.name} · {formatDate(adj.adjustmentDate)}</p>
                         </div>
-                      </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className={`text-sm font-semibold ${adj.costImpact < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {adj.costImpact.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                          </p>
+                          {adj.requiresApproval && (
+                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium mt-1 ${
+                              adj.isApproved ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {adj.isApproved
+                                ? <><CheckCircle2 className="w-3 h-3" />Approved</>
+                                : <><AlertTriangle className="w-3 h-3" />Pending</>
+                              }
+                            </span>
+                          )}
+                        </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
               </div>
-            </div>
+            </>
           )}
 
-          {/* Physical Counting Tab */}
-          {activeTab === 'counting' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-semibold mb-4">Physical Inventory Count</h2>
-                <div className="grid grid-cols-1 gap-4 mb-4">
-                  <div className="relative">
-                    <label htmlFor="counting-product" className="block text-sm font-medium text-gray-700 mb-1">
-                      Product
-                    </label>
-                    <input 
-                      id="counting-product"
-                      placeholder="Search by product name or barcode..." 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer" 
-                      onClick={() => { 
-                        setKbTarget('productSearch'); 
-                        setKbType('qwerty'); 
-                        setKbTitle('Product Search'); 
-                        setKbOpen(true);
-                        setShowProductDropdown(true);
-                      }} 
-                      value={productSearch} 
-                      readOnly 
-                    />
-                    
-                    {showProductDropdown && productSearch && filteredProducts.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {filteredProducts.map(product => (
-                          <div
-                            key={product.id}
-                            onClick={() => handleProductSelect(product)}
-                            className="px-3 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="font-medium text-gray-900">{product.name}</div>
-                            <div className="text-sm text-gray-500">
-                              Barcode: {product.barcode} • Stock: {product.stockQuantity}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {selectedProductObj && (
-                      <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-sm">
-                        <strong>Selected:</strong> {selectedProductObj.name} (Stock: {selectedProductObj.stockQuantity})
-                      </div>
-                    )}
+          {/* ── Expiring Products Tab ── */}
+          {activeTab === 'expiring' && (
+            <>
+              {/* Add Product Batch Form */}
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                <SectionHeader icon={CalendarDays} title="Add Product Batch" />
+                <div className="space-y-4">
+                  <ProductSearchField />
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <FieldLabel>Manufacturing Date</FieldLabel>
+                      <input
+                        type="date"
+                        className={inputCls}
+                        onChange={(e) => setAdjustmentType(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Expiry Date</FieldLabel>
+                      <input
+                        type="date"
+                        className={inputCls}
+                        onChange={(e) => setReason(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Supplier Lot Number</FieldLabel>
+                      <input
+                        placeholder="Supplier's lot number"
+                        className={inputCls}
+                        onClick={() => { setKbTarget('notes'); setKbType('qwerty'); setKbTitle('Supplier Lot Number'); setKbOpen(true) }}
+                        value={notes}
+                        readOnly
+                      />
+                    </div>
                   </div>
-                  
-                  <div>
-                    <label htmlFor="actual-count" className="block text-sm font-medium text-gray-700 mb-1">
-                      Actual Count
-                    </label>
-                    <input 
-                      id="actual-count"
-                      placeholder="Enter actual count" 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer" 
-                      onClick={() => { setKbTarget('quantityChange'); setKbType('decimal'); setKbTitle('Actual Count'); setKbOpen(true) }} 
-                      value={quantityChange} 
-                      readOnly 
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <FieldLabel>Quantity</FieldLabel>
+                      <input
+                        placeholder="Enter quantity"
+                        className={inputCls}
+                        onClick={() => { setKbTarget('quantityChange'); setKbType('decimal'); setKbTitle('Quantity'); setKbOpen(true) }}
+                        value={quantityChange}
+                        readOnly
+                      />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <Button
+                        onClick={async () => {
+                          if (!selectedProductObj || !quantityChange) {
+                            alert('Please select a product and enter quantity')
+                            return
+                          }
+                          const today = new Date()
+                          const dateStr = today.getFullYear().toString() +
+                                         (today.getMonth() + 1).toString().padStart(2, '0') +
+                                         today.getDate().toString().padStart(2, '0')
+                          const timeStr = today.getHours().toString().padStart(2, '0') +
+                                         today.getMinutes().toString().padStart(2, '0') +
+                                         today.getSeconds().toString().padStart(2, '0')
+                          const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+                          const autoBatchNumber = `BATCH-${dateStr}-${timeStr}-${randomSuffix}`
+                          try {
+                            await ApiClient.post(`/products/${selectedProductObj.id}/batches`, {
+                              batchNumber: autoBatchNumber,
+                              quantity: parseInt(quantityChange),
+                              costPerUnit: selectedProductObj.cost || 0,
+                              receivedDate: new Date().toISOString(),
+                              expirationDate: reason ? new Date(reason).toISOString() : null,
+                              manufacturingDate: adjustmentType ? new Date(adjustmentType).toISOString() : null,
+                              supplier: 'Manual Entry',
+                              lotNumber: notes || null
+                            })
+                            alert(`Product batch added successfully!\n\nBatch Number: ${autoBatchNumber}`)
+                            setProductSearch(''); setReason(''); setQuantityChange(''); setAdjustmentType(''); setNotes('')
+                            setSelectedProductObj(null); setSelectedProduct(''); setShowProductDropdown(false)
+                            await loadExpiringProducts(); await loadProducts()
+                          } catch (error: any) { alert(`Failed to add batch!\n\n${error.message || 'Unknown error'}\n\nPlease try again.`) }
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
+                      >
+                        <Plus className="w-4 h-4" />Add Batch
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-slate-300 text-slate-600 hover:bg-slate-50 gap-1.5 text-sm"
+                        onClick={() => {
+                          setProductSearch(''); setSelectedProductObj(null); setSelectedProduct('')
+                          setReason(''); setQuantityChange(''); setAdjustmentType(''); setNotes('')
+                        }}
+                      >
+                        <X className="w-4 h-4" />Clear
+                      </Button>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Product Batches List */}
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+                <SectionHeader icon={Package} title="Product Batches" />
+                {expiringBatches.length === 0 ? (
+                  <div className="flex flex-col items-center py-10 gap-2">
+                    <Package className="w-8 h-8 text-slate-200" />
+                    <p className="text-sm text-slate-400">No product batches found</p>
+                    <p className="text-xs text-slate-400">Add batches above to track inventory by batch numbers</p>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                    {expiringBatches.map(batch => (
+                      <li key={batch.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800">{batch.product.name}</p>
+                          <p className="text-xs text-slate-600">
+                            Batch: <span className="font-mono">{batch.batchNumber}</span> · Qty: {batch.quantity}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Supplier: {batch.supplier || 'N/A'} · Expires: {batch.expirationDate ? formatDate(batch.expirationDate) : 'No expiry'}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${getExpiryBadgeColor(batch.expiryStatus)}`}>
+                            {batch.expiryStatus}
+                          </span>
+                          {batch.daysUntilExpiry !== undefined && (
+                            <span className="text-xs text-slate-400">{batch.daysUntilExpiry}d left</span>
+                          )}
+                          {batch.expiryStatus === 'CRITICAL' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-300 hover:bg-red-50 text-xs gap-1"
+                              onClick={() => {
+                                setSelectedProduct(batch.product.id.toString())
+                                setAdjustmentType('EXPIRED')
+                                setQuantityChange(`-${batch.quantity}`)
+                                setReason(`Expired batch: ${batch.batchNumber}`)
+                                setActiveTab('adjustments')
+                              }}
+                            >
+                              <XCircle className="w-3 h-3" />Mark Expired
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ── Physical Counting Tab ── */}
+          {activeTab === 'counting' && (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+              <SectionHeader icon={ClipboardList} title="Physical Inventory Count" />
+              <div className="space-y-4">
+                <ProductSearchField />
+
+                <div>
+                  <FieldLabel>Actual Count</FieldLabel>
+                  <input
+                    placeholder="Enter actual count"
+                    className={inputCls}
+                    onClick={() => { setKbTarget('quantityChange'); setKbType('decimal'); setKbTitle('Actual Count'); setKbOpen(true) }}
+                    value={quantityChange}
+                    readOnly
+                  />
+                </div>
+
                 {selectedProductObj && (
-                  <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                    <h3 className="font-medium">{selectedProductObj.name}</h3>
-                    <p>System Stock: {selectedProductObj.stockQuantity}</p>
-                    <p>Actual Count: {quantityChange || '0'}</p>
-                    <p>Difference: {quantityChange ? (parseInt(quantityChange) - selectedProductObj.stockQuantity) : 0}</p>
-                    <div className="flex space-x-3 mt-2">
-                      <Button 
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
+                    <p className="text-sm font-semibold text-slate-700">{selectedProductObj.name}</p>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="bg-white border border-slate-200 rounded-lg p-2">
+                        <p className="text-xs text-slate-500">System Stock</p>
+                        <p className="text-lg font-bold text-slate-700">{selectedProductObj.stockQuantity}</p>
+                      </div>
+                      <div className="bg-white border border-slate-200 rounded-lg p-2">
+                        <p className="text-xs text-slate-500">Actual Count</p>
+                        <p className="text-lg font-bold text-emerald-600">{quantityChange || '—'}</p>
+                      </div>
+                      <div className={`border rounded-lg p-2 ${
+                        quantityChange
+                          ? parseInt(quantityChange) - selectedProductObj.stockQuantity === 0
+                            ? 'bg-emerald-50 border-emerald-200'
+                            : parseInt(quantityChange) - selectedProductObj.stockQuantity < 0
+                              ? 'bg-red-50 border-red-200'
+                              : 'bg-blue-50 border-blue-200'
+                          : 'bg-white border-slate-200'
+                      }`}>
+                        <p className="text-xs text-slate-500">Difference</p>
+                        <p className={`text-lg font-bold ${
+                          quantityChange
+                            ? parseInt(quantityChange) - selectedProductObj.stockQuantity === 0
+                              ? 'text-emerald-600'
+                              : parseInt(quantityChange) - selectedProductObj.stockQuantity < 0
+                                ? 'text-red-600'
+                                : 'text-blue-600'
+                            : 'text-slate-400'
+                        }`}>
+                          {quantityChange
+                            ? (parseInt(quantityChange) - selectedProductObj.stockQuantity > 0 ? '+' : '')
+                              + (parseInt(quantityChange) - selectedProductObj.stockQuantity)
+                            : '—'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button
                         onClick={async () => {
                           if (!quantityChange) return
                           const diff = parseInt(quantityChange) - selectedProductObj.stockQuantity
-                          if (diff === 0) { alert('No adjustment needed - counts match!'); return }
+                          if (diff === 0) { alert('No adjustment needed — counts match!'); return }
                           try {
                             await ApiClient.post('/stockadjustments', {
                               productId: selectedProductObj.id,
@@ -835,23 +770,19 @@ const InventoryManagement: React.FC = () => {
                             await loadProducts(); await loadAdjustments()
                           } catch (error: any) { alert(`Failed to create adjustment!\n\n${error.message || 'Unknown error'}\n\nPlease try again.`) }
                         }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
                       >
-                        Apply Count
+                        <CheckCircle2 className="w-4 h-4" />Apply Count
                       </Button>
-                      
-                      <Button 
+                      <Button
                         type="button"
                         variant="outline"
+                        className="border-slate-300 text-slate-600 hover:bg-slate-50 gap-1.5 text-sm"
                         onClick={() => {
-                          setProductSearch('')
-                          setSelectedProductObj(null)
-                          setSelectedProduct('')
-                          setQuantityChange('')
+                          setProductSearch(''); setSelectedProductObj(null); setSelectedProduct(''); setQuantityChange('')
                         }}
-                        className="px-6 py-2 rounded-lg font-medium"
                       >
-                        Clear Form
+                        <X className="w-4 h-4" />Clear
                       </Button>
                     </div>
                   </div>
@@ -859,22 +790,23 @@ const InventoryManagement: React.FC = () => {
               </div>
             </div>
           )}
+
           </div>
         </main>
 
         {/* Modal Keyboard */}
-        <ModalKeyboard 
-          open={kbOpen} 
-          type={kbType} 
-          title={kbTitle} 
+        <ModalKeyboard
+          open={kbOpen}
+          type={kbType}
+          title={kbTitle}
           initialValue={
             kbTarget === 'productSearch' ? productSearch :
             kbTarget === 'quantityChange' ? quantityChange :
             kbTarget === 'reason' ? reason :
             kbTarget === 'notes' ? notes : ''
-          } 
-          onSubmit={applyKb} 
-          onClose={() => setKbOpen(false)} 
+          }
+          onSubmit={applyKb}
+          onClose={() => setKbOpen(false)}
         />
       </div>
     </SessionGuard>

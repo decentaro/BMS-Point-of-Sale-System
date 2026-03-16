@@ -1,5 +1,9 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  Search, Printer, ChevronDown, ChevronLeft, ChevronRight, Clock, Tag,
+  Receipt, Banknote, CreditCard, RotateCcw, TrendingUp, ShoppingBag
+} from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import HybridInput from './HybridInput'
@@ -86,6 +90,10 @@ const SalesHistory: React.FC = () => {
   const [selectedSale, setSelectedSale] = React.useState<Sale | null>(null)
   const [systemSettings, setSystemSettings] = React.useState<SystemSettings | null>(null)
   const [taxSettings, setTaxSettings] = React.useState<any>(null)
+
+  // Pagination
+  const PAGE_SIZE = 10
+  const [page, setPage] = React.useState<number>(1)
 
   // Modal keyboard state
   const [kbOpen, setKbOpen] = React.useState<boolean>(false)
@@ -286,6 +294,24 @@ const SalesHistory: React.FC = () => {
     return filtered.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
   }, [sales, searchQuery, dateFilter])
 
+  // Reset to page 1 whenever filters change
+  React.useEffect(() => { setPage(1) }, [searchQuery, dateFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filteredSales.length / PAGE_SIZE))
+  const paginatedSales = filteredSales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const getPageItems = (): (number | null)[] => {
+    const items: (number | null)[] = []
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || Math.abs(i - page) <= 1) {
+        items.push(i)
+      } else if (items[items.length - 1] !== null) {
+        items.push(null)
+      }
+    }
+    return items
+  }
+
   // Handle reprint receipt
   const handleReprintReceipt = (sale: Sale) => {
     if (!systemSettings || !taxSettings) {
@@ -433,176 +459,254 @@ const SalesHistory: React.FC = () => {
     navigate('/manager')
   }
 
+  const StyledSelect = ({ value, onChange, children }: {
+    value: string; onChange: (v: string) => void; children: React.ReactNode
+  }) => (
+    <div className="relative">
+      <select
+        className="w-full appearance-none border border-slate-300 rounded-lg px-3 py-2.5 pr-9 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      >
+        {children}
+      </select>
+      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+    </div>
+  )
+
+  const paymentMeta = (method: string) => {
+    switch (method) {
+      case 'Cash':   return { Icon: Banknote,    bg: 'bg-emerald-100', text: 'text-emerald-700' }
+      case 'Card':   return { Icon: CreditCard,  bg: 'bg-blue-100',    text: 'text-blue-700'    }
+      default:       return { Icon: ShoppingBag, bg: 'bg-purple-100',  text: 'text-purple-700'  }
+    }
+  }
+
   return (
     <SessionGuard>
       <div className="w-full h-full flex flex-col bg-white">
-      <PageHeader
-        title="Sales History"
-        subtitle="View and reprint receipts"
-        onBack={goBack}
-        right={<SessionStatus />}
-      />
+        <PageHeader
+          title="Sales History"
+          subtitle="View and reprint receipts"
+          onBack={goBack}
+          right={<SessionStatus />}
+        />
 
-      {/* Body */}
-      <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
-        {loading ? (
-          <SectionLoader message="Loading sales history..." />
-        ) : (
-        <div className="pt-6">
-          <div className="max-w-6xl mx-auto space-y-6">
-          
+        {/* Body */}
+        <main className="flex-1 px-4 pb-4 overflow-y-auto bg-slate-50">
+          {loading ? (
+            <SectionLoader message="Loading sales history..." />
+          ) : (
+            <div className="pt-4 max-w-6xl mx-auto space-y-4">
 
-          {/* Filters */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* Search */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Search</label>
-                  <HybridInput 
-                    className="w-full p-3 border rounded-lg"
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder="Transaction ID, cashier name..."
-                    onTouchKeyboard={() => openKb('search', 'qwerty', 'Search Sales')}
-                  />
-                </div>
-
-                {/* Date Filter */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Date Range</label>
-                  <select 
-                    className="w-full p-3 border rounded-lg"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                  >
-                    <option value="today">Today</option>
-                    <option value="week">Last 7 days</option>
-                    <option value="month">Last 30 days</option>
-                    <option value="all">All time</option>
-                  </select>
-                </div>
-
-                {/* Summary */}
-                <div className="flex flex-col justify-center">
-                  <div className="text-sm text-gray-600">
-                    <div>Total Sales: {filteredSales.length}</div>
-                    <div>Total Revenue: {formatCurrency(filteredSales.reduce((sum, sale) => sum + sale.total, 0))}</div>
-                  </div>
-                </div>
-                
+              {/* KPI cards */}
+              <div className="grid grid-cols-4 gap-4">
+                {[
+                  { icon: TrendingUp, label: 'Total Revenue',    value: formatCurrency(filteredSales.reduce((s, sale) => s + sale.total, 0)), color: 'emerald' },
+                  { icon: Receipt,    label: 'Transactions',     value: filteredSales.length,                                                  color: 'navy'    },
+                  { icon: RotateCcw, label: 'Returns',           value: filteredSales.filter(s => s.hasReturns).length,                        color: 'emerald' },
+                  { icon: Banknote,  label: 'Avg Sale',          value: filteredSales.length > 0 ? formatCurrency(filteredSales.reduce((s, sale) => s + sale.total, 0) / filteredSales.length) : formatCurrency(0), color: 'navy' },
+                ].map(({ icon: Icon, label, value, color }) => (
+                  <Card key={label} className="border-slate-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${color === 'emerald' ? 'bg-emerald-50' : 'bg-slate-100'}`}>
+                        <Icon className={`w-4 h-4 ${color === 'emerald' ? 'text-emerald-600' : 'text-[hsl(215,65%,30%)]'}`} />
+                      </div>
+                      <div className={`text-2xl font-bold ${color === 'emerald' ? 'text-emerald-600' : 'text-[hsl(215,65%,30%)]'}`}>{value}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{label}</div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Sales List */}
-          <Card>
-            <CardContent className="p-0">
-              {filteredSales.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  No sales found for the selected criteria.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="text-left p-3 text-sm font-medium text-gray-700">Date</th>
-                        <th className="text-left p-3 text-sm font-medium text-gray-700">Transaction ID</th>
-                        <th className="text-left p-3 text-sm font-medium text-gray-700">Cashier</th>
-                        <th className="text-left p-3 text-sm font-medium text-gray-700">Items</th>
-                        <th className="text-left p-3 text-sm font-medium text-gray-700">Payment</th>
-                        <th className="text-center p-3 text-sm font-medium text-gray-700">Status</th>
-                        <th className="text-right p-3 text-sm font-medium text-gray-700">Total</th>
-                        <th className="text-center p-3 text-sm font-medium text-gray-700">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredSales.map((sale) => (
-                        <tr key={sale.id} className="border-b hover:bg-gray-50">
-                          <td className="p-3 text-sm">
-                            <DateDisplay date={sale.saleDate} />
-                            <br />
-                            <span className="text-xs text-gray-500">
-                              <DateDisplay date={sale.saleDate} includeTime />
-                            </span>
-                          </td>
-                          <td className="p-3 text-sm font-mono">
-                            {sale.transactionId}
-                          </td>
-                          <td className="p-3 text-sm">
-                            {sale.employee?.name || sale.employee?.employeeId || 'Unknown Employee'}
-                          </td>
-                          <td className="p-3 text-sm">
-                            {sale.saleItems.reduce((sum, item) => sum + item.quantity, 0)}
-                          </td>
-                          <td className="p-3 text-sm">
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              sale.paymentMethod === 'Cash' ? 'bg-green-100 text-green-800' :
-                              sale.paymentMethod === 'Card' ? 'bg-blue-100 text-blue-800' :
-                              'bg-purple-100 text-purple-800'
-                            }`}>
-                              {sale.paymentMethod}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center">
-                            {sale.hasReturns ? (
-                              <div className="flex flex-col items-center gap-1">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  sale.returnInfo?.isPartial ? 
-                                    'bg-orange-100 text-orange-800' : 
-                                    'bg-red-100 text-red-800'
-                                }`}>
-                                  {sale.returnInfo?.isPartial ? 'Partial Return' : 'Returned'}
-                                </span>
-                                <div className="text-xs text-gray-500" title={`Return ID: ${sale.returnInfo?.returnId}\nRefund: ${formatCurrency(sale.returnInfo?.refundAmount || 0)}\nReturned: ${sale.returnInfo?.returnedItems}/${sale.returnInfo?.totalItems} items`}>
-                                  {formatCurrency(sale.returnInfo?.refundAmount || 0)} refunded
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
-                                Completed
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3 text-sm text-right font-semibold">
-                            {formatCurrency(sale.total)}
-                          </td>
-                          <td className="p-3 text-center">
-                            <Button 
-                              size="sm" 
-                              variant={sale.hasReturns ? "destructive" : "outline"}
-                              onClick={() => handleReprintReceipt(sale)}
-                              className="text-xs px-2 py-1"
-                              title={sale.hasReturns ? "This transaction has been returned" : "Reprint receipt"}
+              {/* Filters */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        <Search className="w-3.5 h-3.5" /> Search
+                      </label>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                        <HybridInput
+                          className="w-full pl-8 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+                          value={searchQuery}
+                          onChange={setSearchQuery}
+                          placeholder="Transaction ID, cashier…"
+                          onTouchKeyboard={() => openKb('search', 'qwerty', 'Search Sales')}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        <Clock className="w-3.5 h-3.5" /> Time Period
+                      </label>
+                      <StyledSelect value={dateFilter} onChange={setDateFilter}>
+                        <option value="today">Today</option>
+                        <option value="week">Last 7 days</option>
+                        <option value="month">Last 30 days</option>
+                        <option value="all">All time</option>
+                      </StyledSelect>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Sales table */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-0">
+                  {filteredSales.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 gap-2">
+                      <Receipt className="w-10 h-10 text-slate-200" />
+                      <p className="text-sm text-slate-400">No sales found for the selected criteria.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
+                              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Transaction</th>
+                              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cashier</th>
+                              <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Items</th>
+                              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Payment</th>
+                              <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                              <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
+                              <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {paginatedSales.map((sale) => {
+                              const pm = paymentMeta(sale.paymentMethod)
+                              const PayIcon = pm.Icon
+                              return (
+                                <tr key={sale.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="px-4 py-3">
+                                    <p className="text-sm text-slate-700"><DateDisplay date={sale.saleDate} /></p>
+                                    <p className="text-xs text-slate-400"><DateDisplay date={sale.saleDate} includeTime /></p>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="text-xs font-mono text-slate-600">…{sale.transactionId.slice(-8)}</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-slate-700">
+                                    {sale.employee?.name || sale.employee?.employeeId || 'Unknown'}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="text-sm font-medium text-slate-700">
+                                      {sale.saleItems.reduce((sum, item) => sum + item.quantity, 0)}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${pm.bg} ${pm.text}`}>
+                                      <PayIcon className="w-3 h-3" />
+                                      {sale.paymentMethod}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    {sale.hasReturns ? (
+                                      <div className="flex flex-col items-center gap-0.5">
+                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                          sale.returnInfo?.isPartial
+                                            ? 'bg-amber-100 text-amber-700'
+                                            : 'bg-red-100 text-red-700'
+                                        }`}>
+                                          <RotateCcw className="w-3 h-3" />
+                                          {sale.returnInfo?.isPartial ? 'Partial Return' : 'Returned'}
+                                        </span>
+                                        <span className="text-xs text-slate-400">{formatCurrency(sale.returnInfo?.refundAmount || 0)} refunded</span>
+                                      </div>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                        Completed
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <span className="text-sm font-semibold text-slate-800">{formatCurrency(sale.total)}</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleReprintReceipt(sale)}
+                                      className={`gap-1 text-xs ${
+                                        sale.hasReturns
+                                          ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                                          : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                                      }`}
+                                      title={sale.hasReturns ? 'This transaction has been returned' : 'Reprint receipt'}
+                                    >
+                                      <Printer className="w-3 h-3" />Reprint
+                                    </Button>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination bar */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+                          <p className="text-xs text-slate-500">
+                            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredSales.length)} of {filteredSales.length}
+                          </p>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setPage(p => Math.max(1, p - 1))}
+                              disabled={page === 1}
+                              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                              Reprint
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            {getPageItems().map((item, idx) =>
+                              item === null ? (
+                                <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 text-sm">…</span>
+                              ) : (
+                                <button
+                                  key={item}
+                                  onClick={() => setPage(item)}
+                                  className={`w-8 h-8 rounded-lg text-sm font-medium ${
+                                    item === page
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {item}
+                                </button>
+                              )
+                            )}
+                            <button
+                              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                              disabled={page === totalPages}
+                              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
 
-          </div>
-        </div>
-        )}
-      </main>
+            </div>
+          )}
+        </main>
 
-      {/* Modal Keyboard */}
-      <ModalKeyboard 
-        open={kbOpen} 
-        type={kbType} 
-        title={kbTitle} 
-        initialValue={searchQuery} 
-        onSubmit={applyKb} 
-        onClose={() => setKbOpen(false)} 
-      />
+        {/* Modal Keyboard */}
+        <ModalKeyboard
+          open={kbOpen}
+          type={kbType}
+          title={kbTitle}
+          initialValue={searchQuery}
+          onSubmit={applyKb}
+          onClose={() => setKbOpen(false)}
+        />
 
       {/* Receipt Preview Modal */}
       {selectedSale && systemSettings && taxSettings && (() => {

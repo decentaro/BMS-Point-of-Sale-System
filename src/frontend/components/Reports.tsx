@@ -5,11 +5,15 @@ import { Card, CardContent } from './ui/card'
 import { formatCurrency } from '../utils/formatCurrency'
 import SessionGuard from './SessionGuard'
 import SessionStatus from './SessionStatus'
-import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
 import { formatDateForFile } from '../utils/dateFormat'
 import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
+import {
+  Download, ChevronRight, TrendingUp, ShoppingCart, Banknote,
+  Percent, Users, RotateCcw, PackageX, ShoppingBag, Receipt,
+  CreditCard, Tag, Trophy, CalendarDays
+} from 'lucide-react'
 
 interface SalesSummary {
   period: string
@@ -297,397 +301,375 @@ const Reports: React.FC = () => {
     document.body.removeChild(link)
   }
 
+  const StyledSelect = ({ value, onChange, children }: {
+    value: string | number; onChange: (v: string) => void; children: React.ReactNode
+  }) => (
+    <div className="relative">
+      <select
+        className="appearance-none border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      >
+        {children}
+      </select>
+      <ChevronRight className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 rotate-90 pointer-events-none" />
+    </div>
+  )
+
+  const SectionHeader = ({ icon: Icon, label, color = 'emerald' }: {
+    icon: React.ElementType; label: string; color?: 'emerald' | 'navy' | 'red'
+  }) => {
+    const cls = {
+      emerald: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+      navy:    'text-[hsl(215,65%,30%)] bg-slate-50 border-slate-200',
+      red:     'text-red-600 bg-red-50 border-red-200',
+    }[color]
+    return (
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${cls} mb-4`}>
+        <Icon className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm font-semibold tracking-wide uppercase">{label}</span>
+      </div>
+    )
+  }
+
+  const StatTile = ({ value, label, icon: Icon, color = 'emerald' }: {
+    value: string | number; label: string; icon: React.ElementType; color?: 'emerald' | 'navy' | 'red'
+  }) => {
+    const iconBg  = { emerald: 'bg-emerald-50',              navy: 'bg-slate-100',   red: 'bg-red-50'    }[color]
+    const iconCls = { emerald: 'text-emerald-600',           navy: 'text-[hsl(215,65%,30%)]', red: 'text-red-600' }[color]
+    const valCls  = { emerald: 'text-emerald-600',           navy: 'text-[hsl(215,65%,30%)]', red: 'text-red-600' }[color]
+    const lblCls  = { emerald: 'text-emerald-700/70',        navy: 'text-slate-500',  red: 'text-red-700/70' }[color]
+    return (
+      <div className="flex flex-col items-center justify-center p-4 rounded-lg border border-slate-100 bg-white gap-2">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${iconBg}`}>
+          <Icon className={`w-4 h-4 ${iconCls}`} />
+        </div>
+        <div className={`text-2xl font-bold leading-none ${valCls}`}>{value}</div>
+        <div className={`text-xs font-medium text-center ${lblCls}`}>{label}</div>
+      </div>
+    )
+  }
+
+  const EmptyState = ({ icon: Icon, message }: { icon: React.ElementType; message: string }) => (
+    <div className="flex flex-col items-center gap-2 py-10 text-slate-400">
+      <Icon className="w-7 h-7 opacity-40" />
+      <p className="text-sm">{message}</p>
+    </div>
+  )
+
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-      <PageHeader
-        title="Sales Reports"
-        subtitle="Business analytics and performance data"
-        onBack={goBack}
-        right={<SessionStatus />}
-      />
+        <PageHeader
+          title="Sales Reports"
+          subtitle="Business analytics and performance data"
+          onBack={goBack}
+          right={<SessionStatus />}
+        />
 
-      {/* Body */}
-      <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
-        {loading ? (
-          <SectionLoader message="Loading reports..." />
-        ) : (
-        <div className="pt-6">
-          <div className="max-w-6xl mx-auto space-y-6">
+        <main className="flex-1 overflow-y-auto bg-slate-50">
+          {loading ? (
+            <SectionLoader message="Loading reports..." />
+          ) : (
+            <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
 
-          {/* Export Button Row */}
-          <div className="flex justify-end">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={exportToCSV}
-              className="text-emerald-600 border-emerald-600 hover:bg-emerald-50"
-            >
-              Export CSV
-            </Button>
-          </div>
-
-          {/* Today's Summary */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Today's Performance</h2>
-              
-              {todaySummary ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 text-center">
-                    <div className="text-2xl font-bold text-emerald-600">{todaySummary.totalSales}</div>
-                    <div className="text-sm text-emerald-700">Total Sales</div>
-                  </div>
-                  
-                  <div className="p-4 text-center">
-                    <div className="text-2xl font-bold text-emerald-600">{formatCurrency(todaySummary.totalRevenue)}</div>
-                    <div className="text-sm text-emerald-700">Revenue</div>
-                  </div>
-                  
-                  <div className="p-4 text-center">
-                    <div className="text-2xl font-bold text-emerald-600">{formatCurrency(todaySummary.totalTax)}</div>
-                    <div className="text-sm text-emerald-700">Tax Collected</div>
-                  </div>
-                  
-                  <div className="p-4 text-center">
-                    <div className="text-2xl font-bold text-emerald-600">{formatCurrency(todaySummary.totalDiscounts)}</div>
-                    <div className="text-sm text-emerald-700">Discounts Given</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-8">
-                  No sales data for today
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Week and Month Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-md font-semibold mb-4">This Week</h3>
-                {weekSummary ? (
-                  <div className="space-y-3">
-                    <div className="text-xs text-gray-600 mb-3">{weekSummary.period}</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{weekSummary.totalSales}</div>
-                        <div className="text-xs text-emerald-700">Sales</div>
-                      </div>
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(weekSummary.totalRevenue)}</div>
-                        <div className="text-xs text-emerald-700">Revenue</div>
-                      </div>
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(weekSummary.totalTax)}</div>
-                        <div className="text-xs text-emerald-700">Tax</div>
-                      </div>
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(weekSummary.totalDiscounts)}</div>
-                        <div className="text-xs text-emerald-700">Discounts</div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    <div className="text-sm">No weekly data</div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-md font-semibold mb-4">This Month</h3>
-                {monthSummary ? (
-                  <div className="space-y-3">
-                    <div className="text-xs text-gray-600 mb-3">{monthSummary.period}</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{monthSummary.totalSales}</div>
-                        <div className="text-xs text-emerald-700">Sales</div>
-                      </div>
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(monthSummary.totalRevenue)}</div>
-                        <div className="text-xs text-emerald-700">Revenue</div>
-                      </div>
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(monthSummary.totalTax)}</div>
-                        <div className="text-xs text-emerald-700">Tax</div>
-                      </div>
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(monthSummary.totalDiscounts)}</div>
-                        <div className="text-xs text-emerald-700">Discounts</div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    <div className="text-sm">No monthly data</div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Returns Summary */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-red-700">Returns & Refunds</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Period:</span>
-                  <select
-                    className="text-sm border rounded px-2 py-1"
-                    value={returnsPeriod}
-                    onChange={(e) => setReturnsPeriod(e.target.value)}
-                  >
-                    <option value="today">Today</option>
-                    <option value="week">Last 7 days</option>
-                    <option value="month">Last 30 days</option>
-                    <option value="all">All time</option>
-                  </select>
-                </div>
+              {/* Export */}
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportToCSV}
+                  className="gap-2 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export CSV
+                </Button>
               </div>
 
-              {returnsSummary ? (
-                <div className="space-y-4">
-                  {/* KPI row */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 text-center bg-red-50 rounded-lg">
-                      <div className="text-2xl font-bold text-red-600">{returnsSummary.totalReturns}</div>
-                      <div className="text-xs text-red-700">Return Transactions</div>
+              {/* ── Today's Performance ────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <SectionHeader icon={TrendingUp} label="Today's Performance" color="emerald" />
+                  {todaySummary ? (
+                    <div className="grid grid-cols-4 gap-3">
+                      <StatTile icon={ShoppingCart} value={todaySummary.totalSales}                     label="Total Sales"     color="emerald" />
+                      <StatTile icon={Banknote}     value={formatCurrency(todaySummary.totalRevenue)}   label="Revenue"        color="navy"    />
+                      <StatTile icon={Receipt}      value={formatCurrency(todaySummary.totalTax)}       label="Tax Collected"  color="emerald" />
+                      <StatTile icon={Tag}          value={formatCurrency(todaySummary.totalDiscounts)} label="Discounts Given" color="navy"   />
                     </div>
-                    <div className="p-4 text-center bg-red-50 rounded-lg">
-                      <div className="text-2xl font-bold text-red-600">{formatCurrency(returnsSummary.totalRefundAmount)}</div>
-                      <div className="text-xs text-red-700">Total Refunded</div>
+                  ) : (
+                    <EmptyState icon={ShoppingCart} message="No sales data for today" />
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ── Week & Month ───────────────────────────────────── */}
+              <div className="grid grid-cols-2 gap-5">
+                {/* This Week */}
+                <Card className="border-slate-200 shadow-sm">
+                  <CardContent className="p-5">
+                    <SectionHeader icon={CalendarDays} label="This Week" color="navy" />
+                    {weekSummary ? (
+                      <>
+                        <p className="text-xs text-slate-400 mb-3">{weekSummary.period}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <StatTile icon={ShoppingCart} value={weekSummary.totalSales}                   label="Sales"     color="emerald" />
+                          <StatTile icon={Banknote}     value={formatCurrency(weekSummary.totalRevenue)} label="Revenue"   color="navy"    />
+                          <StatTile icon={Receipt}      value={formatCurrency(weekSummary.totalTax)}     label="Tax"       color="emerald" />
+                          <StatTile icon={Tag}          value={formatCurrency(weekSummary.totalDiscounts)} label="Discounts" color="navy"  />
+                        </div>
+                      </>
+                    ) : (
+                      <EmptyState icon={CalendarDays} message="No weekly data" />
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* This Month */}
+                <Card className="border-slate-200 shadow-sm">
+                  <CardContent className="p-5">
+                    <SectionHeader icon={CalendarDays} label="This Month" color="emerald" />
+                    {monthSummary ? (
+                      <>
+                        <p className="text-xs text-slate-400 mb-3">{monthSummary.period}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <StatTile icon={ShoppingCart} value={monthSummary.totalSales}                   label="Sales"     color="emerald" />
+                          <StatTile icon={Banknote}     value={formatCurrency(monthSummary.totalRevenue)} label="Revenue"   color="navy"    />
+                          <StatTile icon={Receipt}      value={formatCurrency(monthSummary.totalTax)}     label="Tax"       color="emerald" />
+                          <StatTile icon={Tag}          value={formatCurrency(monthSummary.totalDiscounts)} label="Discounts" color="navy"  />
+                        </div>
+                      </>
+                    ) : (
+                      <EmptyState icon={CalendarDays} message="No monthly data" />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* ── Returns & Refunds ──────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50">
+                      <RotateCcw className="w-4 h-4 text-red-600 flex-shrink-0" />
+                      <span className="text-sm font-semibold tracking-wide uppercase text-red-600">Returns &amp; Refunds</span>
                     </div>
-                    <div className="p-4 text-center bg-red-50 rounded-lg">
-                      <div className="text-2xl font-bold text-red-600">{returnsSummary.totalItemsReturned}</div>
-                      <div className="text-xs text-red-700">Items Returned</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Period:</span>
+                      <StyledSelect value={returnsPeriod} onChange={setReturnsPeriod}>
+                        <option value="today">Today</option>
+                        <option value="week">Last 7 days</option>
+                        <option value="month">Last 30 days</option>
+                        <option value="all">All time</option>
+                      </StyledSelect>
                     </div>
                   </div>
 
-                  {/* Net revenue note */}
-                  {(monthSummary || weekSummary || todaySummary) && returnsPeriod !== 'all' && (
-                    (() => {
-                      const base = returnsPeriod === 'today' ? todaySummary : returnsPeriod === 'week' ? weekSummary : monthSummary
-                      if (!base) return null
-                      const net = base.totalRevenue - returnsSummary.totalRefundAmount
-                      return (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-700">Gross Revenue ({returnsSummary.period}):</span>
-                            <span className="font-semibold">{formatCurrency(base.totalRevenue)}</span>
+                  {returnsSummary ? (
+                    <div className="space-y-4">
+                      {/* KPI row */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <StatTile icon={RotateCcw}  value={returnsSummary.totalReturns}                      label="Return Transactions" color="red" />
+                        <StatTile icon={Banknote}   value={formatCurrency(returnsSummary.totalRefundAmount)} label="Total Refunded"      color="red" />
+                        <StatTile icon={PackageX}   value={returnsSummary.totalItemsReturned}                label="Items Returned"      color="red" />
+                      </div>
+
+                      {/* Net revenue */}
+                      {(monthSummary || weekSummary || todaySummary) && returnsPeriod !== 'all' && (
+                        (() => {
+                          const base = returnsPeriod === 'today' ? todaySummary : returnsPeriod === 'week' ? weekSummary : monthSummary
+                          if (!base) return null
+                          const net = base.totalRevenue - returnsSummary.totalRefundAmount
+                          return (
+                            <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm space-y-1">
+                              <div className="flex justify-between items-center text-slate-700">
+                                <span>Gross Revenue ({returnsSummary.period})</span>
+                                <span className="font-semibold">{formatCurrency(base.totalRevenue)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-red-600">
+                                <span>Returns / Refunds</span>
+                                <span className="font-semibold">− {formatCurrency(returnsSummary.totalRefundAmount)}</span>
+                              </div>
+                              <div className="flex justify-between items-center font-bold border-t border-amber-300 pt-1 text-emerald-700">
+                                <span>Net Revenue</span>
+                                <span>{formatCurrency(net)}</span>
+                              </div>
+                            </div>
+                          )
+                        })()
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* By Reason */}
+                        {returnsSummary.returnsByReason.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">By Reason</p>
+                            <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                              {returnsSummary.returnsByReason.map((r, i) => (
+                                <div key={i} className="flex justify-between items-center px-3 py-2 bg-white hover:bg-slate-50 text-sm">
+                                  <span className="text-slate-700 truncate pr-2">{r.reason || 'Not specified'}</span>
+                                  <span className="text-red-600 font-medium whitespace-nowrap text-xs">{r.count} · {formatCurrency(r.totalRefund)}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex justify-between items-center text-red-600">
-                            <span>Returns / Refunds:</span>
-                            <span className="font-semibold">- {formatCurrency(returnsSummary.totalRefundAmount)}</span>
+                        )}
+
+                        {/* Most Returned Products */}
+                        {returnsSummary.topReturnedProducts.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Most Returned</p>
+                            <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                              {returnsSummary.topReturnedProducts.map((p, i) => (
+                                <div key={i} className="flex justify-between items-center px-3 py-2 bg-white hover:bg-slate-50 text-sm">
+                                  <span className="text-slate-700 truncate pr-2">{p.productName}</span>
+                                  <span className="text-red-600 font-medium whitespace-nowrap text-xs">{p.returnQuantity} · {formatCurrency(p.totalRefund)}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex justify-between items-center font-bold border-t border-amber-300 mt-1 pt-1 text-emerald-700">
-                            <span>Net Revenue:</span>
-                            <span>{formatCurrency(net)}</span>
+                        )}
+                      </div>
+
+                      {returnsSummary.totalReturns === 0 && (
+                        <EmptyState icon={RotateCcw} message="No returns for this period" />
+                      )}
+                    </div>
+                  ) : (
+                    <EmptyState icon={RotateCcw} message="No returns data" />
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ── Top Selling Products ───────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50">
+                      <Trophy className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span className="text-sm font-semibold tracking-wide uppercase text-emerald-600">Top Selling Products</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Last</span>
+                      <StyledSelect value={topProductsDays} onChange={v => setTopProductsDays(parseInt(v))}>
+                        <option value={7}>7 days</option>
+                        <option value={30}>30 days</option>
+                        <option value={90}>90 days</option>
+                      </StyledSelect>
+                    </div>
+                  </div>
+
+                  {topProducts.length > 0 ? (
+                    <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                      {topProducts.map((product, index) => (
+                        <div key={index} className="flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-slate-50 transition-colors">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                            index === 0 ? 'bg-amber-100 text-amber-700' :
+                            index === 1 ? 'bg-slate-200 text-slate-600' :
+                            index === 2 ? 'bg-orange-100 text-orange-700' :
+                                          'bg-emerald-50 text-emerald-700'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">{product.productName}</p>
+                            <p className="text-xs text-slate-400">{product.transactionCount} transaction{product.transactionCount !== 1 ? 's' : ''}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-semibold text-slate-700">{product.totalQuantitySold} sold</p>
+                            <p className="text-xs text-emerald-600 font-medium">{formatCurrency(product.totalRevenue)}</p>
                           </div>
                         </div>
-                      )
-                    })()
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState icon={ShoppingBag} message="No sales data for the selected period" />
                   )}
+                </CardContent>
+              </Card>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Returns by Reason */}
-                    {returnsSummary.returnsByReason.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2 text-gray-700">Returns by Reason</h4>
-                        <div className="space-y-1">
-                          {returnsSummary.returnsByReason.map((r, i) => (
-                            <div key={i} className="flex justify-between text-sm p-2 bg-gray-50 rounded">
-                              <span className="text-gray-700 truncate pr-2">{r.reason || 'Not specified'}</span>
-                              <span className="text-red-600 font-medium whitespace-nowrap">{r.count} item{r.count !== 1 ? 's' : ''} · {formatCurrency(r.totalRefund)}</span>
+              {/* ── Payment Methods & Tax Summary ──────────────────── */}
+              <div className="grid grid-cols-2 gap-5">
+                {/* Payment Methods */}
+                <Card className="border-slate-200 shadow-sm">
+                  <CardContent className="p-5">
+                    <SectionHeader icon={CreditCard} label="Payment Methods" color="navy" />
+                    {paymentBreakdown ? (
+                      <>
+                        <p className="text-xs text-slate-400 mb-3">{paymentBreakdown.period}</p>
+                        <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                          {paymentBreakdown.paymentMethods.map((method, index) => (
+                            <div key={index} className="flex items-center justify-between px-3 py-2.5 bg-white hover:bg-slate-50 transition-colors">
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">{method.paymentMethod}</p>
+                                <p className="text-xs text-slate-400">{method.totalSales} transactions</p>
+                              </div>
+                              <p className="text-sm font-semibold text-emerald-600">{formatCurrency(method.totalRevenue)}</p>
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </>
+                    ) : (
+                      <EmptyState icon={CreditCard} message="No payment data" />
                     )}
+                  </CardContent>
+                </Card>
 
-                    {/* Most Returned Products */}
-                    {returnsSummary.topReturnedProducts.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2 text-gray-700">Most Returned Products</h4>
-                        <div className="space-y-1">
-                          {returnsSummary.topReturnedProducts.map((p, i) => (
-                            <div key={i} className="flex justify-between text-sm p-2 bg-gray-50 rounded">
-                              <span className="text-gray-700 truncate pr-2">{p.productName}</span>
-                              <span className="text-red-600 font-medium whitespace-nowrap">{p.returnQuantity} returned · {formatCurrency(p.totalRefund)}</span>
-                            </div>
-                          ))}
+                {/* Tax Summary */}
+                <Card className="border-slate-200 shadow-sm">
+                  <CardContent className="p-5">
+                    <SectionHeader icon={Percent} label="Tax Summary" color="emerald" />
+                    {taxSummary ? (
+                      <>
+                        <p className="text-xs text-slate-400 mb-3">{taxSummary.period}</p>
+                        <div className="space-y-2">
+                          <StatTile icon={Receipt} value={formatCurrency(taxSummary.totalTaxCollected)} label="Total Tax Collected" color="emerald" />
+                          <StatTile icon={Percent} value={`${taxSummary.averageTaxRate.toFixed(3)}%`}  label="Average Tax Rate"   color="navy"    />
+                          <StatTile icon={Banknote} value={formatCurrency(taxSummary.totalRevenue)}    label="Taxable Revenue"    color="emerald" />
                         </div>
-                      </div>
+                      </>
+                    ) : (
+                      <EmptyState icon={Percent} message="No tax data" />
                     )}
-                  </div>
-
-                  {returnsSummary.totalReturns === 0 && (
-                    <div className="text-center text-gray-500 py-4 text-sm">No returns for this period</div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-8 text-sm">No returns data</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Top Products */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-md font-semibold">Top Selling Products</h3>
-                
-                {/* Time Range Filter */}
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600">Last</span>
-                  <select 
-                    className="text-sm border rounded px-2 py-1"
-                    value={topProductsDays}
-                    onChange={(e) => setTopProductsDays(parseInt(e.target.value))}
-                  >
-                    <option value={7}>7 days</option>
-                    <option value={30}>30 days</option>
-                    <option value={90}>90 days</option>
-                  </select>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
-              
-              {topProducts.length > 0 ? (
-                <div className="space-y-3">
-                  {topProducts.map((product, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-emerald-100 text-emerald-700 rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">{product.productName}</div>
-                          <div className="text-xs text-gray-600">
-                            {product.transactionCount} transaction{product.transactionCount !== 1 ? 's' : ''}
+
+              {/* ── Employee Performance ───────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <SectionHeader icon={Users} label="Employee Performance — This Month" color="navy" />
+                  {employeePerformance.length > 0 ? (
+                    <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                      {employeePerformance.map((employee, index) => (
+                        <div key={index} className="flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-slate-50 transition-colors">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                            index === 0 ? 'bg-amber-100 text-amber-700' :
+                            index === 1 ? 'bg-slate-200 text-slate-600' :
+                            index === 2 ? 'bg-orange-100 text-orange-700' :
+                                          'bg-slate-100 text-slate-500'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800">{employee.employeeName}</p>
+                            <p className="text-xs text-slate-400">{employee.totalSales} sales</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-semibold text-emerald-600">{formatCurrency(employee.totalRevenue)}</p>
+                            <p className="text-xs text-slate-400">Avg {formatCurrency(employee.averageTransactionValue)}</p>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-sm">{product.totalQuantitySold} sold</div>
-                        <div className="text-xs text-emerald-600">{formatCurrency(product.totalRevenue)}</div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <div className="text-sm">No sales data found</div>
-                  <div className="text-xs text-gray-400">for the selected time period</div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  ) : (
+                    <EmptyState icon={Users} message="No employee data" />
+                  )}
+                </CardContent>
+              </Card>
 
-          {/* Payment Methods & Business Insights */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Payment Method Breakdown */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-md font-semibold mb-4">Payment Methods</h3>
-                {paymentBreakdown ? (
-                  <div className="space-y-3">
-                    <div className="text-xs text-gray-600 mb-3">{paymentBreakdown.period}</div>
-                    {paymentBreakdown.paymentMethods.map((method, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <div className="font-medium text-sm">{method.paymentMethod}</div>
-                          <div className="text-xs text-gray-600">{method.totalSales} transactions</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-sm text-emerald-600">{formatCurrency(method.totalRevenue)}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    <div className="text-sm">No payment data</div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Tax Summary */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-md font-semibold mb-4">Tax Summary</h3>
-                {taxSummary ? (
-                  <div className="space-y-3">
-                    <div className="text-xs text-gray-600 mb-3">{taxSummary.period}</div>
-                    <div className="space-y-2">
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(taxSummary.totalTaxCollected)}</div>
-                        <div className="text-xs text-emerald-700">Total Tax Collected</div>
-                      </div>
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{taxSummary.averageTaxRate.toFixed(3)}%</div>
-                        <div className="text-xs text-emerald-700">Average Tax Rate</div>
-                      </div>
-                      <div className="p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-600">{formatCurrency(taxSummary.totalRevenue)}</div>
-                        <div className="text-xs text-emerald-700">Taxable Revenue</div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    <div className="text-sm">No tax data</div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-          </div>
-
-          {/* Employee Performance */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-md font-semibold mb-4">Employee Performance (This Month)</h3>
-              {employeePerformance.length > 0 ? (
-                <div className="space-y-3">
-                  {employeePerformance.map((employee, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-emerald-100 text-emerald-700 rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">{employee.employeeName}</div>
-                          <div className="text-xs text-gray-600">
-                            {employee.totalSales} sales
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-sm text-emerald-600">{formatCurrency(employee.totalRevenue)}</div>
-                        <div className="text-xs text-gray-600">Avg: {formatCurrency(employee.averageTransactionValue)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <div className="text-sm">No employee data</div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          </div>
-        </div>
-        )}
-      </main>
+            </div>
+          )}
+        </main>
       </div>
     </SessionGuard>
   )

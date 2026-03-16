@@ -1,6 +1,9 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, Info } from 'lucide-react'
+import {
+  AlertTriangle, Info, Search, Receipt, RotateCcw,
+  CheckCircle2, Printer, Shield, ChevronDown, ScanBarcode
+} from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import HybridInput from './HybridInput'
@@ -100,18 +103,22 @@ const Returns: React.FC = () => {
   const [processingReturn, setProcessingReturn] = React.useState<boolean>(false)
 
   const [lastReturnRecord, setLastReturnRecord] = React.useState<any>(null)
+  // Map of saleItemId -> already-returned quantity from previous returns
+  const [alreadyReturnedQty, setAlreadyReturnedQty] = React.useState<Record<number, number>>({})
 
   // Modal keyboard state
   const [kbOpen, setKbOpen] = React.useState<boolean>(false)
   const [kbType, setKbType] = React.useState<KeyboardType>('qwerty')
   const [kbTitle, setKbTitle] = React.useState<string>('')
+  const [kbMasked, setKbMasked] = React.useState<boolean>(false)
   const [kbTarget, setKbTarget] = React.useState<'search' | 'managerPin' | 'returnQuantity'>('search')
   const [editingItemId, setEditingItemId] = React.useState<number | null>(null)
 
-  const openKb = (target: 'search' | 'managerPin' | 'returnQuantity', type: KeyboardType, title: string, itemId?: number) => {
+  const openKb = (target: 'search' | 'managerPin' | 'returnQuantity', type: KeyboardType, title: string, itemId?: number, masked: boolean = false) => {
     setKbTarget(target)
     setKbType(type)
     setKbTitle(title)
+    setKbMasked(masked)
     if (itemId !== undefined) setEditingItemId(itemId)
     setKbOpen(true)
   }
@@ -197,23 +204,27 @@ const Returns: React.FC = () => {
         }
       }
 
-      // Check if this transaction has already been fully returned
+      // Check if this transaction has already been fully/partially returned
+      let returnedQtyMap: Record<number, number> = {}
       try {
         const existingReturns = await ApiClient.getJson('/returns')
-        const existingReturn = existingReturns.find(r => r.originalSaleId === foundSale.id)
-        
+        const existingReturn = (existingReturns as any[]).find((r: any) => r.originalSaleId === foundSale.id)
+
         if (existingReturn) {
-          // Calculate total returned vs original quantities
+          // Build a map of saleItemId -> already returned quantity
+          ;(existingReturn.returnItems as any[]).forEach((ri: any) => {
+            const key = ri.originalSaleItemId ?? ri.saleItemId
+            returnedQtyMap[key] = (returnedQtyMap[key] || 0) + ri.returnQuantity
+          })
+
           const totalOriginalQuantities = foundSale.saleItems.reduce((sum, item) => sum + item.quantity, 0)
-          const totalReturnedQuantities = existingReturn.returnItems.reduce((sum, item) => sum + item.returnQuantity, 0)
-          
+          const totalReturnedQuantities = existingReturn.returnItems.reduce((sum: number, item: any) => sum + item.returnQuantity, 0)
+
           if (totalReturnedQuantities >= totalOriginalQuantities) {
-            // Transaction already fully returned - show existing return record
-            alert(`This transaction has already been returned.\n\nReturn ID: ${existingReturn.returnId}\nReturn Date: ${formatDateSync(existingReturn.returnDate)}\nRefund Amount: ${formatCurrency(existingReturn.totalRefundAmount)}\nProcessed by: ${existingReturn.processedByEmployee.name}`)
+            alert(`This transaction has already been fully returned.\n\nReturn ID: ${existingReturn.returnId}\nReturn Date: ${formatDateSync(existingReturn.returnDate)}\nRefund Amount: ${formatCurrency(existingReturn.totalRefundAmount)}\nProcessed by: ${existingReturn.processedByEmployee.name}`)
             setSearchTransactionId('')
             return
           } else {
-            // Partial return exists - could allow additional returns here
             alert(`This transaction has been partially returned.\n\nExisting Return ID: ${existingReturn.returnId}\nPreviously Returned: ${totalReturnedQuantities} of ${totalOriginalQuantities} items\nRefund Amount: ${formatCurrency(existingReturn.totalRefundAmount)}`)
           }
         }
@@ -222,9 +233,10 @@ const Returns: React.FC = () => {
         console.log('No existing returns found (expected for new setup)')
       }
 
+      setAlreadyReturnedQty(returnedQtyMap)
       setOriginalSale(foundSale)
-      
-      // Initialize return items
+
+      // Initialize return items — cap max qty by what's still returnable
       const items: ReturnItem[] = foundSale.saleItems.map(item => ({
         saleItemId: item.id,
         productId: item.productId,
@@ -310,6 +322,7 @@ const Returns: React.FC = () => {
       setReturnItems([])
       setSearchTransactionId('')
       setManagerPin('')
+      setAlreadyReturnedQty({})
       
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to process return')
@@ -372,312 +385,361 @@ const Returns: React.FC = () => {
     }
   }
 
+  const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
+
+  const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+    <label className="block text-xs font-semibold text-slate-600 mb-1">{children}</label>
+  )
+
+  const StepHeader = ({ step, icon: Icon, title }: { step: number; icon: React.ElementType; title: string }) => (
+    <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
+      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex-shrink-0">{step}</span>
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-100">
+        <Icon className="w-4 h-4 text-emerald-600" />
+      </span>
+      <span className="text-sm font-semibold text-slate-700">{title}</span>
+    </div>
+  )
+
   return (
     <SessionGuard>
       <div className="w-full h-full flex flex-col bg-white">
-      <PageHeader
-        title="Returns & Refunds"
-        subtitle={loading ? 'Loading...' : systemSettings ? `Process customer returns • ${systemSettings.returnTimeLimitDays}-day policy` : 'Process customer returns'}
-        onBack={goBack}
-        right={<SessionStatus />}
-      />
+        <PageHeader
+          title="Returns & Refunds"
+          subtitle={loading ? 'Loading...' : systemSettings ? `Process customer returns • ${systemSettings.returnTimeLimitDays}-day policy` : 'Process customer returns'}
+          onBack={goBack}
+          right={<SessionStatus />}
+        />
 
-      {/* Body */}
-      <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
-        {loading ? (
-          <SectionLoader message="Loading returns system..." />
-        ) : !systemSettings?.enableReturns ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <AlertTriangle className="w-14 h-14 text-red-500 mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Returns System Disabled</h2>
-            <p className="text-slate-600 mb-1">The returns system is currently disabled.</p>
-            <p className="text-sm text-slate-400 mb-6">Enable it in System Settings to process returns.</p>
-            <Button onClick={goBack}>← Back to Dashboard</Button>
-          </div>
-        ) : (
-        <div className="pt-6">
-          <div className="max-w-6xl mx-auto space-y-6">
-          
+        {/* Body */}
+        <main className="flex-1 px-4 pb-4 overflow-y-auto bg-slate-50">
+          {loading ? (
+            <SectionLoader message="Loading returns system..." />
+          ) : !systemSettings?.enableReturns ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8">
+              <span className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </span>
+              <h2 className="text-lg font-semibold text-slate-800 mb-1">Returns System Disabled</h2>
+              <p className="text-sm text-slate-500 mb-1">The returns system is currently disabled.</p>
+              <p className="text-xs text-slate-400 mb-6">Enable it in System Settings to process returns.</p>
+              <Button onClick={goBack} className="bg-emerald-600 hover:bg-emerald-700 text-white">Back to Dashboard</Button>
+            </div>
+          ) : (
+            <div className="pt-4 max-w-4xl mx-auto space-y-4">
 
-          {/* Step 1: Search Transaction */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Step 1: Find Original Transaction</h2>
-              
-              <div className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-2">Transaction ID (scan receipt barcode or enter last 8 digits)</label>
-                  <HybridInput 
-                    className="w-full p-3 border rounded-lg"
-                    value={searchTransactionId}
-                    onChange={setSearchTransactionId}
-                    placeholder="Enter last 8 digits from receipt (e.g. 12345678)"
-                    onTouchKeyboard={() => openKb('search', 'qwerty', 'Transaction ID (scan or enter last 8 digits)')}
-                  />
-                  {systemSettings.requireReceiptForReturns && (
-                    <p className="text-xs text-orange-600 mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Receipt required for returns</p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Info className="w-3 h-3" /> Only enter the last 8 digits of the transaction ID from your receipt</p>
-                </div>
-                
-                <Button 
-                  onClick={searchSaleByTransactionId}
-                  disabled={searchLoading || !searchTransactionId.trim()}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {searchLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Searching...
-                    </div>
-                  ) : (
-                    'Find Transaction'
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              {/* Step 1: Find Transaction */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-4">
+                  <StepHeader step={1} icon={Search} title="Find Original Transaction" />
 
-          {/* Step 2: Original Sale Details (show when sale found) */}
-          {originalSale && (
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Step 2: Original Transaction Details</h2>
-                
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-700">Transaction:</span>
-                      <div className="font-mono">...{originalSale.transactionId.slice(-8)}</div>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Date:</span>
-                      <div><DateDisplay date={originalSale.saleDate} /></div>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Cashier:</span>
-                      <div>{originalSale.employee.name}</div>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Total:</span>
-                      <div className="font-semibold">{formatCurrency(originalSale.total)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <h3 className="font-medium mb-3">Select Items to Return:</h3>
-                
-                <div className="space-y-2">
-                  {originalSale.saleItems.map((item, index) => {
-                    const returnItem = returnItems.find(r => r.saleItemId === item.id)
-                    if (!returnItem) return null
-
-                    return (
-                      <div key={item.id} className="border rounded-lg p-3 bg-white">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="font-medium">{item.productName}</div>
-                            <div className="text-sm text-gray-600">
-                              Original: {item.quantity} × {formatCurrency(item.unitPrice)} = {formatCurrency(item.lineTotal)}
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-4">
-                            {/* Return Quantity */}
-                            <div>
-                              <label className="block text-xs font-medium mb-1">Return Qty</label>
-                              <HybridInput 
-                                type="decimal"
-                                className="w-16 p-2 border rounded text-center"
-                                value={returnItem.returnQuantity}
-                                onChange={(value) => updateReturnQuantity(item.id, value)}
-                                onTouchKeyboard={() => openKb('returnQuantity', 'decimal', `Return Quantity (Max: ${item.quantity})`, item.id)}
-                              />
-                            </div>
-
-                            {/* Condition */}
-                            {systemSettings.allowDefectiveItemReturns && (
-                              <div>
-                                <label className="block text-xs font-medium mb-1">Condition</label>
-                                <select 
-                                  className="p-2 border rounded text-xs"
-                                  value={returnItem.condition}
-                                  onChange={(e) => setReturnItems(prev => prev.map(r => 
-                                    r.saleItemId === item.id ? { ...r, condition: e.target.value as 'good' | 'defective' } : r
-                                  ))}
-                                >
-                                  <option value="good">Good</option>
-                                  <option value="defective">Defective</option>
-                                </select>
-                              </div>
-                            )}
-
-                            {/* Return Reason */}
-                            <div>
-                              <label className="block text-xs font-medium mb-1">Reason</label>
-                              <select 
-                                className="p-2 border rounded text-xs"
-                                value={returnItem.reason}
-                                onChange={(e) => setReturnItems(prev => prev.map(r => 
-                                  r.saleItemId === item.id ? { ...r, reason: e.target.value } : r
-                                ))}
-                              >
-                                <option value="">Select reason...</option>
-                                {systemSettings.returnReasons.split(',').map(reason => (
-                                  <option key={reason.trim()} value={reason.trim()}>{reason.trim()}</option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Line Total */}
-                            <div className="text-right">
-                              <div className="text-xs text-gray-600">Refund</div>
-                              <div className="font-semibold">{formatCurrency(returnItem.lineTotal)}</div>
-                            </div>
-                          </div>
-                        </div>
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <FieldLabel>Transaction ID</FieldLabel>
+                      <div className="relative">
+                        <ScanBarcode className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                        <HybridInput
+                          className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          value={searchTransactionId}
+                          onChange={setSearchTransactionId}
+                          placeholder="Scan barcode or enter last 8 digits (e.g. 12345678)"
+                          onTouchKeyboard={() => openKb('search', 'qwerty', 'Transaction ID (scan or enter last 8 digits)')}
+                        />
                       </div>
-                    )
-                  })}
-                </div>
-
-                {/* Return Summary */}
-                {returnTotal > 0 && (
-                  <div className="mt-6 bg-emerald-50 p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-semibold">Total Refund Amount:</div>
-                        <div className="text-sm text-gray-600">
-                          {returnItems.filter(item => item.returnQuantity > 0).length} item(s) selected
-                        </div>
-                      </div>
-                      <div className="text-xl font-bold text-emerald-600">
-                        {formatCurrency(returnTotal)}
+                      <div className="mt-1.5 flex flex-col gap-0.5">
+                        {systemSettings.requireReceiptForReturns && (
+                          <p className="text-xs text-amber-600 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0" />Receipt required for returns
+                          </p>
+                        )}
+                        <p className="text-xs text-slate-400 flex items-center gap-1">
+                          <Info className="w-3 h-3 flex-shrink-0" />Enter the last 8 digits of the transaction ID from the receipt
+                        </p>
                       </div>
                     </div>
-                    
-                    {needsManagerApproval && (
-                      <div className="mt-2 text-sm text-orange-600">
-                        <span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Manager approval required for this return</span>
-                      </div>
-                    )}
-                  </div>
-                )}
 
-                {/* Process Return Button */}
-                {returnTotal > 0 && (
-                  <div className="mt-6 flex justify-end">
-                    <Button 
-                      onClick={processReturn}
-                      disabled={processingReturn}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                    <Button
+                      onClick={searchSaleByTransactionId}
+                      disabled={searchLoading || !searchTransactionId.trim()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 flex-shrink-0"
                     >
-                      {processingReturn ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Processing...
-                        </div>
+                      {searchLoading ? (
+                        <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Searching…</>
                       ) : (
-                        `Process Return - ${formatCurrency(returnTotal)}`
+                        <><Search className="w-4 h-4" />Find Transaction</>
                       )}
                     </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              {/* Step 2: Transaction details + item selection */}
+              {originalSale && (
+                <Card className="border-slate-200 shadow-sm">
+                  <CardContent className="p-4">
+                    <StepHeader step={2} icon={Receipt} title="Original Transaction Details" />
+
+                    {/* Transaction meta */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                      {[
+                        { label: 'Transaction', value: <span className="font-mono text-xs">…{originalSale.transactionId.slice(-8)}</span> },
+                        { label: 'Date',        value: <DateDisplay date={originalSale.saleDate} /> },
+                        { label: 'Cashier',     value: originalSale.employee.name },
+                        { label: 'Original Total', value: <span className="font-semibold text-emerald-700">{formatCurrency(originalSale.total)}</span> },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                          <p className="text-xs text-slate-500 mb-0.5">{label}</p>
+                          <div className="text-sm text-slate-800">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Select Items to Return</p>
+
+                    <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 overflow-hidden mb-4">
+                      {originalSale.saleItems.map((item) => {
+                        const returnItem = returnItems.find(r => r.saleItemId === item.id)
+                        if (!returnItem) return null
+                        const prevReturned = alreadyReturnedQty[item.id] || 0
+                        const fullyReturned = prevReturned >= item.quantity
+                        const partiallyReturned = prevReturned > 0 && !fullyReturned
+                        const remainingQty = item.quantity - prevReturned
+                        return (
+                          <li key={item.id} className={`px-4 py-3 ${fullyReturned ? 'bg-slate-50' : 'bg-white hover:bg-slate-50'}`}>
+                            <div className="flex items-center gap-4 flex-wrap">
+                              {/* Product info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className={`text-sm font-semibold ${fullyReturned ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                                    {item.productName}
+                                  </p>
+                                  {fullyReturned && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-semibold">
+                                      <CheckCircle2 className="w-3 h-3" />Already Returned
+                                    </span>
+                                  )}
+                                  {partiallyReturned && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                                      <AlertTriangle className="w-3 h-3" />{prevReturned} of {item.quantity} returned
+                                    </span>
+                                  )}
+                                </div>
+                                <p className={`text-xs ${fullyReturned ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  Original: {item.quantity} × {formatCurrency(item.unitPrice)} = {formatCurrency(item.lineTotal)}
+                                  {partiallyReturned && <span className="ml-2 text-amber-600">• {remainingQty} remaining</span>}
+                                </p>
+                              </div>
+
+                              {fullyReturned ? (
+                                /* Fully returned — show locked state */
+                                <div className="flex-shrink-0 text-xs text-slate-400 italic">No further returns allowed</div>
+                              ) : (
+                                <>
+                                  {/* Return Qty */}
+                                  <div className="flex-shrink-0">
+                                    <FieldLabel>Return Qty</FieldLabel>
+                                    <HybridInput
+                                      type="decimal"
+                                      className="w-16 px-2 py-1.5 text-sm text-center border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                      value={returnItem.returnQuantity}
+                                      onChange={(value) => updateReturnQuantity(item.id, value)}
+                                      onTouchKeyboard={() => openKb('returnQuantity', 'decimal', `Return Quantity (Max: ${remainingQty})`, item.id)}
+                                    />
+                                  </div>
+
+                                  {/* Condition */}
+                                  {systemSettings.allowDefectiveItemReturns && (
+                                    <div className="flex-shrink-0">
+                                      <FieldLabel>Condition</FieldLabel>
+                                      <div className="relative">
+                                        <select
+                                          className="pl-2 pr-6 py-1.5 text-xs border border-slate-200 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                                          value={returnItem.condition}
+                                          onChange={(e) => setReturnItems(prev => prev.map(r =>
+                                            r.saleItemId === item.id ? { ...r, condition: e.target.value as 'good' | 'defective' } : r
+                                          ))}
+                                        >
+                                          <option value="good">Good</option>
+                                          <option value="defective">Defective</option>
+                                        </select>
+                                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Reason */}
+                                  <div className="flex-shrink-0">
+                                    <FieldLabel>Reason</FieldLabel>
+                                    <div className="relative">
+                                      <select
+                                        className="pl-2 pr-6 py-1.5 text-xs border border-slate-200 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                                        value={returnItem.reason}
+                                        onChange={(e) => setReturnItems(prev => prev.map(r =>
+                                          r.saleItemId === item.id ? { ...r, reason: e.target.value } : r
+                                        ))}
+                                      >
+                                        <option value="">Select reason…</option>
+                                        {systemSettings.returnReasons.split(',').map(reason => (
+                                          <option key={reason.trim()} value={reason.trim()}>{reason.trim()}</option>
+                                        ))}
+                                      </select>
+                                      <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                                    </div>
+                                  </div>
+
+                                  {/* Line refund */}
+                                  <div className="text-right flex-shrink-0 min-w-[60px]">
+                                    <p className="text-xs text-slate-500">Refund</p>
+                                    <p className={`text-sm font-semibold ${returnItem.lineTotal > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                      {formatCurrency(returnItem.lineTotal)}
+                                    </p>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+
+                    {/* Return summary */}
+                    {returnTotal > 0 && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 mb-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-700">Total Refund Amount</p>
+                            <p className="text-xs text-slate-500">{returnItems.filter(i => i.returnQuantity > 0).length} item(s) selected</p>
+                          </div>
+                          <p className="text-xl font-bold text-emerald-600">{formatCurrency(returnTotal)}</p>
+                        </div>
+                        {needsManagerApproval && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                            Manager approval required for this return
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Process Return button */}
+                    {returnTotal > 0 && (
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={processReturn}
+                          disabled={processingReturn}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                        >
+                          {processingReturn ? (
+                            <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing…</>
+                          ) : (
+                            <><RotateCcw className="w-4 h-4" />Process Return — {formatCurrency(returnTotal)}</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Last return success card */}
+              {lastReturnRecord && (
+                <Card className="border-emerald-200 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-100">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-100">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      </span>
+                      <span className="text-sm font-semibold text-slate-700">Return Processed Successfully</span>
+                    </div>
+                    <div className="flex items-center gap-6 bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 mb-4 text-sm">
+                      <div>
+                        <p className="text-xs text-slate-500">Return ID</p>
+                        <p className="font-mono font-semibold text-slate-800">{lastReturnRecord.returnId}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Refund Amount</p>
+                        <p className="font-semibold text-emerald-700">{formatCurrency(lastReturnRecord.totalRefundAmount)}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => printReturnReceipt(lastReturnRecord)}
+                        className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,24%)] text-white gap-1.5 text-sm"
+                      >
+                        <Printer className="w-4 h-4" />Print Return Receipt
+                      </Button>
+                      <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-50 text-sm" onClick={() => setLastReturnRecord(null)}>
+                        Dismiss
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+            </div>
           )}
+        </main>
 
-          {lastReturnRecord && (
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-2">Return Processed Successfully</h2>
-                <div className="bg-green-50 p-4 rounded-lg mb-4 text-sm">
-                  <div>Return ID: <span className="font-mono font-semibold">{lastReturnRecord.returnId}</span></div>
-                  <div>Refund Amount: <span className="font-semibold text-green-700">{formatCurrency(lastReturnRecord.totalRefundAmount)}</span></div>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => printReturnReceipt(lastReturnRecord)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Print Return Receipt
-                  </Button>
-                  <Button variant="outline" onClick={() => setLastReturnRecord(null)}>
-                    Dismiss
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          </div>
-        </div>
-        )}
-      </main>
-
-      {/* Manager PIN Modal */}
-      {showManagerPinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Manager Approval Required</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                This return requires manager approval. Please enter manager PIN.
-              </p>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Manager PIN</label>
-                <HybridInput 
-                  type="number"
-                  className="w-full p-3 border rounded-lg"
-                  value={managerPin}
-                  onChange={setManagerPin}
-                  placeholder="Enter manager PIN"
-                  onTouchKeyboard={() => openKb('managerPin', 'numeric', 'Manager PIN')}
-                />
+        {/* Manager PIN Modal */}
+        {showManagerPinModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden">
+              <div className="bg-[hsl(215,65%,30%)] px-5 py-4 flex items-center gap-3">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/20">
+                  <Shield className="w-4 h-4 text-white" />
+                </span>
+                <h3 className="text-white font-semibold text-sm">Manager Approval Required</h3>
               </div>
-
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowManagerPinModal(false)
-                    setManagerPin('')
-                  }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => {
-                    setShowManagerPinModal(false)
-                    processReturn()
-                  }}
-                  disabled={!managerPin}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  Approve Return
-                </Button>
+              <div className="p-5">
+                <p className="text-sm text-slate-600 mb-4">This return requires manager approval. Please enter your manager PIN to proceed.</p>
+                <div className="mb-4">
+                  <FieldLabel>Manager PIN</FieldLabel>
+                  <HybridInput
+                    type="number"
+                    className={inputCls}
+                    value={managerPin ? '••••' : ''}
+                    onChange={setManagerPin}
+                    placeholder="Enter manager PIN"
+                    onTouchKeyboard={() => openKb('managerPin', 'decimal', 'Manager PIN', undefined, true)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-slate-300 text-slate-600 hover:bg-slate-50"
+                    onClick={() => { setShowManagerPinModal(false); setManagerPin('') }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={!managerPin}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                    onClick={() => { setShowManagerPinModal(false); processReturn() }}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />Approve Return
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Modal Keyboard */}
-      <ModalKeyboard 
-        open={kbOpen} 
-        type={kbType} 
-        title={kbTitle} 
-        initialValue={
-          kbTarget === 'search' ? searchTransactionId :
-          kbTarget === 'managerPin' ? '' :
-          kbTarget === 'returnQuantity' && editingItemId ? 
-            returnItems.find(item => item.saleItemId === editingItemId)?.returnQuantity.toString() || '0' : ''
-        }
-        onSubmit={applyKb} 
-        onClose={() => setKbOpen(false)} 
-      />
+        {/* Modal Keyboard */}
+        <ModalKeyboard
+          open={kbOpen}
+          type={kbType}
+          title={kbTitle}
+          masked={kbMasked}
+          initialValue={
+            kbTarget === 'search' ? searchTransactionId :
+            kbTarget === 'managerPin' ? '' :
+            kbTarget === 'returnQuantity' && editingItemId
+              ? returnItems.find(item => item.saleItemId === editingItemId)?.returnQuantity.toString() || '0'
+              : ''
+          }
+          onSubmit={applyKb}
+          onClose={() => setKbOpen(false)}
+        />
       </div>
     </SessionGuard>
   )

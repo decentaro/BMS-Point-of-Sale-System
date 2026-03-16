@@ -1,6 +1,9 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Info } from 'lucide-react'
+import {
+  Info, Globe, ShoppingCart, Receipt, Package, RotateCcw,
+  Save, ChevronRight, Eye
+} from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import HybridInput from './HybridInput'
@@ -152,702 +155,536 @@ const SystemSettings: React.FC = () => {
     navigate('/manager')
   }
 
+  // ── Shared helpers ────────────────────────────────────────────────────────
+
+  const SectionHeader = ({ icon: Icon, label, color = 'emerald' }: {
+    icon: React.ElementType; label: string; color?: 'emerald' | 'navy' | 'red'
+  }) => {
+    const cls = {
+      emerald: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+      navy:    'text-[hsl(215,65%,30%)] bg-slate-50 border-slate-200',
+      red:     'text-red-600 bg-red-50 border-red-200',
+    }[color]
+    return (
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${cls} mb-4`}>
+        <Icon className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm font-semibold tracking-wide uppercase">{label}</span>
+      </div>
+    )
+  }
+
+  const SubHeader = ({ label }: { label: string }) => (
+    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3 mt-1">{label}</p>
+  )
+
+  const ToggleRow = ({ id, checked, onChange, label, sub }: {
+    id: string; checked: boolean; onChange: (v: boolean) => void; label: string; sub?: string
+  }) => (
+    <label htmlFor={id} className="flex items-center justify-between gap-4 py-3 px-4 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-colors">
+      <div>
+        <p className="text-sm font-medium text-slate-800">{label}</p>
+        {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+      </div>
+      <div className="relative flex-shrink-0">
+        <input id={id} type="checkbox" className="sr-only peer" checked={checked} onChange={e => onChange(e.target.checked)} />
+        <div className="w-10 h-6 rounded-full bg-slate-200 peer-checked:bg-emerald-500 transition-colors" />
+        <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+      </div>
+    </label>
+  )
+
+  const StyledSelect = ({ value, onChange, children, hint }: {
+    value: string | number; onChange: (v: string) => void; children: React.ReactNode; hint?: string
+  }) => (
+    <div>
+      <div className="relative">
+        <select
+          className="w-full appearance-none border border-slate-300 rounded-lg px-3 py-2.5 pr-9 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+        >
+          {children}
+        </select>
+        <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+      </div>
+      {hint && <p className="text-xs text-slate-500 mt-1.5">{hint}</p>}
+    </div>
+  )
+
+  const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{children}</label>
+  )
+
+  const inputCls = "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+
+  const PresetBar = ({ label, children }: { label?: string; children: React.ReactNode }) => (
+    <div className="mt-3">
+      {label && <p className="text-xs font-medium text-slate-500 mb-2">{label}</p>}
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  )
+
+  const PresetBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
+    <Button type="button" variant="outline" size="sm" onClick={onClick}
+      className="text-xs border-slate-300 text-slate-600 hover:bg-slate-50">
+      {label}
+    </Button>
+  )
+
+  const TipNote = ({ children }: { children: React.ReactNode }) => (
+    <p className="flex items-start gap-1 text-xs text-[hsl(215,65%,30%)] mt-2">
+      <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />{children}
+    </p>
+  )
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-      <PageHeader
-        title="System Settings"
-        subtitle="Configure system preferences"
-        onBack={goBack}
-        right={<SessionStatus />}
-      />
+        <PageHeader
+          title="System Settings"
+          subtitle="Configure system preferences"
+          onBack={goBack}
+          right={<SessionStatus />}
+        />
 
-      {/* Body */}
-      <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
-        {loading ? (
-          <SectionLoader message="Loading system settings..." />
-        ) : !settings ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-red-600 font-medium">Failed to load system settings</p>
-          </div>
-        ) : (
-        <div className="pt-6">
-          <div className="max-w-4xl mx-auto space-y-6">
-          
+        <main className="flex-1 overflow-y-auto bg-slate-50">
+          {loading ? (
+            <SectionLoader message="Loading system settings..." />
+          ) : !settings ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-red-600 font-medium">Failed to load system settings</p>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto px-6 py-6 space-y-5">
 
-          {/* Regional Settings */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Regional Settings</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                
-                {/* Date Format */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Date Format</label>
-                  <select 
-                    className="w-full p-3 border rounded-lg"
-                    value={settings.dateFormat}
-                    onChange={(e) => setSettings({ ...settings, dateFormat: e.target.value })}
-                  >
-                    <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2024)</option>
-                    <option value="DD/MM/YYYY">DD/MM/YYYY (31/12/2024)</option>
-                    <option value="YYYY-MM-DD">YYYY-MM-DD (2024-12-31)</option>
-                  </select>
-                </div>
+              {/* ── Regional Settings ──────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <SectionHeader icon={Globe} label="Regional Settings" color="emerald" />
+                  <div className="max-w-xs">
+                    <FieldLabel>Date Format</FieldLabel>
+                    <StyledSelect value={settings.dateFormat} onChange={v => setSettings({ ...settings, dateFormat: v })}>
+                      <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2024)</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY (31/12/2024)</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD (2024-12-31)</option>
+                    </StyledSelect>
+                  </div>
+                </CardContent>
+              </Card>
 
-                
-              </div>
-            </CardContent>
-          </Card>
+              {/* ── POS Behavior ───────────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5 space-y-5">
+                  <SectionHeader icon={ShoppingCart} label="POS Behavior" color="navy" />
 
-          {/* POS Behavior Settings */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4">POS Behavior</h2>
-              <div className="space-y-6">
-                
-                {/* Session & Security */}
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700 border-b pb-2">Session & Security</h3>
-                  
-                  {/* Auto Logout */}
+                  {/* Session & Security */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">Auto Logout (minutes)</label>
-                    <HybridInput 
-                      type="decimal"
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.autoLogoutMinutes}
-                      onChange={(value) => setSettings({ ...settings, autoLogoutMinutes: value })}
-                      onTouchKeyboard={() => openKb('autoLogoutMinutes', 'decimal', 'Auto Logout Minutes')}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Minimum 5 minutes for system stability</p>
-                  </div>
-                </div>
-
-                {/* Payment Methods */}
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700 border-b pb-2">Payment Methods</h3>
-                  
-                {/* Available Payment Methods */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Available Payment Methods (comma-separated)</label>
-                  <HybridInput 
-                    className="w-full p-3 border rounded-lg"
-                    value={settings.availablePaymentMethods}
-                    onChange={(value) => setSettings({ ...settings, availablePaymentMethods: value })}
-                    placeholder="Cash,Card,ETF/Digital"
-                    onTouchKeyboard={() => openKb('availablePaymentMethods', 'qwerty', 'Available Payment Methods')}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Payment methods available in POS system</p>
-                  
-                  {/* Quick Preset Buttons */}
-                  <div className="mt-2">
-                    <p className="text-xs font-medium text-gray-600 mb-2">Quick Presets:</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => setSettings({
-                          ...settings,
-                          availablePaymentMethods: "Cash,Card,ETF/Digital"
-                        })}
-                      >
-                        Standard
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => setSettings({
-                          ...settings,
-                          availablePaymentMethods: "Cash"
-                        })}
-                      >
-                        Cash Only
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => setSettings({
-                          ...settings,
-                          availablePaymentMethods: "Card,ETF/Digital"
-                        })}
-                      >
-                        Digital Only
-                      </Button>
-                    </div>
-                  </div>
-                  </div>
-
-                  {/* Default Payment Method */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Default Payment Method</label>
-                    <select 
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.defaultPaymentMethod}
-                      onChange={(e) => setSettings({ ...settings, defaultPaymentMethod: e.target.value })}
-                    >
-                      {settings.availablePaymentMethods.split(',').map(method => {
-                        const trimmedMethod = method.trim()
-                        return trimmedMethod ? (
-                          <option key={trimmedMethod} value={trimmedMethod}>{trimmedMethod}</option>
-                        ) : null
-                      })}
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Payment method selected by default in POS</p>
-                  </div>
-                </div>
-
-                {/* Transaction Controls */}
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700 border-b pb-2">Transaction Controls</h3>
-                  
-                  {/* Manager Approval for Discount */}
-                  <div className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox"
-                      id="managerApproval"
-                      checked={settings.requireManagerApprovalForDiscount}
-                      onChange={(e) => setSettings({ ...settings, requireManagerApprovalForDiscount: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="managerApproval" className="text-sm font-medium">Require Manager Approval for Discounts</label>
-                  </div>
-                </div>
-
-                {/* System Preferences */}
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700 border-b pb-2">System Preferences</h3>
-                  
-                  {/* Sound Effects */}
-                  <div className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox"
-                      id="soundEffects"
-                      checked={settings.soundEffectsEnabled}
-                      onChange={(e) => setSettings({ ...settings, soundEffectsEnabled: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="soundEffects" className="text-sm font-medium">Enable Sound Effects</label>
-                  </div>
-                </div>
-                
-              </div>
-            </CardContent>
-          </Card>
-
-
-          {/* Receipt & Printing Settings */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Receipt & Printing Settings</h2>
-              <div className="space-y-4">
-                
-                {/* Receipt Content */}
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700 border-b pb-2">Receipt Content</h3>
-                  
-
-                  {/* Receipt Header Text */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Receipt Header Text</label>
-                    <HybridInput 
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.receiptHeaderText || ''}
-                      onChange={(value) => setSettings({ ...settings, receiptHeaderText: value })}
-                      placeholder="Main header for receipts (e.g., WELCOME TO BMS PET STORE)"
-                      onTouchKeyboard={() => openKb('receiptHeaderText', 'qwerty', 'Receipt Header Text')}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">This will be the main header on your receipts. Business name is managed in Tax Settings.</p>
-                  </div>
-
-                  {/* Store Location */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Store Location/Address</label>
-                    <HybridInput 
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.storeLocation || ''}
-                      onChange={(value) => setSettings({ ...settings, storeLocation: value })}
-                      placeholder="Store address or location identifier"
-                      onTouchKeyboard={() => openKb('storeLocation', 'qwerty', 'Store Location')}
-                    />
-                  </div>
-
-                  {/* Phone Number */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Phone Number</label>
-                    <HybridInput 
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.phoneNumber || ''}
-                      onChange={(value) => setSettings({ ...settings, phoneNumber: value })}
-                      placeholder="Store phone number (e.g., +63 123 456 7890)"
-                      onTouchKeyboard={() => openKb('phoneNumber', 'qwerty', 'Phone Number')}
-                    />
-                  </div>
-
-                  {/* Receipt Footer */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Receipt Footer Text</label>
-                    <HybridInput 
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.receiptFooterText || ''}
-                      onChange={(value) => setSettings({ ...settings, receiptFooterText: value })}
-                      placeholder="Message at bottom of receipt (e.g., Thank you!)"
-                      onTouchKeyboard={() => openKb('receiptFooterText', 'qwerty', 'Receipt Footer Text')}
-                    />
-                  </div>
-                </div>
-
-                {/* Printing Configuration */}
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700 border-b pb-2">Printing Configuration</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  
-                  {/* Paper Size - Locked to 80mm */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Receipt Paper Size</label>
-                    <div className="w-full p-3 border rounded-lg bg-gray-100 text-gray-700">
-                      80mm (Standard) - Fixed
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Paper size is locked to 80mm for optimal thermal printing</p>
-                  </div>
-
-                  {/* Font Size */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Receipt Font Size</label>
-                    <select 
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.receiptFontSize}
-                      onChange={(e) => setSettings({ ...settings, receiptFontSize: e.target.value })}
-                    >
-                      <option value="Small">Small</option>
-                      <option value="Normal">Normal</option>
-                      <option value="Large">Large</option>
-                    </select>
-                  </div>
-
-                  {/* Receipt Template Layout */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Receipt Template Layout</label>
-                    <select 
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.receiptTemplateLayout}
-                      onChange={(e) => setSettings({ ...settings, receiptTemplateLayout: e.target.value })}
-                    >
-                      <option value="Compact">Compact - Minimal layout, fits more on small receipts</option>
-                      <option value="Standard">Standard - Balanced layout with all essential info</option>
-                      <option value="Detailed">Detailed - Comprehensive layout with full product details</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Choose how much information to display on receipts</p>
-                    <div className="mt-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowReceiptPreview(true)}
-                        className="text-emerald-600 border-emerald-300 hover:bg-emerald-50"
-                      >
-                        Preview Template
-                      </Button>
+                    <SubHeader label="Session & Security" />
+                    <div className="max-w-xs space-y-1">
+                      <FieldLabel>Auto Logout (minutes)</FieldLabel>
+                      <HybridInput
+                        type="decimal"
+                        className={inputCls}
+                        value={settings.autoLogoutMinutes}
+                        onChange={(value) => setSettings({ ...settings, autoLogoutMinutes: value })}
+                        onTouchKeyboard={() => openKb('autoLogoutMinutes', 'decimal', 'Auto Logout Minutes')}
+                      />
+                      <p className="text-xs text-slate-500">Minimum 5 minutes for system stability</p>
                     </div>
                   </div>
 
-                  {/* Receipt Copies */}
+                  {/* Payment Methods */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">Receipt Copies</label>
-                    <HybridInput 
-                      type="decimal"
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.receiptCopies}
-                      onChange={(value) => setSettings({ ...settings, receiptCopies: value })}
-                      onTouchKeyboard={() => openKb('receiptCopies', 'decimal', 'Number of Receipt Copies')}
-                    />
+                    <SubHeader label="Payment Methods" />
+                    <div className="space-y-4">
+                      <div>
+                        <FieldLabel>Available Methods (comma-separated)</FieldLabel>
+                        <HybridInput
+                          className={inputCls}
+                          value={settings.availablePaymentMethods}
+                          onChange={(value) => setSettings({ ...settings, availablePaymentMethods: value })}
+                          placeholder="Cash,Card,ETF/Digital"
+                          onTouchKeyboard={() => openKb('availablePaymentMethods', 'qwerty', 'Available Payment Methods')}
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Payment methods available in POS</p>
+                        <PresetBar label="Quick presets:">
+                          <PresetBtn label="Standard" onClick={() => setSettings({ ...settings, availablePaymentMethods: "Cash,Card,ETF/Digital" })} />
+                          <PresetBtn label="Cash Only" onClick={() => setSettings({ ...settings, availablePaymentMethods: "Cash" })} />
+                          <PresetBtn label="Digital Only" onClick={() => setSettings({ ...settings, availablePaymentMethods: "Card,ETF/Digital" })} />
+                        </PresetBar>
+                      </div>
+                      <div className="max-w-xs">
+                        <FieldLabel>Default Payment Method</FieldLabel>
+                        <StyledSelect
+                          value={settings.defaultPaymentMethod}
+                          onChange={v => setSettings({ ...settings, defaultPaymentMethod: v })}
+                          hint="Selected by default in POS checkout"
+                        >
+                          {settings.availablePaymentMethods.split(',').map(m => {
+                            const t = m.trim(); return t ? <option key={t} value={t}>{t}</option> : null
+                          })}
+                        </StyledSelect>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Email Receipt */}
+                  {/* Transaction Controls & System Preferences */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">Default Email for Receipts</label>
-                    <HybridInput 
-                      className="w-full p-3 border rounded-lg"
-                      value={settings.defaultReceiptEmail || ''}
-                      onChange={(value) => setSettings({ ...settings, defaultReceiptEmail: value })}
-                      placeholder="customer@example.com"
-                      onTouchKeyboard={() => openKb('defaultReceiptEmail', 'qwerty', 'Default Receipt Email')}
-                      disabled={!settings.emailReceiptEnabled}
-                    />
+                    <SubHeader label="Controls & Preferences" />
+                    <div className="space-y-2">
+                      <ToggleRow
+                        id="managerApproval"
+                        checked={settings.requireManagerApprovalForDiscount}
+                        onChange={v => setSettings({ ...settings, requireManagerApprovalForDiscount: v })}
+                        label="Require Manager Approval for Discounts"
+                        sub="Cashier must enter manager PIN to apply any discount"
+                      />
+                      <ToggleRow
+                        id="soundEffects"
+                        checked={settings.soundEffectsEnabled}
+                        onChange={v => setSettings({ ...settings, soundEffectsEnabled: v })}
+                        label="Enable Sound Effects"
+                        sub="Beeps and feedback sounds during POS operations"
+                      />
+                    </div>
                   </div>
-                  
-                  </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                {/* Printing Options */}
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700 border-b pb-2">Printing Options</h3>
-                  <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox"
-                      id="printAutomatically"
-                      checked={settings.printReceiptAutomatically}
-                      onChange={(e) => setSettings({ ...settings, printReceiptAutomatically: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="printAutomatically" className="text-sm font-medium">Print receipts automatically after payment</label>
-                  </div>
+              {/* ── Receipt & Printing ─────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5 space-y-5">
+                  <SectionHeader icon={Receipt} label="Receipt & Printing" color="emerald" />
 
-
-                  <div className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox"
-                      id="showReceiptPreview"
-                      checked={settings.showReceiptPreview}
-                      onChange={(e) => setSettings({ ...settings, showReceiptPreview: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="showReceiptPreview" className="text-sm font-medium">Show receipt preview before printing</label>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox"
-                      id="emailReceiptEnabled"
-                      checked={settings.emailReceiptEnabled}
-                      onChange={(e) => setSettings({ ...settings, emailReceiptEnabled: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="emailReceiptEnabled" className="text-sm font-medium">Enable email receipts</label>
-                  </div>
-
-
-                  <div className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox"
-                      id="showReceiptBarcode"
-                      checked={settings.showReceiptBarcode}
-                      onChange={(e) => setSettings({ ...settings, showReceiptBarcode: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="showReceiptBarcode" className="text-sm font-medium">Show transaction barcode on receipts (for easy returns)</label>
-                  </div>
-                  </div>
-                </div>
-
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Product Management Settings */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Product Management</h2>
-              <div className="space-y-4">
-                
-                {/* Product Categories */}
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700 border-b pb-2">Product Categories</h3>
-                  
+                  {/* Receipt Content */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">Available Product Categories (comma-separated)</label>
-                    <HybridInput 
-                      className="w-full p-3 border rounded-lg"
+                    <SubHeader label="Receipt Content" />
+                    <div className="space-y-3">
+                      <div>
+                        <FieldLabel>Header Text</FieldLabel>
+                        <HybridInput
+                          className={inputCls}
+                          value={settings.receiptHeaderText || ''}
+                          onChange={(value) => setSettings({ ...settings, receiptHeaderText: value })}
+                          placeholder="e.g. WELCOME TO BMS PET STORE"
+                          onTouchKeyboard={() => openKb('receiptHeaderText', 'qwerty', 'Receipt Header Text')}
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Business name is managed in Tax Settings.</p>
+                      </div>
+                      <div>
+                        <FieldLabel>Store Location / Address</FieldLabel>
+                        <HybridInput
+                          className={inputCls}
+                          value={settings.storeLocation || ''}
+                          onChange={(value) => setSettings({ ...settings, storeLocation: value })}
+                          placeholder="Store address or location identifier"
+                          onTouchKeyboard={() => openKb('storeLocation', 'qwerty', 'Store Location')}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Phone Number</FieldLabel>
+                        <HybridInput
+                          className={inputCls}
+                          value={settings.phoneNumber || ''}
+                          onChange={(value) => setSettings({ ...settings, phoneNumber: value })}
+                          placeholder="+63 123 456 7890"
+                          onTouchKeyboard={() => openKb('phoneNumber', 'qwerty', 'Phone Number')}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Footer Text</FieldLabel>
+                        <HybridInput
+                          className={inputCls}
+                          value={settings.receiptFooterText || ''}
+                          onChange={(value) => setSettings({ ...settings, receiptFooterText: value })}
+                          placeholder="e.g. Thank you for shopping with us!"
+                          onTouchKeyboard={() => openKb('receiptFooterText', 'qwerty', 'Receipt Footer Text')}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Printing Configuration */}
+                  <div>
+                    <SubHeader label="Printing Configuration" />
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <FieldLabel>Paper Size</FieldLabel>
+                        <div className="px-3 py-2.5 border border-slate-200 rounded-lg bg-slate-100 text-sm text-slate-500">
+                          80mm — Fixed
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">Locked for thermal printing</p>
+                      </div>
+                      <div>
+                        <FieldLabel>Font Size</FieldLabel>
+                        <StyledSelect value={settings.receiptFontSize} onChange={v => setSettings({ ...settings, receiptFontSize: v })}>
+                          <option value="Small">Small</option>
+                          <option value="Normal">Normal</option>
+                          <option value="Large">Large</option>
+                        </StyledSelect>
+                      </div>
+                      <div>
+                        <FieldLabel>Receipt Copies</FieldLabel>
+                        <HybridInput
+                          type="decimal"
+                          className={inputCls}
+                          value={settings.receiptCopies}
+                          onChange={(value) => setSettings({ ...settings, receiptCopies: value })}
+                          onTouchKeyboard={() => openKb('receiptCopies', 'decimal', 'Number of Receipt Copies')}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <FieldLabel>Template Layout</FieldLabel>
+                        <StyledSelect
+                          value={settings.receiptTemplateLayout}
+                          onChange={v => setSettings({ ...settings, receiptTemplateLayout: v })}
+                          hint="Controls how much detail appears on each receipt"
+                        >
+                          <option value="Compact">Compact — Minimal, fits more on small receipts</option>
+                          <option value="Standard">Standard — Balanced with all essential info</option>
+                          <option value="Detailed">Detailed — Comprehensive with full product details</option>
+                        </StyledSelect>
+                        <div className="mt-2">
+                          <Button type="button" variant="outline" size="sm"
+                            onClick={() => setShowReceiptPreview(true)}
+                            className="gap-2 text-emerald-600 border-emerald-300 hover:bg-emerald-50 text-xs">
+                            <Eye className="w-3.5 h-3.5" /> Preview Template
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <FieldLabel>Default Email</FieldLabel>
+                        <HybridInput
+                          className={inputCls}
+                          value={settings.defaultReceiptEmail || ''}
+                          onChange={(value) => setSettings({ ...settings, defaultReceiptEmail: value })}
+                          placeholder="customer@example.com"
+                          onTouchKeyboard={() => openKb('defaultReceiptEmail', 'qwerty', 'Default Receipt Email')}
+                          disabled={!settings.emailReceiptEnabled}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Printing Options */}
+                  <div>
+                    <SubHeader label="Printing Options" />
+                    <div className="space-y-2">
+                      <ToggleRow
+                        id="printAutomatically"
+                        checked={settings.printReceiptAutomatically}
+                        onChange={v => setSettings({ ...settings, printReceiptAutomatically: v })}
+                        label="Auto-print after payment"
+                        sub="Prints receipt immediately when a sale is completed"
+                      />
+                      <ToggleRow
+                        id="showReceiptPreview"
+                        checked={settings.showReceiptPreview}
+                        onChange={v => setSettings({ ...settings, showReceiptPreview: v })}
+                        label="Show preview before printing"
+                        sub="Display receipt on screen for confirmation first"
+                      />
+                      <ToggleRow
+                        id="emailReceiptEnabled"
+                        checked={settings.emailReceiptEnabled}
+                        onChange={v => setSettings({ ...settings, emailReceiptEnabled: v })}
+                        label="Enable email receipts"
+                        sub="Allow sending receipts to customer email addresses"
+                      />
+                      <ToggleRow
+                        id="showReceiptBarcode"
+                        checked={settings.showReceiptBarcode}
+                        onChange={v => setSettings({ ...settings, showReceiptBarcode: v })}
+                        label="Show transaction barcode"
+                        sub="Prints a scannable barcode for easy returns lookup"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ── Product Management ─────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <SectionHeader icon={Package} label="Product Management" color="navy" />
+                  <SubHeader label="Product Categories" />
+                  <div>
+                    <FieldLabel>Available Categories (comma-separated)</FieldLabel>
+                    <HybridInput
+                      className={inputCls}
                       value={settings.productCategories || ''}
                       onChange={(value) => setSettings({ ...settings, productCategories: value })}
                       placeholder="Pet Food,Pet Toys,Pet Accessories,Pet Medicine,Pet Grooming,Pet Treats"
                       onTouchKeyboard={() => openKb('productCategories', 'qwerty', 'Product Categories')}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Categories available when adding/editing products in inventory</p>
-                    
-                    {/* Quick Preset Buttons */}
-                    <div className="mt-3">
-                      <p className="text-xs font-medium text-gray-600 mb-2">Quick Presets:</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => setSettings({
-                            ...settings,
-                            productCategories: "Pet Food,Pet Toys,Pet Accessories,Pet Medicine,Pet Grooming,Pet Treats,Pet Beds,Pet Carriers,Pet Collars & Leashes,Pet Bowls & Feeders"
-                          })}
-                        >
-                          Pet Store Comprehensive
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => setSettings({
-                            ...settings,
-                            productCategories: "Pet Food,Pet Toys,Pet Accessories,Pet Medicine"
-                          })}
-                        >
-                          Pet Store Basic
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => setSettings({
-                            ...settings,
-                            productCategories: "Dog Food,Cat Food,Dog Toys,Cat Toys,Dog Accessories,Cat Accessories,Pet Medicine,Pet Treats"
-                          })}
-                        >
-                          Dog & Cat Focused
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => setSettings({
-                            ...settings,
-                            productCategories: "Food & Beverages,Electronics,Clothing,Home & Garden,Books,Toys & Games,Sports,Health & Beauty"
-                          })}
-                        >
-                          General Retail
-                        </Button>
-                      </div>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-2"><Info className="w-3 h-3 inline mr-1" />Tip: Having consistent categories helps with inventory organization, reporting, and finding products quickly</p>
+                    <p className="text-xs text-slate-500 mt-1">Used when adding or editing products in inventory</p>
+                    <PresetBar label="Quick presets:">
+                      <PresetBtn label="Pet Store Comprehensive" onClick={() => setSettings({ ...settings, productCategories: "Pet Food,Pet Toys,Pet Accessories,Pet Medicine,Pet Grooming,Pet Treats,Pet Beds,Pet Carriers,Pet Collars & Leashes,Pet Bowls & Feeders" })} />
+                      <PresetBtn label="Pet Store Basic" onClick={() => setSettings({ ...settings, productCategories: "Pet Food,Pet Toys,Pet Accessories,Pet Medicine" })} />
+                      <PresetBtn label="Dog & Cat Focused" onClick={() => setSettings({ ...settings, productCategories: "Dog Food,Cat Food,Dog Toys,Cat Toys,Dog Accessories,Cat Accessories,Pet Medicine,Pet Treats" })} />
+                      <PresetBtn label="General Retail" onClick={() => setSettings({ ...settings, productCategories: "Food & Beverages,Electronics,Clothing,Home & Garden,Books,Toys & Games,Sports,Health & Beauty" })} />
+                    </PresetBar>
+                    <TipNote>Consistent categories improve inventory organisation, reporting, and product search.</TipNote>
                   </div>
-                </div>
-                
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          {/* Returns Policy Settings */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Returns Policy Settings</h2>
-              <div className="space-y-4">
-                
-                {/* Master Enable/Disable */}
-                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-                  <input 
-                    type="checkbox"
+              {/* ── Returns Policy ─────────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <SectionHeader icon={RotateCcw} label="Returns Policy" color="red" />
+
+                  {/* Master toggle */}
+                  <ToggleRow
                     id="enableReturns"
                     checked={settings.enableReturns}
-                    onChange={(e) => setSettings({ ...settings, enableReturns: e.target.checked })}
-                    className="w-4 h-4"
+                    onChange={v => setSettings({ ...settings, enableReturns: v })}
+                    label="Enable Returns System"
+                    sub="Allow cashiers to process product returns and refunds"
                   />
-                  <label htmlFor="enableReturns" className="text-sm font-medium text-blue-800">Enable Returns System</label>
-                </div>
 
-                {/* Returns Configuration (only show if returns are enabled) */}
-                {settings.enableReturns && (
-                  <>
-                    {/* Policy Options */}
-                    <div className="space-y-3">
-                      <h3 className="text-md font-medium text-gray-700 border-b pb-2">Return Policies</h3>
-                      
-                      <div className="flex items-center space-x-3">
-                        <input 
-                          type="checkbox"
-                          id="requireReceiptForReturns"
-                          checked={settings.requireReceiptForReturns}
-                          onChange={(e) => setSettings({ ...settings, requireReceiptForReturns: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <label htmlFor="requireReceiptForReturns" className="text-sm font-medium">Require receipt for returns</label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input 
-                          type="checkbox"
-                          id="requireManagerApprovalForReturns"
-                          checked={settings.requireManagerApprovalForReturns}
-                          onChange={(e) => setSettings({ ...settings, requireManagerApprovalForReturns: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <label htmlFor="requireManagerApprovalForReturns" className="text-sm font-medium">Require manager approval for ALL returns</label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input 
-                          type="checkbox"
-                          id="restockReturnedItems"
-                          checked={settings.restockReturnedItems}
-                          onChange={(e) => setSettings({ ...settings, restockReturnedItems: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <label htmlFor="restockReturnedItems" className="text-sm font-medium">Automatically restock returned items (good condition)</label>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <input 
-                          type="checkbox"
-                          id="allowDefectiveItemReturns"
-                          checked={settings.allowDefectiveItemReturns}
-                          onChange={(e) => setSettings({ ...settings, allowDefectiveItemReturns: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <label htmlFor="allowDefectiveItemReturns" className="text-sm font-medium">Allow returns of defective/damaged items</label>
-                      </div>
-                    </div>
-
-                    {/* Numerical Settings */}
-                    <div className="space-y-4">
-                      <h3 className="text-md font-medium text-gray-700 border-b pb-2">Return Limits</h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Return Time Limit (Days)</label>
-                          <HybridInput 
-                            type="decimal"
-                            className="w-full p-3 border rounded-lg"
-                            value={settings.returnTimeLimitDays}
-                            onChange={(value) => setSettings({ ...settings, returnTimeLimitDays: value })}
-                            onTouchKeyboard={() => openKb('returnTimeLimitDays', 'decimal', 'Return Time Limit (Days)')}
-                          />
-                          <p className="text-xs text-gray-500 mt-1">How many days customers have to return items</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Manager Approval Amount Threshold</label>
-                          <HybridInput 
-                            type="decimal"
-                            className="w-full p-3 border rounded-lg"
-                            value={settings.returnManagerApprovalAmount}
-                            onChange={(value) => setSettings({ ...settings, returnManagerApprovalAmount: value })}
-                            onTouchKeyboard={() => openKb('returnManagerApprovalAmount', 'decimal', 'Manager Approval Amount')}
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Returns above this amount require manager PIN</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Return Reasons */}
-                    <div className="space-y-4">
-                      <h3 className="text-md font-medium text-gray-700 border-b pb-2">Return Reasons</h3>
-                      
+                  {settings.enableReturns && (
+                    <div className="mt-5 space-y-5">
+                      {/* Return Policies */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">Return Reasons (comma-separated)</label>
-                        <HybridInput 
-                          className="w-full p-3 border rounded-lg"
-                          value={settings.returnReasons}
-                          onChange={(value) => setSettings({ ...settings, returnReasons: value })}
-                          placeholder="Defective Product,Wrong Size,Pet Doesn't Like,Food Allergies,Damaged Package,Changed Mind,Other"
-                          onTouchKeyboard={() => openKb('returnReasons', 'qwerty', 'Return Reasons')}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          <strong>Pet Store Examples:</strong> "Defective Product", "Wrong Size", "Pet Doesn't Like", "Food Allergies", "Damaged Package", "Changed Mind", "Other"
-                        </p>
-                        <p className="text-xs text-blue-600 mt-1"><Info className="w-3 h-3 inline mr-1" />Tip: Customize these reasons based on what you commonly see at your store</p>
-                        
-                        {/* Quick Preset Buttons */}
-                        <div className="mt-3">
-                          <p className="text-xs font-medium text-gray-600 mb-2">Quick Presets:</p>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => setSettings({
-                                ...settings,
-                                returnReasons: "Defective Product,Wrong Size,Pet Doesn't Like,Food Allergies,Damaged Package,Changed Mind,Other"
-                              })}
-                            >
-                              Pet Store Default
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => setSettings({
-                                ...settings,
-                                returnReasons: "Defective,Wrong Item,Changed Mind,No Receipt,Other"
-                              })}
-                            >
-                              Simple
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => setSettings({
-                                ...settings,
-                                returnReasons: "Product Defect,Size Issue,Pet Allergic Reaction,Vet Recommendation,Wrong Item Ordered,Customer Changed Mind,Damaged in Transit,Other"
-                              })}
-                            >
-                              Detailed
-                            </Button>
+                        <SubHeader label="Return Policies" />
+                        <div className="space-y-2">
+                          <ToggleRow
+                            id="requireReceiptForReturns"
+                            checked={settings.requireReceiptForReturns}
+                            onChange={v => setSettings({ ...settings, requireReceiptForReturns: v })}
+                            label="Require receipt for returns"
+                            sub="Customer must present original receipt"
+                          />
+                          <ToggleRow
+                            id="requireManagerApprovalForReturns"
+                            checked={settings.requireManagerApprovalForReturns}
+                            onChange={v => setSettings({ ...settings, requireManagerApprovalForReturns: v })}
+                            label="Require manager approval for all returns"
+                            sub="Every return needs manager PIN regardless of amount"
+                          />
+                          <ToggleRow
+                            id="restockReturnedItems"
+                            checked={settings.restockReturnedItems}
+                            onChange={v => setSettings({ ...settings, restockReturnedItems: v })}
+                            label="Auto-restock returned items"
+                            sub="Good condition returns are added back to inventory"
+                          />
+                          <ToggleRow
+                            id="allowDefectiveItemReturns"
+                            checked={settings.allowDefectiveItemReturns}
+                            onChange={v => setSettings({ ...settings, allowDefectiveItemReturns: v })}
+                            label="Allow defective / damaged returns"
+                            sub="Accept returns for items with defects or damage"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Return Limits */}
+                      <div>
+                        <SubHeader label="Return Limits" />
+                        <div className="grid grid-cols-2 gap-4 max-w-lg">
+                          <div>
+                            <FieldLabel>Time Limit (days)</FieldLabel>
+                            <HybridInput
+                              type="decimal"
+                              className={inputCls}
+                              value={settings.returnTimeLimitDays}
+                              onChange={(value) => setSettings({ ...settings, returnTimeLimitDays: value })}
+                              onTouchKeyboard={() => openKb('returnTimeLimitDays', 'decimal', 'Return Time Limit (Days)')}
+                            />
+                            <p className="text-xs text-slate-500 mt-1">Days customer has to return items</p>
+                          </div>
+                          <div>
+                            <FieldLabel>Manager Approval Threshold</FieldLabel>
+                            <HybridInput
+                              type="decimal"
+                              className={inputCls}
+                              value={settings.returnManagerApprovalAmount}
+                              onChange={(value) => setSettings({ ...settings, returnManagerApprovalAmount: value })}
+                              onTouchKeyboard={() => openKb('returnManagerApprovalAmount', 'decimal', 'Manager Approval Amount')}
+                            />
+                            <p className="text-xs text-slate-500 mt-1">Returns above this require manager PIN</p>
                           </div>
                         </div>
                       </div>
+
+                      {/* Return Reasons */}
+                      <div>
+                        <SubHeader label="Return Reasons" />
+                        <FieldLabel>Reasons (comma-separated)</FieldLabel>
+                        <HybridInput
+                          className={inputCls}
+                          value={settings.returnReasons}
+                          onChange={(value) => setSettings({ ...settings, returnReasons: value })}
+                          placeholder="Defective Product,Wrong Size,Pet Doesn't Like,Changed Mind,Other"
+                          onTouchKeyboard={() => openKb('returnReasons', 'qwerty', 'Return Reasons')}
+                        />
+                        <PresetBar label="Quick presets:">
+                          <PresetBtn label="Pet Store Default" onClick={() => setSettings({ ...settings, returnReasons: "Defective Product,Wrong Size,Pet Doesn't Like,Food Allergies,Damaged Package,Changed Mind,Other" })} />
+                          <PresetBtn label="Simple" onClick={() => setSettings({ ...settings, returnReasons: "Defective,Wrong Item,Changed Mind,No Receipt,Other" })} />
+                          <PresetBtn label="Detailed" onClick={() => setSettings({ ...settings, returnReasons: "Product Defect,Size Issue,Pet Allergic Reaction,Vet Recommendation,Wrong Item Ordered,Customer Changed Mind,Damaged in Transit,Other" })} />
+                        </PresetBar>
+                        <TipNote>Customise these reasons based on what you commonly see at your store.</TipNote>
+                      </div>
                     </div>
-                  </>
-                )}
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ── Save ───────────────────────────────────────────── */}
+              <div className="flex justify-end pb-2">
+                <Button
+                  onClick={saveSettings}
+                  disabled={saving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 gap-2"
+                >
+                  {saving ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
+                  ) : (
+                    <><Save className="w-4 h-4" />Save Settings</>
+                  )}
+                </Button>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Save Button */}
-          <div className="flex justify-end">
-            <Button 
-              onClick={saveSettings} 
-              disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8"
-            >
-              {saving ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Saving...</span>
-                </div>
-              ) : (
-                'Save Settings'
+              {/* Modal Keyboard */}
+              <ModalKeyboard
+                open={kbOpen}
+                type={kbType}
+                title={kbTitle}
+                initialValue={
+                  kbTarget === 'autoLogoutMinutes' ? settings.autoLogoutMinutes.toString() :
+                  kbTarget === 'fontScaling' ? settings.fontScaling.toString() :
+                  kbTarget === 'receiptCopies' ? settings.receiptCopies.toString() :
+                  kbTarget === 'receiptFooterText' ? settings.receiptFooterText || '' :
+                  kbTarget === 'receiptHeaderText' ? settings.receiptHeaderText || '' :
+                  kbTarget === 'defaultReceiptEmail' ? settings.defaultReceiptEmail || '' :
+                  kbTarget === 'storeLocation' ? settings.storeLocation || '' :
+                  kbTarget === 'phoneNumber' ? settings.phoneNumber || '' :
+                  kbTarget === 'returnTimeLimitDays' ? settings.returnTimeLimitDays.toString() :
+                  kbTarget === 'returnManagerApprovalAmount' ? settings.returnManagerApprovalAmount.toString() :
+                  kbTarget === 'returnReasons' ? settings.returnReasons || '' :
+                  kbTarget === 'availablePaymentMethods' ? settings.availablePaymentMethods || '' :
+                  kbTarget === 'productCategories' ? settings.productCategories || '' : ''
+                }
+                onSubmit={applyKb}
+                onClose={() => setKbOpen(false)}
+              />
+
+              {/* Receipt Template Preview Modal */}
+              {settings && (
+                <ReceiptTemplatePreview
+                  isOpen={showReceiptPreview}
+                  systemSettings={settings}
+                  onClose={() => setShowReceiptPreview(false)}
+                />
               )}
-            </Button>
-          </div>
 
-      {/* Modal Keyboard */}
-      <ModalKeyboard 
-        open={kbOpen} 
-        type={kbType} 
-        title={kbTitle} 
-        initialValue={
-          kbTarget === 'autoLogoutMinutes' ? settings.autoLogoutMinutes.toString() :
-          kbTarget === 'fontScaling' ? settings.fontScaling.toString() :
-          kbTarget === 'receiptCopies' ? settings.receiptCopies.toString() :
-          kbTarget === 'receiptFooterText' ? settings.receiptFooterText || '' :
-          kbTarget === 'receiptHeaderText' ? settings.receiptHeaderText || '' :
-          kbTarget === 'defaultReceiptEmail' ? settings.defaultReceiptEmail || '' :
-          kbTarget === 'storeLocation' ? settings.storeLocation || '' :
-          kbTarget === 'phoneNumber' ? settings.phoneNumber || '' :
-          kbTarget === 'returnTimeLimitDays' ? settings.returnTimeLimitDays.toString() :
-          kbTarget === 'returnManagerApprovalAmount' ? settings.returnManagerApprovalAmount.toString() :
-          kbTarget === 'returnReasons' ? settings.returnReasons || '' :
-          kbTarget === 'availablePaymentMethods' ? settings.availablePaymentMethods || '' :
-          kbTarget === 'productCategories' ? settings.productCategories || '' : ''
-        } 
-        onSubmit={applyKb} 
-        onClose={() => setKbOpen(false)} 
-      />
-
-      {/* Receipt Template Preview Modal */}
-      {settings && (
-        <ReceiptTemplatePreview
-          isOpen={showReceiptPreview}
-          systemSettings={settings}
-          onClose={() => setShowReceiptPreview(false)}
-        />
-      )}
-          </div>
-        </div>
-        )}
-      </main>
+            </div>
+          )}
+        </main>
       </div>
     </SessionGuard>
   )

@@ -1,11 +1,14 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  Users, Search, Plus, Save, UserX, UserCheck,
+  X, KeyRound, ChevronDown, Shield, ShoppingCart, Package
+} from 'lucide-react'
 import { Button } from './ui/button'
 import HybridInput from './HybridInput'
 import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
 import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
-import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
 import PageHeader from './ui/PageHeader'
 
@@ -24,11 +27,6 @@ interface Employee {
 
 const Employees: React.FC = () => {
   const navigate = useNavigate()
-
-  // Get user context for API headers
-  const getUserHeaders = () => {
-    return SessionManager.getUserHeaders()
-  }
 
   // Session and role validation handled by SessionGuard wrapper
 
@@ -270,159 +268,272 @@ const Employees: React.FC = () => {
     )
   }, [employees, form.search])
 
+  // Role meta: icon + colors for badges and list
+  const roleMeta = (role: string) => {
+    switch (role) {
+      case 'Manager':  return { Icon: Shield,       bg: 'bg-amber-100',   text: 'text-amber-700',  border: 'border-amber-200'  }
+      case 'Inventory': return { Icon: Package,     bg: 'bg-blue-100',    text: 'text-blue-700',   border: 'border-blue-200'   }
+      default:          return { Icon: ShoppingCart, bg: 'bg-slate-100',  text: 'text-slate-600',  border: 'border-slate-200'  }
+    }
+  }
+
+  const inputCls = 'w-full h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
+
+  const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+    <label className="block text-xs font-semibold text-slate-600 mb-1">{children}</label>
+  )
+
+  const selectedEmp = employees.find(emp => emp.id === selectedEmployee)
+  const isSelectedInactive = selectedEmp?.isActive === false
+
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-      <PageHeader
-        title="Employees"
-        subtitle="Manage employees"
-        onBack={() => navigate('/manager')}
-        right={<SessionStatus />}
-      />
+        <PageHeader
+          title="Employees"
+          subtitle="Manage employees"
+          onBack={() => navigate('/manager')}
+          right={<SessionStatus />}
+        />
 
-      {/* Body */}
-      <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
-        <div className="h-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-2">
-          {/* Left: list */}
-          <div className="overflow-hidden bg-white rounded-lg shadow-sm max-h-80 lg:max-h-full">
-            <div className="p-0 h-full">
-              <div className="h-full flex flex-col">
-                <div className="p-2 bg-white">
+        {/* Body */}
+        <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
+          <div className="h-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-2">
+
+            {/* Left: employee list */}
+            <div className="overflow-hidden bg-white rounded-lg border border-slate-200 shadow-sm max-h-80 lg:max-h-full flex flex-col">
+
+              {/* List header */}
+              <div className="px-3 pt-3 pb-2 border-b border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-100">
+                      <Users className="w-3.5 h-3.5 text-emerald-600" />
+                    </span>
+                    <span className="text-sm font-semibold text-slate-700">Employee List</span>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">{filteredEmployees.length} shown</span>
+                </div>
+
+                {/* Search */}
+                <div className="relative mb-2">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                   <HybridInput
                     placeholder="Search employees..."
-                    className="w-full h-9 px-3 text-sm border rounded mb-2"
+                    className="w-full h-8 pl-8 pr-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     value={form.search}
                     onChange={(value) => setForm(prev => ({ ...prev, search: value }))}
                     onTouchKeyboard={() => openKb('search', 'qwerty', 'Search Employees')}
                   />
-                  <label className="flex items-center text-xs text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={showInactive}
-                      onChange={(e) => setShowInactive(e.target.checked)}
-                      className="mr-2"
-                    />
-                    Show inactive employees
-                  </label>
                 </div>
-                <div className="flex-1 overflow-auto">
-                  {loading ? (
-                    <div className="text-center py-8 text-sm text-slate-500">Loading employees...</div>
-                  ) : error ? (
-                    <div className="text-center py-8 text-sm text-red-500">{error}</div>
-                  ) : filteredEmployees.length === 0 ? (
-                    <div className="text-center py-8 text-sm text-slate-500">
-                      {form.search ? 'No employees found matching your search.' : 'No employees available.'}
-                    </div>
-                  ) : (
-                    <ul>
-                      {filteredEmployees.map((employee) => (
-                        <li 
-                          key={employee.id} 
-                          className={`px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer ${
-                            selectedEmployee === employee.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                          }`}
+
+                {/* Show inactive toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowInactive(v => !v)}
+                  className="flex items-center gap-2 text-xs text-slate-600 select-none"
+                >
+                  <span className={`relative inline-flex h-4 w-7 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${showInactive ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                    <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${showInactive ? 'translate-x-3' : 'translate-x-0'}`} />
+                  </span>
+                  Show inactive employees
+                </button>
+              </div>
+
+              {/* Employee rows */}
+              <div className="flex-1 overflow-auto">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12 text-sm text-slate-400">Loading employees...</div>
+                ) : error ? (
+                  <div className="flex items-center justify-center py-12 text-sm text-red-500">{error}</div>
+                ) : filteredEmployees.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2">
+                    <Users className="w-8 h-8 text-slate-200" />
+                    <span className="text-sm text-slate-400">
+                      {form.search ? 'No employees match your search.' : 'No employees available.'}
+                    </span>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-slate-50">
+                    {filteredEmployees.map((employee) => {
+                      const meta = roleMeta(employee.role)
+                      const RoleIcon = meta.Icon
+                      const isSelected = selectedEmployee === employee.id
+                      const initials = employee.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                      return (
+                        <li
+                          key={employee.id}
                           onClick={() => selectEmployee(employee)}
+                          className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-emerald-50 border-l-[3px] border-emerald-500'
+                              : 'hover:bg-slate-50 border-l-[3px] border-transparent'
+                          }`}
                         >
-                          <div className={`font-medium ${!employee.isActive ? 'text-slate-400' : ''}`}>
-                            {employee.name} {!employee.isActive ? '(Inactive)' : ''}
+                          {/* Initials avatar */}
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                            employee.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            {initials}
                           </div>
-                          <div className={`text-xs ${!employee.isActive ? 'text-slate-400' : 'text-slate-600'}`}>
-                            ID: {employee.employeeId} • {employee.role}
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm font-medium truncate ${!employee.isActive ? 'text-slate-400' : 'text-slate-800'}`}>
+                              {employee.name}
+                              {!employee.isActive && <span className="ml-1 text-xs font-normal text-slate-400">(Inactive)</span>}
+                            </div>
+                            <div className="text-xs text-slate-500">ID: {employee.employeeId}</div>
                           </div>
+                          {/* Role badge */}
+                          <span className={`flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${meta.bg} ${meta.text} ${meta.border}`}>
+                            <RoleIcon className="w-2.5 h-2.5" />
+                            {employee.role}
+                          </span>
                         </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                      )
+                    })}
+                  </ul>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Right: details form */}
-          <div className="overflow-hidden bg-white rounded-lg shadow-sm">
-            <div className="p-3">
-              <form className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="col-span-full">
-                  <label className="text-xs font-semibold">Name</label>
-                  <HybridInput 
-                    className="w-full h-9 px-3 text-sm border rounded" 
-                    placeholder="First Name" 
-                    value={form.name} 
-                    onChange={(value) => setForm(prev => ({ ...prev, name: value }))}
-                    onTouchKeyboard={() => openKb('name', 'qwerty', 'Employee Name')} 
-                  />
+            {/* Right: details form */}
+            <div className="overflow-auto bg-white rounded-lg border border-slate-200 shadow-sm">
+              <div className="p-4">
+                {/* Section header */}
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-emerald-100">
+                    <Users className="w-4 h-4 text-emerald-600" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">
+                      {isEditing ? `Edit: ${selectedEmp?.name ?? ''}` : 'Add New Employee'}
+                    </p>
+                    <p className="text-xs text-slate-400">{isEditing ? 'Update employee details below' : 'Fill in the details to create a new employee'}</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold">Employee ID</label>
-                  <HybridInput 
-                    type="number"
-                    className="w-full h-9 px-3 text-sm border rounded" 
-                    placeholder="e.g. 0004" 
-                    value={form.employeeId} 
-                    onChange={(value) => setForm(prev => ({ ...prev, employeeId: value }))}
-                    onTouchKeyboard={() => openKb('employeeId', 'numeric', 'Employee ID')} 
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold">PIN</label>
-                  <HybridInput 
-                    type="number"
-                    className="w-full h-9 px-3 text-sm border rounded" 
-                    placeholder="••••" 
-                    value={form.pin ? '••••' : ''} 
-                    onChange={(value) => setForm(prev => ({ ...prev, pin: value }))}
-                    onTouchKeyboard={() => { setForm(prev => ({ ...prev, pin: '' })); openKb('pin', 'numeric', 'Employee PIN', true); }} 
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold">Role</label>
-                  <select 
-                    className="w-full h-9 px-2 text-sm border rounded"
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
-                  >
-                    <option value="Cashier">Cashier</option>
-                    <option value="Inventory">Inventory</option>
-                    <option value="Manager">Manager</option>
-                  </select>
-                </div>
-                <div className="col-span-2 flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="border-green-500 text-green-700 hover:bg-green-50 text-xs" onClick={addEmployee}>Add</Button>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs" onClick={saveEmployee}>Save</Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className={`text-xs ${
-                      selectedEmployee && employees.find(emp => emp.id === selectedEmployee)?.isActive === false
-                        ? 'border-green-500 text-green-700 hover:bg-green-50'
-                        : 'border-red-500 text-red-700 hover:bg-red-50'
-                    }`}
-                    onClick={deactivateEmployee}
-                  >
-                    {selectedEmployee && employees.find(emp => emp.id === selectedEmployee)?.isActive === false
-                      ? 'Activate'
-                      : 'Deactivate'
-                    }
-                  </Button>
-                  <Button variant="outline" size="sm" className="border-gray-500 text-gray-700 hover:bg-gray-50 text-xs" onClick={clearForm}>Clear</Button>
-                  <Button variant="outline" size="sm" className="border-orange-500 text-orange-700 hover:bg-orange-50 text-xs" onClick={resetPin}>Reset PIN</Button>
-                </div>
-              </form>
+
+                <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Name */}
+                  <div className="col-span-full">
+                    <FieldLabel>Full Name</FieldLabel>
+                    <HybridInput
+                      className={inputCls}
+                      placeholder="e.g. John Smith"
+                      value={form.name}
+                      onChange={(value) => setForm(prev => ({ ...prev, name: value }))}
+                      onTouchKeyboard={() => openKb('name', 'qwerty', 'Employee Name')}
+                    />
+                  </div>
+
+                  {/* Employee ID */}
+                  <div>
+                    <FieldLabel>Employee ID</FieldLabel>
+                    <HybridInput
+                      type="number"
+                      className={inputCls}
+                      placeholder="e.g. 0004"
+                      value={form.employeeId}
+                      onChange={(value) => setForm(prev => ({ ...prev, employeeId: value }))}
+                      onTouchKeyboard={() => openKb('employeeId', 'numeric', 'Employee ID')}
+                    />
+                  </div>
+
+                  {/* PIN */}
+                  <div>
+                    <FieldLabel>PIN</FieldLabel>
+                    <HybridInput
+                      type="number"
+                      className={inputCls}
+                      placeholder="••••"
+                      value={form.pin ? '••••' : ''}
+                      onChange={(value) => setForm(prev => ({ ...prev, pin: value }))}
+                      onTouchKeyboard={() => { setForm(prev => ({ ...prev, pin: '' })); openKb('pin', 'numeric', 'Employee PIN', true) }}
+                    />
+                  </div>
+
+                  {/* Role */}
+                  <div>
+                    <FieldLabel>Role</FieldLabel>
+                    <div className="relative">
+                      <select
+                        className={`${inputCls} appearance-none pr-8`}
+                        value={selectedRole}
+                        onChange={(e) => setSelectedRole(e.target.value)}
+                      >
+                        <option value="Cashier">Cashier</option>
+                        <option value="Inventory">Inventory</option>
+                        <option value="Manager">Manager</option>
+                      </select>
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="col-span-full pt-2 border-t border-slate-100">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5"
+                        onClick={addEmployee}
+                      >
+                        <Plus className="w-3.5 h-3.5" />Add
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,24%)] text-white text-xs gap-1.5"
+                        onClick={saveEmployee}
+                      >
+                        <Save className="w-3.5 h-3.5" />Save
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`text-xs gap-1.5 ${
+                          isSelectedInactive
+                            ? 'border-emerald-400 text-emerald-700 hover:bg-emerald-50'
+                            : 'border-red-300 text-red-600 hover:bg-red-50'
+                        }`}
+                        onClick={deactivateEmployee}
+                      >
+                        {isSelectedInactive
+                          ? <><UserCheck className="w-3.5 h-3.5" />Activate</>
+                          : <><UserX className="w-3.5 h-3.5" />Deactivate</>
+                        }
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-slate-300 text-slate-600 hover:bg-slate-50 text-xs gap-1.5"
+                        onClick={clearForm}
+                      >
+                        <X className="w-3.5 h-3.5" />Clear
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50 text-xs gap-1.5"
+                        onClick={resetPin}
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />Reset PIN
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
-        </div>
-      </main>
 
-      <ModalKeyboard 
-        open={kbOpen} 
-        type={kbType} 
-        title={kbTitle} 
-        initialValue={form[kbTarget] || ''} 
-        masked={kbMasked}
-        onSubmit={applyKb} 
-        onClose={() => setKbOpen(false)} 
-      />
+          </div>
+        </main>
+
+        <ModalKeyboard
+          open={kbOpen}
+          type={kbType}
+          title={kbTitle}
+          initialValue={form[kbTarget] || ''}
+          masked={kbMasked}
+          onSubmit={applyKb}
+          onClose={() => setKbOpen(false)}
+        />
       </div>
     </SessionGuard>
   )

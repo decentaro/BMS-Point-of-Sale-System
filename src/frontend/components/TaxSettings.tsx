@@ -1,12 +1,16 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  Building2, Receipt, Plus, Save, CheckCircle2,
+  XCircle, Percent, FileText
+} from 'lucide-react'
 import { Button } from './ui/button'
+import { Card, CardContent } from './ui/card'
 import HybridInput from './HybridInput'
 import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
 import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
-import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
 import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
@@ -29,11 +33,6 @@ interface TaxSettings {
 const TaxSettings: React.FC = () => {
   const navigate = useNavigate()
   const { refreshBusinessSettings } = useBusinessSettings()
-
-  // Get user context for API headers
-  const getUserHeaders = () => {
-    return SessionManager.getUserHeaders()
-  }
 
   // Session and role validation handled by SessionGuard wrapper
 
@@ -130,237 +129,291 @@ const TaxSettings: React.FC = () => {
   }
 
 
+  // ── Shared helpers ────────────────────────────────────────────────────────
+
+  const SectionHeader = ({ icon: Icon, label, color = 'emerald' }: {
+    icon: React.ElementType; label: string; color?: 'emerald' | 'navy'
+  }) => {
+    const cls = {
+      emerald: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+      navy:    'text-[hsl(215,65%,30%)] bg-slate-50 border-slate-200',
+    }[color]
+    return (
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${cls} mb-4`}>
+        <Icon className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm font-semibold tracking-wide uppercase">{label}</span>
+      </div>
+    )
+  }
+
+  const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{children}</label>
+  )
+
+  const inputCls = "w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+
+  const ToggleRow = ({ id, checked, onChange, label, sub }: {
+    id: string; checked: boolean; onChange: (v: boolean) => void; label: string; sub?: string
+  }) => (
+    <label htmlFor={id} className="flex items-center justify-between gap-4 py-3 px-4 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-colors">
+      <div>
+        <p className="text-sm font-medium text-slate-800">{label}</p>
+        {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+      </div>
+      <div className="relative flex-shrink-0">
+        <input id={id} type="checkbox" className="sr-only peer" checked={checked} onChange={e => onChange(e.target.checked)} />
+        <div className="w-10 h-6 rounded-full bg-slate-200 peer-checked:bg-emerald-500 transition-colors" />
+        <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+      </div>
+    </label>
+  )
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <SessionGuard requiredRole="Manager">
       <div className="w-full h-full flex flex-col bg-white">
-      <PageHeader
-        title="Tax Settings"
-        subtitle="Configure sales tax for your business"
-        onBack={() => navigate('/manager')}
-        right={<SessionStatus />}
-      />
+        <PageHeader
+          title="Tax Settings"
+          subtitle="Configure sales tax for your business"
+          onBack={() => navigate('/manager')}
+          right={<SessionStatus />}
+        />
 
-      {/* Body */}
-      <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
-        <div className="pt-6">
-          <div className="max-w-4xl mx-auto space-y-6">
-        {loading ? (
-          <SectionLoader message="Loading tax settings..." />
-        ) : (
-          <>
+        <main className="flex-1 overflow-y-auto bg-slate-50">
+          {loading ? (
+            <SectionLoader message="Loading tax settings..." />
+          ) : (
+            <div className="max-w-4xl mx-auto px-6 py-6 space-y-5">
 
-            {/* Business Information */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Business Information</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Business Name</label>
-                  <HybridInput
-                    className="w-full p-2 border rounded"
-                    value={settings.businessName}
-                    onChange={(value) => updateSetting('businessName', value)}
-                    onTouchKeyboard={() => openKb('businessName', 'qwerty', 'Business Name')}
-                    placeholder="Enter business name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Tax Number</label>
-                  <HybridInput
-                    className="w-full p-2 border rounded"
-                    value={settings.taxNumber}
-                    onChange={(value) => updateSetting('taxNumber', value)}
-                    onTouchKeyboard={() => openKb('taxNumber', 'qwerty', 'Tax Registration Number')}
-                    placeholder="Enter tax registration number"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-2">Business Address</label>
-                  <HybridInput
-                    className="w-full p-2 border rounded"
-                    value={settings.businessAddress}
-                    onChange={(value) => updateSetting('businessAddress', value)}
-                    onTouchKeyboard={() => openKb('businessAddress', 'qwerty', 'Business Address')}
-                    placeholder="Enter complete business address"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Tax Configuration */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Tax Configuration</h2>
-              
-              {/* Enable/Disable Tax */}
-              <div className="mb-6">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={settings.enableTax}
-                    onChange={(e) => updateSetting('enableTax', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="font-medium">Enable Tax on Sales</span>
-                </label>
-                <p className="text-xs text-slate-600 mt-1">
-                  Turn this off if your business doesn't charge tax on products
-                </p>
-              </div>
-
-              {settings.enableTax && (
-                <>
-                  {/* Primary Tax */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* ── Business Information ───────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <SectionHeader icon={Building2} label="Business Information" color="emerald" />
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Tax Name</label>
+                      <FieldLabel>Business Name</FieldLabel>
                       <HybridInput
-                        className="w-full p-2 border rounded"
-                        value={settings.taxName}
-                        onChange={(value) => updateSetting('taxName', value)}
-                        onTouchKeyboard={() => openKb('taxName', 'qwerty', 'Tax Name')}
-                        placeholder="e.g. Sales Tax, VAT, GST"
+                        className={inputCls}
+                        value={settings.businessName}
+                        onChange={(value) => updateSetting('businessName', value)}
+                        onTouchKeyboard={() => openKb('businessName', 'qwerty', 'Business Name')}
+                        placeholder="Enter business name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Tax Rate (%)</label>
+                      <FieldLabel>Tax / Registration Number</FieldLabel>
                       <HybridInput
-                        type="decimal"
-                        className="w-full p-2 border rounded"
-                        value={settings.taxRate.toString()}
-                        onChange={(value) => updateSetting('taxRate', parseFloat(value) || 0)}
-                        onTouchKeyboard={() => openKb('taxRate', 'decimal', 'Tax Rate (%)')}
-                        placeholder="0.00"
+                        className={inputCls}
+                        value={settings.taxNumber}
+                        onChange={(value) => updateSetting('taxNumber', value)}
+                        onTouchKeyboard={() => openKb('taxNumber', 'qwerty', 'Tax Registration Number')}
+                        placeholder="Enter tax registration number"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <FieldLabel>Business Address</FieldLabel>
+                      <HybridInput
+                        className={inputCls}
+                        value={settings.businessAddress}
+                        onChange={(value) => updateSetting('businessAddress', value)}
+                        onTouchKeyboard={() => openKb('businessAddress', 'qwerty', 'Business Address')}
+                        placeholder="Enter complete business address"
                       />
                     </div>
                   </div>
+                </CardContent>
+              </Card>
 
-                  {/* Secondary Tax (Optional) */}
-                  <div className="mb-6">
-                    <label className="flex items-center mb-3">
-                      <input
-                        type="checkbox"
-                        checked={settings.enableSecondaryTax}
-                        onChange={(e) => updateSetting('enableSecondaryTax', e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span className="font-medium">Add Secondary Tax</span>
-                    </label>
-                    <p className="text-xs text-slate-600 mb-3">
-                      Some regions have multiple taxes (e.g. State + Federal, VAT + Service Tax)
-                    </p>
-                    
-                    {settings.enableSecondaryTax && (
-                      <div className="grid grid-cols-2 gap-4">
+              {/* ── Tax Configuration ──────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5 space-y-4">
+                  <SectionHeader icon={Percent} label="Tax Configuration" color="navy" />
+
+                  {/* Master toggle */}
+                  <ToggleRow
+                    id="enableTax"
+                    checked={settings.enableTax}
+                    onChange={v => updateSetting('enableTax', v)}
+                    label="Enable Tax on Sales"
+                    sub="Turn off if your business doesn't charge tax on products"
+                  />
+
+                  {settings.enableTax && (
+                    <div className="space-y-4 pt-1">
+                      {/* Primary Tax */}
+                      <div className="grid grid-cols-2 gap-4 px-4 py-4 rounded-lg border border-slate-100 bg-slate-50">
                         <div>
-                          <label className="block text-sm font-medium mb-2">Secondary Tax Name</label>
+                          <FieldLabel>Tax Name</FieldLabel>
                           <HybridInput
-                            className="w-full p-2 border rounded"
-                            value={settings.secondaryTaxName}
-                            onChange={(value) => updateSetting('secondaryTaxName', value)}
-                            onTouchKeyboard={() => openKb('secondaryTaxName', 'qwerty', 'Secondary Tax Name')}
-                            placeholder="e.g. Service Tax, City Tax"
+                            className={inputCls}
+                            value={settings.taxName}
+                            onChange={(value) => updateSetting('taxName', value)}
+                            onTouchKeyboard={() => openKb('taxName', 'qwerty', 'Tax Name')}
+                            placeholder="e.g. Sales Tax, VAT, GST"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-2">Secondary Tax Rate (%)</label>
+                          <FieldLabel>Tax Rate (%)</FieldLabel>
                           <HybridInput
                             type="decimal"
-                            className="w-full p-2 border rounded"
-                            value={settings.secondaryTaxRate.toString()}
-                            onChange={(value) => updateSetting('secondaryTaxRate', parseFloat(value) || 0)}
-                            onTouchKeyboard={() => openKb('secondaryTaxRate', 'decimal', 'Secondary Tax Rate (%)')}
+                            className={inputCls}
+                            value={settings.taxRate.toString()}
+                            onChange={(value) => updateSetting('taxRate', parseFloat(value) || 0)}
+                            onTouchKeyboard={() => openKb('taxRate', 'decimal', 'Tax Rate (%)')}
                             placeholder="0.00"
                           />
                         </div>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Tax Exemptions */}
-                  <div className="mb-6">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={settings.enableTaxExemptions}
-                        onChange={(e) => updateSetting('enableTaxExemptions', e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span className="font-medium">Allow Tax-Exempt Sales</span>
-                    </label>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Enable this to have a "Tax Exempt" option in POS for special cases
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
+                      {/* Secondary Tax */}
+                      <div className="space-y-3">
+                        <ToggleRow
+                          id="enableSecondaryTax"
+                          checked={settings.enableSecondaryTax}
+                          onChange={v => updateSetting('enableSecondaryTax', v)}
+                          label="Add Secondary Tax"
+                          sub="Some regions have multiple taxes (e.g. State + Federal, VAT + Service Tax)"
+                        />
 
-            {/* Additional Settings */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Additional Settings</h2>
-              <div>
-                <label className="block text-sm font-medium mb-2">Notes</label>
-                <HybridInput
-                  className="w-full p-2 border rounded"
-                  value={settings.notes}
-                  onChange={(value) => updateSetting('notes', value)}
-                  onTouchKeyboard={() => openKb('notes', 'qwerty', 'Tax Notes')}
-                  placeholder="Add any special tax notes, exemptions, or compliance requirements for your region..."
-                />
-              </div>
-            </div>
-
-            {/* Tax Summary */}
-            <div className="bg-blue-50 rounded-lg p-6">
-              <h2 className="text-lg font-semibold mb-4">Current Tax Configuration</h2>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <strong>Tax Status:</strong> {settings.enableTax ? 'Enabled' : 'Disabled'}
-                </div>
-                {settings.enableTax && (
-                  <>
-                    <div>
-                      <strong>Primary Tax:</strong> {settings.taxName} ({settings.taxRate}%)
-                    </div>
-                    {settings.enableSecondaryTax && (
-                      <div>
-                        <strong>Secondary Tax:</strong> {settings.secondaryTaxName} ({settings.secondaryTaxRate}%)
+                        {settings.enableSecondaryTax && (
+                          <div className="grid grid-cols-2 gap-4 px-4 py-4 rounded-lg border border-slate-100 bg-slate-50">
+                            <div>
+                              <FieldLabel>Secondary Tax Name</FieldLabel>
+                              <HybridInput
+                                className={inputCls}
+                                value={settings.secondaryTaxName}
+                                onChange={(value) => updateSetting('secondaryTaxName', value)}
+                                onTouchKeyboard={() => openKb('secondaryTaxName', 'qwerty', 'Secondary Tax Name')}
+                                placeholder="e.g. Service Tax, City Tax"
+                              />
+                            </div>
+                            <div>
+                              <FieldLabel>Secondary Tax Rate (%)</FieldLabel>
+                              <HybridInput
+                                type="decimal"
+                                className={inputCls}
+                                value={settings.secondaryTaxRate.toString()}
+                                onChange={(value) => updateSetting('secondaryTaxRate', parseFloat(value) || 0)}
+                                onTouchKeyboard={() => openKb('secondaryTaxRate', 'decimal', 'Secondary Tax Rate (%)')}
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div>
-                      <strong>Tax Exemptions:</strong> {settings.enableTaxExemptions ? 'Allowed' : 'Not Allowed'}
+
+                      {/* Tax Exemptions */}
+                      <ToggleRow
+                        id="enableTaxExemptions"
+                        checked={settings.enableTaxExemptions}
+                        onChange={v => updateSetting('enableTaxExemptions', v)}
+                        label="Allow Tax-Exempt Sales"
+                        sub='Adds a "Tax Exempt" option in POS for special customers or products'
+                      />
                     </div>
-                  </>
-                )}
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ── Additional Settings ────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-5">
+                  <SectionHeader icon={FileText} label="Additional Settings" color="emerald" />
+                  <FieldLabel>Notes</FieldLabel>
+                  <HybridInput
+                    className={inputCls}
+                    value={settings.notes}
+                    onChange={(value) => updateSetting('notes', value)}
+                    onTouchKeyboard={() => openKb('notes', 'qwerty', 'Tax Notes')}
+                    placeholder="Special tax notes, exemptions, or compliance requirements for your region…"
+                  />
+                </CardContent>
+              </Card>
+
+              {/* ── Current Configuration Summary ──────────────────── */}
+              <Card className="border-[hsl(215,65%,30%)]/20 shadow-sm bg-[hsl(215,65%,30%)]/5">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Receipt className="w-4 h-4 text-[hsl(215,65%,30%)]" />
+                    <span className="text-sm font-semibold uppercase tracking-wide text-[hsl(215,65%,30%)]">Current Configuration</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-slate-200">
+                      {settings.enableTax
+                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        : <XCircle className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+                      <div>
+                        <p className="text-xs text-slate-500">Tax Status</p>
+                        <p className="text-sm font-semibold text-slate-800">{settings.enableTax ? 'Enabled' : 'Disabled'}</p>
+                      </div>
+                    </div>
+
+                    {settings.enableTax && (
+                      <>
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-slate-200">
+                          <Percent className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-slate-500">Primary Tax</p>
+                            <p className="text-sm font-semibold text-slate-800">{settings.taxName} ({settings.taxRate}%)</p>
+                          </div>
+                        </div>
+
+                        {settings.enableSecondaryTax && (
+                          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-slate-200">
+                            <Plus className="w-4 h-4 text-[hsl(215,65%,30%)] flex-shrink-0" />
+                            <div>
+                              <p className="text-xs text-slate-500">Secondary Tax</p>
+                              <p className="text-sm font-semibold text-slate-800">{settings.secondaryTaxName} ({settings.secondaryTaxRate}%)</p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-slate-200">
+                          {settings.enableTaxExemptions
+                            ? <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                            : <XCircle className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+                          <div>
+                            <p className="text-xs text-slate-500">Tax Exemptions</p>
+                            <p className="text-sm font-semibold text-slate-800">{settings.enableTaxExemptions ? 'Allowed' : 'Not Allowed'}</p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ── Action Buttons ─────────────────────────────────── */}
+              <div className="flex gap-3 justify-end pb-2">
+                <Button variant="outline" onClick={() => navigate('/manager')} className="text-slate-600">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={saveTaxSettings}
+                  disabled={saving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-6"
+                >
+                  {saving ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
+                  ) : (
+                    <><Save className="w-4 h-4" />Save Tax Settings</>
+                  )}
+                </Button>
               </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-4 justify-end">
-              <Button variant="outline" onClick={() => navigate('/manager')}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={saveTaxSettings}
-                disabled={saving}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {saving ? 'Saving...' : 'Save Tax Settings'}
-              </Button>
             </div>
-          </>
-        )}
-          </div>
-        </div>
-      </main>
+          )}
+        </main>
 
-      <ModalKeyboard 
-        open={kbOpen} 
-        type={kbType} 
-        title={kbTitle} 
-        initialValue={settings[kbTarget]?.toString() || ''} 
-        onSubmit={applyKb} 
-        onClose={() => setKbOpen(false)} 
-      />
+        <ModalKeyboard
+          open={kbOpen}
+          type={kbType}
+          title={kbTitle}
+          initialValue={settings[kbTarget]?.toString() || ''}
+          onSubmit={applyKb}
+          onClose={() => setKbOpen(false)}
+        />
       </div>
     </SessionGuard>
   )

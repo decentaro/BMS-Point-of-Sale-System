@@ -6,10 +6,10 @@ namespace BMS_POS_API.Services
 {
     public interface IUserActivityService
     {
-        Task LogActivityAsync(int? userId, string userName, string action, string? details = null, 
+        Task LogActivityAsync(int? userId, string userName, string action, string? details = null,
             string? entityType = null, int? entityId = null, string? actionType = null, string? ipAddress = null);
-        Task<List<UserActivity>> GetActivitiesAsync(DateTime? startDate = null, DateTime? endDate = null, 
-            int? userId = null, string? actionType = null, int limit = 1000);
+        Task<(List<UserActivity> Items, int TotalCount)> GetActivitiesAsync(DateTime? startDate = null, DateTime? endDate = null,
+            int? userId = null, string? actionType = null, int limit = 50, int offset = 0);
     }
 
     public class UserActivityService : IUserActivityService
@@ -53,39 +53,32 @@ namespace BMS_POS_API.Services
             }
         }
 
-        public async Task<List<UserActivity>> GetActivitiesAsync(DateTime? startDate = null, DateTime? endDate = null, 
-            int? userId = null, string? actionType = null, int limit = 1000)
+        public async Task<(List<UserActivity> Items, int TotalCount)> GetActivitiesAsync(DateTime? startDate = null, DateTime? endDate = null,
+            int? userId = null, string? actionType = null, int limit = 50, int offset = 0)
         {
-            // Create a separate scope for read operations
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<BmsPosDbContext>();
-            
+
             var query = context.UserActivities.Include(a => a.User).AsQueryable();
 
             if (startDate.HasValue)
-            {
                 query = query.Where(a => a.Timestamp >= startDate.Value);
-            }
 
             if (endDate.HasValue)
-            {
                 query = query.Where(a => a.Timestamp <= endDate.Value);
-            }
 
             if (userId.HasValue)
-            {
                 query = query.Where(a => a.UserId == userId.Value);
-            }
 
             if (!string.IsNullOrEmpty(actionType))
-            {
                 query = query.Where(a => a.ActionType == actionType);
-            }
 
-            return await query
-                .OrderByDescending(a => a.Timestamp)
-                .Take(limit)
-                .ToListAsync();
+            var ordered = query.OrderByDescending(a => a.Timestamp);
+
+            var totalCount = await ordered.CountAsync();
+            var items = await ordered.Skip(offset).Take(limit).ToListAsync();
+
+            return (items, totalCount);
         }
     }
 }

@@ -1,5 +1,10 @@
 import React from 'react'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import {
+  ScanBarcode, Printer, Database, Wifi,
+  RefreshCw, Cpu, DollarSign
+} from 'lucide-react'
 
 interface HardwareStatus {
   barcodeScanner: {
@@ -32,49 +37,65 @@ interface Props {
   showDetails?: boolean
 }
 
+type StatusTier = 'ok' | 'warn' | 'error' | 'idle'
+
+function getStatusTier(status: string): StatusTier {
+  switch (status) {
+    case 'active':
+    case 'connected':
+    case 'ready':
+    case 'online':
+      return 'ok'
+    case 'inactive':
+    case 'disconnected':
+    case 'waiting_printer':
+    case 'offline':
+    case 'manual_only':
+      return 'warn'
+    case 'error':
+    case 'not_found':
+    case 'limited':
+      return 'error'
+    default:
+      return 'idle'
+  }
+}
+
+const tierStyles: Record<StatusTier, { dot: string; badge: string; label: string }> = {
+  ok:   { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'text-emerald-700' },
+  warn: { dot: 'bg-amber-400',   badge: 'bg-amber-50   text-amber-700   border-amber-200',   label: 'text-amber-700'   },
+  error:{ dot: 'bg-red-500',     badge: 'bg-red-50     text-red-700     border-red-200',     label: 'text-red-700'     },
+  idle: { dot: 'bg-slate-300',   badge: 'bg-slate-50   text-slate-500   border-slate-200',   label: 'text-slate-500'   },
+}
+
+const StatusDot = ({ tier }: { tier: StatusTier }) => (
+  <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${tierStyles[tier].dot} ${tier === 'ok' ? 'shadow-[0_0_4px_1px_rgba(16,185,129,0.5)]' : ''}`} />
+)
+
+const StatusBadge = ({ status, tier }: { status: string; tier: StatusTier }) => (
+  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border uppercase tracking-wide ${tierStyles[tier].badge}`}>
+    {status.replace(/_/g, ' ')}
+  </span>
+)
+
 export default function HardwareStatus({ compact = false, showDetails = true }: Props) {
   const [status, setStatus] = React.useState<HardwareStatus>({
-    barcodeScanner: {
-      status: 'inactive',
-      lastScan: undefined,
-      description: 'Checking scanner status...'
-    },
-    receiptPrinter: {
-      status: 'not_found',
-      description: 'Checking printer connection...'
-    },
-    cashDrawer: {
-      status: 'waiting_printer',
-      description: 'Cash drawer requires printer connection'
-    },
-    database: {
-      status: 'disconnected',
-      latency: undefined,
-      description: 'Checking database connection...'
-    },
-    network: {
-      status: 'offline',
-      description: 'Checking network status...'
-    }
+    barcodeScanner: { status: 'inactive', lastScan: undefined, description: 'Checking scanner status...' },
+    receiptPrinter: { status: 'not_found', description: 'Checking printer connection...' },
+    cashDrawer:     { status: 'waiting_printer', description: 'Cash drawer requires printer connection' },
+    database:       { status: 'disconnected', latency: undefined, description: 'Checking database connection...' },
+    network:        { status: 'offline', description: 'Checking network status...' },
   })
 
-  const [isChecking, setIsChecking] = React.useState(false)
+  const [isChecking, setIsChecking]       = React.useState(false)
   const [isOpeningDrawer, setIsOpeningDrawer] = React.useState(false)
 
-  // Check hardware status
   const checkHardwareStatus = async () => {
     setIsChecking(true)
     try {
-      // Check barcode scanner (detect recent input activity)
       const scannerStatus = await window.electronAPI.checkBarcodeScanner()
-      
-      // Check printer connection
       const printerStatus = await window.electronAPI.checkPrinter()
-      
-      // Check database connection
-      const dbStatus = await window.electronAPI.checkDatabase()
-      
-      // Check network connectivity
+      const dbStatus      = await window.electronAPI.checkDatabase()
       const networkStatus = navigator.onLine ? 'online' : 'offline'
 
       setStatus(prev => ({
@@ -82,26 +103,26 @@ export default function HardwareStatus({ compact = false, showDetails = true }: 
         barcodeScanner: {
           status: scannerStatus.active ? 'active' : 'inactive',
           lastScan: scannerStatus.lastScan,
-          description: scannerStatus.description || (scannerStatus.active ? 'USB HID Scanner - Working' : 'No scanner detected')
+          description: scannerStatus.description || (scannerStatus.active ? 'USB HID Scanner - Working' : 'No scanner detected'),
         },
         receiptPrinter: {
           status: printerStatus.connected ? 'connected' : 'not_found',
           model: printerStatus.model,
-          description: printerStatus.description || (printerStatus.connected ? `${printerStatus.model || 'Thermal Printer'} - Ready` : 'No thermal printer detected')
+          description: printerStatus.description || (printerStatus.connected ? `${printerStatus.model || 'Thermal Printer'} - Ready` : 'No thermal printer detected'),
         },
         cashDrawer: {
           status: printerStatus.connected ? 'ready' : 'waiting_printer',
-          description: printerStatus.connected ? 'Cash drawer ready (connected via printer)' : 'Cash drawer requires thermal printer connection'
+          description: printerStatus.connected ? 'Ready via printer' : 'Requires thermal printer',
         },
         database: {
           status: dbStatus.connected ? 'connected' : 'error',
           latency: dbStatus.latency,
-          description: dbStatus.description || (dbStatus.connected ? `Database connected - ${dbStatus.latency}ms` : 'Database connection failed')
+          description: dbStatus.description || (dbStatus.connected ? `Connected — ${dbStatus.latency}ms` : 'Connection failed'),
         },
         network: {
           status: networkStatus,
-          description: networkStatus === 'online' ? 'Internet connection active' : 'No internet connection'
-        }
+          description: networkStatus === 'online' ? 'Internet active' : 'No internet connection',
+        },
       }))
     } catch (error) {
       console.error('Error checking hardware status:', error)
@@ -110,7 +131,6 @@ export default function HardwareStatus({ compact = false, showDetails = true }: 
     }
   }
 
-  // Open cash drawer function
   const openCashDrawer = async () => {
     setIsOpeningDrawer(true)
     try {
@@ -128,186 +148,171 @@ export default function HardwareStatus({ compact = false, showDetails = true }: 
     }
   }
 
-  // Check status on component mount and periodically
   React.useEffect(() => {
     checkHardwareStatus()
-    const interval = setInterval(checkHardwareStatus, 30000) // Check every 30 seconds
+    const interval = setInterval(checkHardwareStatus, 30000)
     return () => clearInterval(interval)
   }, [])
 
-  // Status icon and color helper
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-      case 'connected':
-      case 'ready':
-      case 'online':
-        return '🟢'
-      case 'inactive':
-      case 'disconnected':
-      case 'waiting_printer':
-      case 'offline':
-        return '🟡'
-      case 'error':
-      case 'not_found':
-      case 'limited':
-        return '🔴'
-      default:
-        return '⚪'
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-      case 'connected':
-      case 'ready':
-      case 'online':
-        return 'text-green-600'
-      case 'inactive':
-      case 'disconnected':
-      case 'waiting_printer':
-      case 'offline':
-        return 'text-yellow-600'
-      case 'error':
-      case 'not_found':
-      case 'limited':
-        return 'text-red-600'
-      default:
-        return 'text-gray-600'
-    }
-  }
-
+  // ── Compact view (POS bar) ──────────────────────────────────────────────
   if (compact) {
-    // Compact view for POS screen
+    const items = [
+      { tier: getStatusTier(status.barcodeScanner.status), icon: ScanBarcode, label: 'Scanner' },
+      { tier: getStatusTier(status.receiptPrinter.status), icon: Printer,     label: 'Printer'  },
+      { tier: getStatusTier(status.cashDrawer.status),     icon: DollarSign,  label: 'Drawer'   },
+      { tier: getStatusTier(status.database.status),       icon: Database,    label: 'DB'        },
+      { tier: getStatusTier(status.network.status),        icon: Wifi,        label: 'Network'  },
+    ]
     return (
-      <div className="flex items-center space-x-2 text-xs bg-gray-50 px-2 py-1 rounded">
-        <span>{getStatusIcon(status.barcodeScanner.status)}</span>
-        <span>{getStatusIcon(status.receiptPrinter.status)}</span>
-        <span>{getStatusIcon(status.cashDrawer.status)}</span>
-        <span>{getStatusIcon(status.database.status)}</span>
-        <span>{getStatusIcon(status.network.status)}</span>
-        <button 
+      <div className="flex items-center gap-2 px-2 py-1 bg-slate-50 rounded text-xs">
+        {items.map(({ tier, icon: Icon, label }) => (
+          <div key={label} className="flex items-center gap-1" title={label}>
+            <StatusDot tier={tier} />
+            <Icon className={`w-3.5 h-3.5 ${tierStyles[tier].label}`} />
+          </div>
+        ))}
+        <button
           onClick={checkHardwareStatus}
           disabled={isChecking}
-          className="text-blue-600 hover:text-blue-800 ml-1"
+          className="ml-1 text-slate-400 hover:text-slate-600 disabled:opacity-40"
           title="Refresh hardware status"
         >
-          {isChecking ? '⟳' : '↻'}
+          <RefreshCw className={`w-3 h-3 ${isChecking ? 'animate-spin' : ''}`} />
         </button>
       </div>
     )
   }
 
-  // Full view for Admin Panel
-  return (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Hardware Status</h3>
-        <button 
-          onClick={checkHardwareStatus}
-          disabled={isChecking}
-          className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50"
+  // ── Full view ───────────────────────────────────────────────────────────
+  const rows: Array<{
+    key: string
+    icon: React.ElementType
+    label: string
+    status: string
+    description: string
+    sub?: string
+    action?: React.ReactNode
+  }> = [
+    {
+      key: 'scanner',
+      icon: ScanBarcode,
+      label: 'Barcode Scanner',
+      status: status.barcodeScanner.status,
+      description: status.barcodeScanner.description,
+      sub: status.barcodeScanner.lastScan ? `Last scan: ${status.barcodeScanner.lastScan}` : undefined,
+    },
+    {
+      key: 'printer',
+      icon: Printer,
+      label: 'Receipt Printer',
+      status: status.receiptPrinter.status,
+      description: status.receiptPrinter.description,
+    },
+    {
+      key: 'drawer',
+      icon: DollarSign,
+      label: 'Cash Drawer',
+      status: status.cashDrawer.status,
+      description: status.cashDrawer.description,
+      action: status.cashDrawer.status === 'ready' ? (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={openCashDrawer}
+          disabled={isOpeningDrawer}
+          className="text-xs gap-1.5 flex-shrink-0 border-amber-300 text-amber-700 hover:bg-amber-50"
         >
-          {isChecking ? 'Checking...' : 'Refresh'}
-        </button>
-      </div>
+          {isOpeningDrawer
+            ? <><RefreshCw className="w-3 h-3 animate-spin" /> Opening…</>
+            : 'Test Open'}
+        </Button>
+      ) : undefined,
+    },
+    {
+      key: 'db',
+      icon: Database,
+      label: 'Database',
+      status: status.database.status,
+      description: status.database.description,
+      sub: status.database.latency !== undefined ? `Latency: ${status.database.latency}ms` : undefined,
+    },
+    {
+      key: 'network',
+      icon: Wifi,
+      label: 'Network',
+      status: status.network.status,
+      description: status.network.description,
+    },
+  ]
 
-      <div className="space-y-3">
-        {/* Barcode Scanner */}
-        <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
-          <span className="text-xl">{getStatusIcon(status.barcodeScanner.status)}</span>
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <span className="font-medium">Barcode Scanner</span>
-              <span className={`text-sm font-semibold ${getStatusColor(status.barcodeScanner.status)}`}>
-                {status.barcodeScanner.status.toUpperCase()}
-              </span>
-            </div>
-            <div className="text-sm text-gray-600">{status.barcodeScanner.description}</div>
-            {status.barcodeScanner.lastScan && (
-              <div className="text-xs text-gray-500">Last scan: {status.barcodeScanner.lastScan}</div>
-            )}
+  return (
+    <Card className="border-slate-200 shadow-sm overflow-hidden">
+      <CardContent className="p-5">
+        {/* Header */}
+        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 mb-4">
+          <Cpu className="w-4 h-4 text-slate-500 flex-shrink-0" />
+          <span className="text-sm font-semibold tracking-wide uppercase text-slate-600 flex-1">Hardware Status</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={checkHardwareStatus}
+            disabled={isChecking}
+            className="gap-1.5 text-xs h-7 px-2.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? 'animate-spin' : ''}`} />
+            {isChecking ? 'Checking…' : 'Refresh'}
+          </Button>
+        </div>
+
+        {/* Rows */}
+        <div className="space-y-2">
+          {rows.map(({ key, icon: Icon, label, status: s, description, sub, action }) => {
+            const tier = getStatusTier(s)
+            return (
+              <div
+                key={key}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-100 bg-white"
+              >
+                {/* Device icon in colored circle */}
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                  tier === 'ok'    ? 'bg-emerald-50' :
+                  tier === 'warn'  ? 'bg-amber-50'   :
+                  tier === 'error' ? 'bg-red-50'     :
+                                     'bg-slate-100'
+                }`}>
+                  <Icon className={`w-4 h-4 ${tierStyles[tier].label}`} />
+                </div>
+
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-slate-800">{label}</span>
+                    <StatusBadge status={s} tier={tier} />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">{description}</p>
+                  {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
+                </div>
+
+                {/* Status dot + optional action */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {action}
+                  <StatusDot tier={tier} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Notes */}
+        {showDetails && (
+          <div className="mt-4 px-3 py-2.5 rounded-lg bg-[hsl(215,65%,30%)]/5 border border-[hsl(215,65%,30%)]/20 text-xs text-[hsl(215,65%,30%)] space-y-1">
+            <p className="font-semibold mb-1">Notes</p>
+            <p>• Barcode scanner works as USB HID device (plug &amp; play)</p>
+            <p>• Cash drawer connects via the receipt printer (RJ11/RJ12)</p>
+            <p>• System can operate offline with limited functionality</p>
           </div>
-        </div>
-
-        {/* Receipt Printer */}
-        <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
-          <span className="text-xl">{getStatusIcon(status.receiptPrinter.status)}</span>
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <span className="font-medium">Receipt Printer</span>
-              <span className={`text-sm font-semibold ${getStatusColor(status.receiptPrinter.status)}`}>
-                {status.receiptPrinter.status.replace('_', ' ').toUpperCase()}
-              </span>
-            </div>
-            <div className="text-sm text-gray-600">{status.receiptPrinter.description}</div>
-          </div>
-        </div>
-
-        {/* Cash Drawer */}
-        <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
-          <span className="text-xl">{getStatusIcon(status.cashDrawer.status)}</span>
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <span className="font-medium">Cash Drawer</span>
-              <span className={`text-sm font-semibold ${getStatusColor(status.cashDrawer.status)}`}>
-                {status.cashDrawer.status.replace('_', ' ').toUpperCase()}
-              </span>
-            </div>
-            <div className="text-sm text-gray-600">{status.cashDrawer.description}</div>
-          </div>
-          {status.cashDrawer.status === 'ready' && (
-            <button 
-              onClick={openCashDrawer}
-              disabled={isOpeningDrawer}
-              className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 disabled:opacity-50"
-            >
-              {isOpeningDrawer ? '...' : 'Test Open'}
-            </button>
-          )}
-        </div>
-
-        {/* Database */}
-        <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
-          <span className="text-xl">{getStatusIcon(status.database.status)}</span>
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <span className="font-medium">Database</span>
-              <span className={`text-sm font-semibold ${getStatusColor(status.database.status)}`}>
-                {status.database.status.toUpperCase()}
-              </span>
-            </div>
-            <div className="text-sm text-gray-600">{status.database.description}</div>
-          </div>
-        </div>
-
-        {/* Network */}
-        <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
-          <span className="text-xl">{getStatusIcon(status.network.status)}</span>
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <span className="font-medium">Network</span>
-              <span className={`text-sm font-semibold ${getStatusColor(status.network.status)}`}>
-                {status.network.status.toUpperCase()}
-              </span>
-            </div>
-            <div className="text-sm text-gray-600">{status.network.description}</div>
-          </div>
-        </div>
-      </div>
-
-      {showDetails && (
-        <div className="mt-4 p-3 bg-blue-50 rounded text-sm">
-          <strong>Hardware Notes:</strong>
-          <ul className="mt-1 space-y-1 text-xs text-gray-700">
-            <li>• Barcode scanner works as USB HID device (plug & play)</li>
-            <li>• Cash drawer requires thermal printer connection via RJ11/RJ12</li>
-            <li>• Receipt printer enables automatic cash drawer operation</li>
-            <li>• System can operate in offline mode with limited functionality</li>
-          </ul>
-        </div>
-      )}
+        )}
+      </CardContent>
     </Card>
   )
 }

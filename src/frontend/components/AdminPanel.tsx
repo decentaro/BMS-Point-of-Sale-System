@@ -13,6 +13,12 @@ import ApiClient from '../utils/ApiClient'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
 import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
+import {
+  AlertTriangle, RefreshCw, Download, CheckCircle2, XCircle,
+  Shield, Lock, Activity, FileText, Database, ArchiveRestore,
+  Save, Wifi, FolderOpen, ExternalLink, Trash2, Settings2,
+  ChevronRight, Info, Clock, HardDrive
+} from 'lucide-react'
 
 
 const AdminPanel: React.FC = () => {
@@ -482,575 +488,475 @@ const AdminPanel: React.FC = () => {
     }
   }
 
+  // ── Shared sub-components ────────────────────────────────────────────────
+
+  const SectionHeader = ({ icon: Icon, label, color = 'emerald' }: {
+    icon: React.ElementType
+    label: string
+    color?: 'emerald' | 'navy' | 'red' | 'amber'
+  }) => {
+    const colors = {
+      emerald: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+      navy:    'text-[hsl(215,65%,30%)] bg-slate-50 border-slate-200',
+      red:     'text-red-600 bg-red-50 border-red-200',
+      amber:   'text-amber-600 bg-amber-50 border-amber-200',
+    }
+    return (
+      <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border ${colors[color]} mb-4`}>
+        <Icon className="w-4 h-4 flex-shrink-0" />
+        <span className="text-sm font-semibold tracking-wide uppercase">{label}</span>
+      </div>
+    )
+  }
+
+  const ToggleRow = ({ id, checked, onChange, label, sub }: {
+    id: string; checked: boolean; onChange: (v: boolean) => void; label: string; sub?: string
+  }) => (
+    <label
+      htmlFor={id}
+      className="flex items-center justify-between gap-4 py-3 px-4 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-colors"
+    >
+      <div>
+        <div className="text-sm font-medium text-slate-800">{label}</div>
+        {sub && <div className="text-xs text-slate-500 mt-0.5">{sub}</div>}
+      </div>
+      <div className="relative flex-shrink-0">
+        <input id={id} type="checkbox" className="sr-only peer" checked={checked} onChange={e => onChange(e.target.checked)} />
+        <div className="w-10 h-6 rounded-full bg-slate-200 peer-checked:bg-emerald-500 transition-colors" />
+        <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+      </div>
+    </label>
+  )
+
+  const StyledSelect = ({ value, onChange, children, hint }: {
+    value: string | number; onChange: (v: string) => void; children: React.ReactNode; hint?: string
+  }) => (
+    <div>
+      <div className="relative">
+        <select
+          className="w-full appearance-none border border-slate-300 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+        >
+          {children}
+        </select>
+        <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+      </div>
+      {hint && <p className="text-xs text-slate-500 mt-1.5">{hint}</p>}
+    </div>
+  )
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <SessionGuard requiredPermission="admin.view">
       <div className="w-full h-full flex flex-col bg-white">
         <PageHeader
           title="Admin Panel"
-          subtitle="Technical settings"
+          subtitle="System configuration & technical settings"
           onBack={goBack}
           right={<SessionStatus />}
         />
 
-        {/* Body */}
-        <main className="flex-1 px-6 pb-6 overflow-y-auto bg-slate-50">
+        <main className="flex-1 overflow-y-auto bg-slate-50">
           {(loading || !adminSettings) ? (
             <SectionLoader message="Loading admin settings..." />
           ) : (
-          <div className="pt-6">
-            <div className="max-w-7xl mx-auto space-y-6">
-            
-            {/* Warning */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-red-800 mb-1">Administrator Panel</h3>
-                  <p className="text-red-700 text-sm">Changes here affect system behavior and security. Use with caution.</p>
+            <div className="max-w-4xl mx-auto px-6 py-6 space-y-5">
+
+              {/* ── Caution Banner ─────────────────────────────────────── */}
+              <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-red-200 bg-red-50">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-800">Restricted Area</p>
+                  <p className="text-xs text-red-600 mt-0.5">Changes here affect system behaviour and security. Proceed with caution.</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Hardware Status */}
-            <HardwareStatus />
+              {/* ── Hardware Status ────────────────────────────────────── */}
+              <HardwareStatus />
 
-            {/* Update Management */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Software Update</h2>
-                <div className="space-y-6">
-                  
-                  {/* Current Version */}
-                  <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">Current Version</h3>
-                    <div className="bg-white border rounded-lg p-4">
-                      <div className="text-center">
-                        <div className="text-sm font-medium text-gray-600 mb-1">Current Version</div>
-                        <div className="text-2xl font-bold text-gray-900">v{adminSettings.currentVersion}</div>
-                        <div className="text-sm text-gray-500">Stable Release</div>
+              {/* ── Software Update ────────────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 bg-white">
+                  <SectionHeader icon={RefreshCw} label="Software Update" color="emerald" />
+
+                  {/* Version badge + status */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100">
+                        <Settings2 className="w-5 h-5 text-emerald-600" />
                       </div>
+                      <div>
+                        <div className="text-xs text-slate-500 font-medium">Installed Version</div>
+                        <div className="text-xl font-bold text-slate-900 leading-none mt-0.5">v{adminSettings.currentVersion}</div>
+                        <div className="text-[10px] text-emerald-600 font-medium mt-0.5">Stable Release</div>
+                      </div>
+                    </div>
+
+                    {/* Status pill */}
+                    <div className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border ${
+                      adminSettings.updateStatus === 'up-to-date'  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      adminSettings.updateStatus === 'available'   ? 'bg-blue-50   text-blue-700   border-blue-200'    :
+                      adminSettings.updateStatus === 'ready'       ? 'bg-green-50  text-green-700  border-green-200'   :
+                      adminSettings.updateStatus === 'error'       ? 'bg-red-50    text-red-700    border-red-200'     :
+                      adminSettings.updateStatus === 'checking' || adminSettings.updateStatus === 'downloading'
+                                                                    ? 'bg-slate-50  text-slate-700  border-slate-200'  :
+                                                                      'bg-slate-50  text-slate-600  border-slate-200'
+                    }`}>
+                      {(adminSettings.updateStatus === 'checking' || adminSettings.updateStatus === 'downloading') &&
+                        <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />}
+                      {adminSettings.updateStatus === 'up-to-date'  && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      {adminSettings.updateStatus === 'available'   && <Download className="w-3.5 h-3.5" />}
+                      {adminSettings.updateStatus === 'ready'       && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      {adminSettings.updateStatus === 'error'       && <XCircle className="w-3.5 h-3.5" />}
+                      <span className="capitalize">{
+                        adminSettings.updateStatus === 'up-to-date'  ? 'Up to Date' :
+                        adminSettings.updateStatus === 'available'   ? `v${adminSettings.availableVersion} Available` :
+                        adminSettings.updateStatus === 'ready'       ? 'Ready to Install' :
+                        adminSettings.updateStatus === 'checking'    ? 'Checking...' :
+                        adminSettings.updateStatus === 'downloading' ? 'Downloading...' :
+                        adminSettings.updateStatus === 'error'       ? 'Check Failed' : adminSettings.updateStatus
+                      }</span>
                     </div>
                   </div>
 
-                  {/* Update Status */}
-                  <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">Update Status</h3>
-                    <div className="bg-gray-50 border rounded-lg p-4">
-                    {adminSettings.updateStatus === 'checking' && (
-                      <div>
-                        <div className="font-medium text-gray-800 mb-1">Checking for updates...</div>
-                        <div className="text-sm text-gray-600">Please wait while we check for new versions</div>
-                      </div>
-                    )}
-
-                    {adminSettings.updateStatus === 'up-to-date' && (
-                      <div>
-                        <div className="font-medium text-green-800 mb-1">BMS POS is up to date</div>
-                        <div className="text-sm text-gray-600">You have the latest version {adminSettings.currentVersion}</div>
-                      </div>
-                    )}
-
-                    {adminSettings.updateStatus === 'available' && (
-                      <div>
-                        <div className="font-medium text-blue-800 mb-1">Update Available</div>
-                        <div className="text-sm text-gray-600 mb-3">Version {adminSettings.availableVersion} is now available</div>
-                        {adminSettings.updateDescription && (
-                          <div className="bg-white border rounded p-3">
-                            <div className="text-sm font-medium text-gray-700 mb-2">What's new in this update:</div>
-                            <div className="text-sm text-gray-600 whitespace-pre-line">
-                              {adminSettings.updateDescription}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {adminSettings.updateStatus === 'downloading' && (
-                      <div>
-                        <div className="font-medium text-blue-800 mb-1">Downloading update...</div>
-                        <div className="text-sm text-gray-600">Please wait while the update downloads</div>
-                      </div>
-                    )}
-
-                    {adminSettings.updateStatus === 'ready' && (
-                      <div>
-                        <div className="font-medium text-green-800 mb-1">Update Ready to Install</div>
-                        <div className="text-sm text-gray-600">Version {adminSettings.availableVersion} has been downloaded and is ready to install</div>
-                      </div>
-                    )}
-
-                    {adminSettings.updateStatus === 'error' && (
-                      <div>
-                        <div className="font-medium text-red-800 mb-1">Update Check Failed</div>
-                        <div className="text-sm text-gray-600">Unable to check for updates. Please check your internet connection and try again</div>
-                      </div>
-                    )}
+                  {/* Update notes */}
+                  {adminSettings.updateStatus === 'available' && adminSettings.updateDescription && (
+                    <div className="mb-4 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800 whitespace-pre-line">
+                      <p className="font-semibold mb-1">What's new in v{adminSettings.availableVersion}:</p>
+                      {adminSettings.updateDescription}
                     </div>
-                  </div>
+                  )}
 
-                  {/* Action Buttons */}
-                  <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">Actions</h3>
-                    <div className="flex gap-3">
-                    {adminSettings.updateStatus === 'up-to-date' && (
-                      <Button 
-                        onClick={checkForUpdates}
-                        disabled={adminSettings.updateStatus === 'checking'}
-                        variant="outline"
-                      >
-                        Check for Updates
+                  {/* Action row */}
+                  <div className="flex items-center gap-3">
+                    {(adminSettings.updateStatus === 'up-to-date' || adminSettings.updateStatus === 'error') && (
+                      <Button onClick={checkForUpdates} variant="outline" className="gap-2">
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        {adminSettings.updateStatus === 'error' ? 'Try Again' : 'Check for Updates'}
                       </Button>
                     )}
-
                     {adminSettings.updateStatus === 'available' && (
                       <>
-                        <Button 
-                          onClick={downloadUpdate}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Download Update
+                        <Button onClick={downloadUpdate} className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,25%)] text-white gap-2">
+                          <Download className="w-3.5 h-3.5" /> Download Update
                         </Button>
-                        <Button 
-                          onClick={checkForUpdates}
-                          variant="outline"
-                        >
-                          Check Again
+                        <Button onClick={checkForUpdates} variant="outline" className="gap-2">
+                          <RefreshCw className="w-3.5 h-3.5" /> Check Again
                         </Button>
                       </>
                     )}
-
                     {adminSettings.updateStatus === 'ready' && (
                       <>
-                        <Button 
-                          onClick={installUpdate}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          Install & Restart
+                        <Button onClick={installUpdate} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Install & Restart
                         </Button>
-                        <Button 
-                          onClick={checkForUpdates}
-                          variant="outline"
-                        >
-                          Check for Newer Updates
-                        </Button>
+                        <Button onClick={checkForUpdates} variant="outline" size="sm">Check for Newer</Button>
                       </>
                     )}
-
-                    {adminSettings.updateStatus === 'error' && (
-                      <Button 
-                        onClick={checkForUpdates}
-                        variant="outline"
-                      >
-                        Try Again
-                      </Button>
-                    )}
-                    </div>
-                    
-                    <p className="text-xs text-blue-600">
-                      Updates are checked manually for full control over when your system updates.
-                    </p>
+                    <span className="text-xs text-slate-400 flex items-center gap-1 ml-auto">
+                      <Info className="w-3 h-3" /> Updates are applied manually
+                    </span>
                   </div>
-
                 </div>
-              </CardContent>
-            </Card>
+              </Card>
 
-            {/* Security & Access */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Security & Access</h2>
-                <div className="space-y-6">
+              {/* ── Security & Access ──────────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm overflow-hidden">
+                <CardContent className="p-5">
+                  <SectionHeader icon={Shield} label="Security & Access" color="navy" />
 
-                  {/* PIN Requirements */}
-                  <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">PIN Security</h3>
-                    
-                    <div className="flex items-center gap-3">
-                      <input 
-                        type="checkbox" 
-                        id="strongPins"
-                        checked={adminSettings.requireStrongPins}
-                        onChange={(e) => setAdminSettings({...adminSettings, requireStrongPins: e.target.checked})}
-                        className="w-4 h-4"
-                      />
-                      <label htmlFor="strongPins" className="text-sm font-medium">
-                        Require strong PINs (6+ digits, no repeated patterns)
-                      </label>
-                    </div>
-                  </div>
+                  <div className="space-y-3">
+                    <ToggleRow
+                      id="strongPins"
+                      checked={adminSettings.requireStrongPins}
+                      onChange={v => setAdminSettings({...adminSettings, requireStrongPins: v})}
+                      label="Require Strong PINs"
+                      sub="6+ digits, no repeated patterns"
+                    />
 
-                  {/* Login Controls */}
-                  <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">Login Controls</h3>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Failed Login Attempts</label>
-                      <select 
-                        className="w-full p-3 border rounded-lg"
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-slate-500" />
+                        <label className="text-sm font-medium text-slate-700">Failed Login Lockout</label>
+                      </div>
+                      <StyledSelect
                         value={adminSettings.maxFailedLoginAttempts}
-                        onChange={(e) => setAdminSettings({...adminSettings, maxFailedLoginAttempts: parseInt(e.target.value)})}
+                        onChange={v => setAdminSettings({...adminSettings, maxFailedLoginAttempts: parseInt(v)})}
+                        hint="Account is locked after this many failed PIN attempts"
                       >
                         <option value="3">3 attempts</option>
                         <option value="5">5 attempts (recommended)</option>
                         <option value="10">10 attempts</option>
                         <option value="0">Unlimited (not recommended)</option>
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">Lock account after this many failed login attempts</p>
+                      </StyledSelect>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
 
-                </div>
-              </CardContent>
-            </Card>
+              {/* ── System Performance ────────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm overflow-hidden">
+                <CardContent className="p-5">
+                  <SectionHeader icon={Activity} label="System Performance" color="emerald" />
 
-            {/* System Performance */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">System Performance</h2>
-                <div className="space-y-6">
-
-                  {/* Logging Configuration */}
                   <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">Logging Configuration</h3>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Log Level</label>
-                      <select 
-                        className="w-full p-3 border rounded-lg"
+                    {/* Log level */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-slate-500" />
+                        <label className="text-sm font-medium text-slate-700">Log Level</label>
+                      </div>
+                      <StyledSelect
                         value={adminSettings.logLevel}
-                        onChange={(e) => setAdminSettings({...adminSettings, logLevel: e.target.value})}
+                        onChange={v => setAdminSettings({...adminSettings, logLevel: v})}
+                        hint="Higher levels provide more detail but may affect performance"
                       >
-                        <option value="error">Error - Only critical errors</option>
-                        <option value="warning">Warning - Errors and warnings</option>
-                        <option value="info">Info - Normal operation info (recommended)</option>
-                        <option value="debug">Debug - Detailed diagnostic info</option>
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">Higher levels provide more detail but may affect performance</p>
+                        <option value="error">Error — Critical errors only</option>
+                        <option value="warning">Warning — Errors and warnings</option>
+                        <option value="info">Info — Normal operation (recommended)</option>
+                        <option value="debug">Debug — Detailed diagnostics</option>
+                      </StyledSelect>
                     </div>
-                  </div>
 
-                  {/* Performance Settings */}
-                  <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">Performance Settings</h3>
+                    {/* Toggles */}
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <input 
-                          type="checkbox" 
-                          id="performanceMetrics"
-                          checked={adminSettings.performanceMetricsEnabled}
-                          onChange={(e) => setAdminSettings({...adminSettings, performanceMetricsEnabled: e.target.checked})}
-                          className="w-4 h-4"
-                        />
-                        <label htmlFor="performanceMetrics" className="text-sm font-medium">
-                          Enable performance metrics collection
-                        </label>
-                      </div>
+                      <ToggleRow
+                        id="performanceMetrics"
+                        checked={adminSettings.performanceMetricsEnabled}
+                        onChange={v => setAdminSettings({...adminSettings, performanceMetricsEnabled: v})}
+                        label="Performance Metrics"
+                        sub="Collect system-wide performance telemetry"
+                      />
+                      <ToggleRow
+                        id="cacheEnabled"
+                        checked={adminSettings.cacheEnabled}
+                        onChange={v => setAdminSettings({...adminSettings, cacheEnabled: v})}
+                        label="Data Caching"
+                        sub="Cache frequently accessed data to improve response times"
+                      />
+                    </div>
 
-                      <div className="flex items-center gap-3">
-                        <input 
-                          type="checkbox" 
-                          id="cacheEnabled"
-                          checked={adminSettings.cacheEnabled}
-                          onChange={(e) => setAdminSettings({...adminSettings, cacheEnabled: e.target.checked})}
-                          className="w-4 h-4"
-                        />
-                        <label htmlFor="cacheEnabled" className="text-sm font-medium">
-                          Enable data caching (improves performance)
-                        </label>
-                      </div>
+                    {/* Log file actions */}
+                    <div className="flex items-center gap-3 pt-1">
+                      <span className="text-xs text-slate-500 mr-auto">Log file access:</span>
+                      <Button variant="outline" size="sm" onClick={viewLatestLog} className="gap-1.5 text-xs">
+                        <FileText className="w-3.5 h-3.5" /> Latest Log
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={openLogFolder} className="gap-1.5 text-xs">
+                        <FolderOpen className="w-3.5 h-3.5" /> Open Folder
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ── Database Management ───────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm overflow-hidden">
+                <CardContent className="p-5">
+                  <SectionHeader icon={Database} label="Database Management" color="navy" />
+
+                  {/* Connection status */}
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 mb-4">
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                      adminSettings.databaseStatus === 'Connected' ? 'bg-emerald-500' : 'bg-red-500'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800">
+                        {adminSettings.databaseStatus === 'Connected' ? 'Connected' : 'Disconnected'}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">****base.supabase.co</p>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button variant="outline" size="sm" onClick={handleTestConnection} disabled={loading} className="gap-1.5 text-xs">
+                        <Wifi className="w-3.5 h-3.5" />
+                        {loading ? 'Testing…' : 'Test'}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleChangeDatabase} className="gap-1.5 text-xs border-amber-200 text-amber-700 hover:bg-amber-50">
+                        Change
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleClearDatabase} className="gap-1.5 text-xs border-red-200 text-red-700 hover:bg-red-50">
+                        <Trash2 className="w-3.5 h-3.5" /> Clear
+                      </Button>
                     </div>
                   </div>
 
-                  {/* Log File Access */}
-                  <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">Log Files</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="text-sm text-gray-600 mb-3">Access system log files for troubleshooting</div>
-                        <div className="flex gap-3">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={viewLatestLog}
-                            className="text-xs"
-                          >
-                            View Latest Log
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={openLogFolder}
-                            className="text-xs"
-                          >
-                            Open Log Folder
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Database Management */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Database Management</h2>
-                <div className="space-y-6">
-
-                  {/* Database Connection */}
-                  <div className="space-y-4">
-                    <h3 className="text-md font-medium text-gray-700 border-b pb-2">Database Connection</h3>
-                    <div className="bg-gray-50 border rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-block w-3 h-3 rounded-full ${
-                            adminSettings.databaseStatus === 'Connected' ? 'bg-green-500' : 'bg-red-500'
-                          }`}></span>
-                          <div>
-                            <div className="font-medium text-gray-800">
-                              {adminSettings.databaseStatus === 'Connected' ? 'Connected' : 'Disconnected'}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Database: ****base.supabase.co
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={handleTestConnection}
-                            disabled={loading}
-                          >
-                            {loading ? 'Testing...' : 'Test Connection'}
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={handleChangeDatabase}
-                            className="border-orange-200 text-orange-700 hover:bg-orange-50"
-                          >
-                            Change Database
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={handleClearDatabase}
-                            className="border-red-200 text-red-700 hover:bg-red-50"
-                          >
-                            Clear Database
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Backup System - Dynamic based on Supabase Plan */}
+                  {/* Backup & Recovery */}
                   {backupCapabilities && (
                     <div className="space-y-4">
-                      <h3 className="text-md font-medium text-gray-700 border-b pb-2">Database Backup & Recovery</h3>
-                      
-                      {/* Plan Status */}
-                      <div className="bg-white border rounded-lg p-4 mb-4">
-                        <div className="flex justify-between items-center mb-3">
-                          <div>
-                            <div className="font-medium text-gray-800">
-                              Supabase Plan: {backupCapabilities.plan}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {backupCapabilities.automaticBackups 
-                                ? '✅ Automatic daily backups enabled' 
-                                : '⚠️ No automatic backups (Free tier)'}
-                            </div>
-                          </div>
-                          {backupCapabilities.automaticBackups && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={openSupabaseDashboard}
-                            >
-                              View in Supabase
-                            </Button>
-                          )}
-                        </div>
-                        
-                        <div className="text-sm text-gray-600">
-                          {backupCapabilities.message}
-                        </div>
+                      <div className="flex items-start gap-2">
+                        <HardDrive className="w-4 h-4 text-slate-400 mt-0.5" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Backup & Recovery</span>
                       </div>
 
-                      {/* Manual Backup Section */}
+                      {/* Plan pill */}
+                      <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg border ${
+                        backupCapabilities.automaticBackups
+                          ? 'bg-emerald-50 border-emerald-200'
+                          : 'bg-amber-50 border-amber-200'
+                      }`}>
+                        <div>
+                          <p className={`text-sm font-semibold ${backupCapabilities.automaticBackups ? 'text-emerald-800' : 'text-amber-800'}`}>
+                            Supabase {backupCapabilities.plan}
+                          </p>
+                          <p className={`text-xs mt-0.5 ${backupCapabilities.automaticBackups ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            {backupCapabilities.automaticBackups ? 'Automatic daily backups enabled' : 'No automatic backups — manual backup required'}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">{backupCapabilities.message}</p>
+                        </div>
+                        {backupCapabilities.automaticBackups && (
+                          <Button variant="outline" size="sm" onClick={openSupabaseDashboard} className="gap-1.5 text-xs flex-shrink-0">
+                            <ExternalLink className="w-3.5 h-3.5" /> Supabase
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Manual backup needed */}
                       {backupCapabilities.manualBackupNeeded && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                          <div className="flex justify-between items-center mb-3">
+                        <div className="px-4 py-4 rounded-lg border border-amber-200 bg-amber-50 space-y-3">
+                          <div className="flex items-start justify-between gap-3">
                             <div>
-                              <div className="font-medium text-yellow-800">Manual Backup Required</div>
-                              <div className="text-sm text-yellow-700">
-                                Last backup: {formatLastBackup(adminSettings.lastBackup, adminSettings.lastBackupMethod, adminSettings.lastBackupSize)}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-3 mb-3">
-                            <Button 
-                              onClick={handleCreateBackup}
-                              disabled={backupLoading}
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              {backupLoading ? 'Creating Backup...' : 'Create Backup Now'}
-                            </Button>
-                          </div>
-
-                          {backupCapabilities.localBackupsAvailable && (
-                            <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded p-3">
-                              <div className="font-medium mb-1">Local backups: {backupCapabilities.totalLocalBackups}</div>
-                              <div>Total size: {(backupCapabilities.totalBackupSize / 1024 / 1024).toFixed(1)} MB</div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Automatic Backup Info (Pro+ plans) */}
-                      {backupCapabilities.automaticBackups && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                          <div className="font-medium text-green-800 mb-2">Automatic Backup Status</div>
-                          <div className="text-sm text-green-700 space-y-1">
-                            <div>• Daily backups enabled by Supabase</div>
-                            <div>• Last backup: {formatLastBackup(adminSettings.lastBackup, adminSettings.lastBackupMethod, adminSettings.lastBackupSize)}</div>
-                            <div>• Retention based on your plan</div>
-                          </div>
-                          
-                          <div className="flex gap-3 mt-3">
-                            <Button 
-                              onClick={handleCreateBackup}
-                              disabled={backupLoading}
-                              variant="outline"
-                              size="sm"
-                            >
-                              {backupLoading ? 'Creating...' : 'Create Extra Backup'}
-                            </Button>
-                            <Button 
-                              variant="outline"
-                              size="sm"
-                              onClick={openSupabaseDashboard}
-                            >
-                              Manage Backups
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Restore Section */}
-                      <div className="bg-gray-50 border rounded-lg p-4">
-                        <div className="font-medium text-gray-800 mb-3">Restore Database</div>
-                        
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium mb-2">Select backup file</label>
-                            <div className="space-y-3">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={handleSelectBackupFile}
-                                className="text-blue-700 border-blue-300 hover:bg-blue-50"
-                              >
-                                Browse Backup Files
-                              </Button>
-                              <p className="text-xs text-gray-500">
-                                Supports .backup (Supabase) and .sql files. Opens directly in the backups folder.
+                              <p className="text-sm font-semibold text-amber-800">Manual Backup Required</p>
+                              <p className="text-xs text-amber-700 mt-0.5 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Last: {formatLastBackup(adminSettings.lastBackup, adminSettings.lastBackupMethod, adminSettings.lastBackupSize)}
                               </p>
                             </div>
+                            <Button onClick={handleCreateBackup} disabled={backupLoading} className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,25%)] text-white gap-2 flex-shrink-0" size="sm">
+                              {backupLoading
+                                ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating…</>
+                                : <><HardDrive className="w-3.5 h-3.5" /> Backup Now</>
+                              }
+                            </Button>
                           </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium mb-2">New connection string (optional)</label>
-                            <HybridInput
-                              type="text"
-                              placeholder="postgresql://user:password@host:port/database"
-                              value={newConnectionString}
-                              onChange={setNewConnectionString}
-                              onTouchKeyboard={() => openKb('newConnectionString', 'qwerty', 'Connection String')}
-                              className="w-full p-2 text-sm border rounded"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Leave empty to restore to current database
+                          {backupCapabilities.localBackupsAvailable && (
+                            <div className="flex items-center gap-4 text-xs text-slate-600 bg-white border border-amber-200 rounded-lg px-3 py-2">
+                              <span className="font-medium">{backupCapabilities.totalLocalBackups} local backup{backupCapabilities.totalLocalBackups !== 1 ? 's' : ''}</span>
+                              <span className="text-slate-400">•</span>
+                              <span>{(backupCapabilities.totalBackupSize / 1024 / 1024).toFixed(1)} MB total</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Automatic backup plan */}
+                      {backupCapabilities.automaticBackups && (
+                        <div className="px-4 py-3 rounded-lg border border-emerald-200 bg-emerald-50 space-y-2">
+                          <p className="text-sm font-semibold text-emerald-800">Automatic Backups Active</p>
+                          <div className="text-xs text-emerald-700 space-y-1">
+                            <p>Daily backups managed by Supabase</p>
+                            <p className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Last: {formatLastBackup(adminSettings.lastBackup, adminSettings.lastBackupMethod, adminSettings.lastBackupSize)}
                             </p>
                           </div>
-                          
-                          <div className="flex gap-3">
-                            <Button 
-                              onClick={handleRestoreBackup}
-                              disabled={backupLoading || !restoreFile}
-                              className="bg-red-600 hover:bg-red-700 text-white"
-                            >
-                              {backupLoading ? 'Restoring...' : 'Restore Database'}
+                          <div className="flex gap-2 pt-1">
+                            <Button onClick={handleCreateBackup} disabled={backupLoading} variant="outline" size="sm" className="gap-1.5 text-xs">
+                              {backupLoading ? 'Creating…' : <><HardDrive className="w-3.5 h-3.5" /> Extra Backup</>}
                             </Button>
-                            {restoreFile && (
-                              <Button 
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setRestoreFile(null)
-                                  setNewConnectionString('')
-                                }}
-                              >
-                                Clear
-                              </Button>
-                            )}
+                            <Button variant="outline" size="sm" onClick={openSupabaseDashboard} className="gap-1.5 text-xs">
+                              <ExternalLink className="w-3.5 h-3.5" /> Manage
+                            </Button>
                           </div>
-                          
-                          {restoreFile && (
-                            <div className="text-xs text-gray-600 bg-white border rounded p-2">
-                              Selected: {restoreFile.name} {restoreFile.size > 0 ? `(${(restoreFile.size / 1024 / 1024).toFixed(1)} MB)` : ''}
+                        </div>
+                      )}
+
+                      {/* Restore section */}
+                      <div className="px-4 py-4 rounded-lg border border-slate-200 bg-slate-50 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <ArchiveRestore className="w-4 h-4 text-slate-500" />
+                          <span className="text-sm font-semibold text-slate-700">Restore Database</span>
+                        </div>
+
+                        <div>
+                          <Button type="button" variant="outline" onClick={handleSelectBackupFile} className="gap-2 text-[hsl(215,65%,30%)] border-[hsl(215,65%,30%)]/30 hover:bg-slate-100">
+                            <FolderOpen className="w-4 h-4" /> Browse Backup Files
+                          </Button>
+                          {restoreFile ? (
+                            <div className="mt-2 flex items-center gap-2 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2">
+                              <HardDrive className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                              <span className="truncate font-medium">{restoreFile.name}</span>
+                              {restoreFile.size > 0 && <span className="text-slate-400 flex-shrink-0">({(restoreFile.size / 1024 / 1024).toFixed(1)} MB)</span>}
                             </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 mt-1.5">Supports .backup and .sql files</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-medium text-slate-600 mb-1.5 block">New connection string <span className="text-slate-400">(optional)</span></label>
+                          <HybridInput
+                            type="text"
+                            placeholder="postgresql://user:password@host:port/database"
+                            value={newConnectionString}
+                            onChange={setNewConnectionString}
+                            onTouchKeyboard={() => openKb('newConnectionString', 'qwerty', 'Connection String')}
+                            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          />
+                          <p className="text-xs text-slate-400 mt-1">Leave empty to restore to current database</p>
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            onClick={handleRestoreBackup}
+                            disabled={backupLoading || !restoreFile}
+                            className="bg-red-600 hover:bg-red-700 text-white gap-2"
+                          >
+                            {backupLoading
+                              ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Restoring…</>
+                              : <><ArchiveRestore className="w-4 h-4" /> Restore Database</>
+                            }
+                          </Button>
+                          {restoreFile && (
+                            <Button variant="outline" size="sm" onClick={() => { setRestoreFile(null); setNewConnectionString('') }}>
+                              Clear
+                            </Button>
                           )}
                         </div>
                       </div>
 
-                      <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded p-3">
-                        <div className="font-medium mb-1">Backup includes:</div>
-                        <ul className="list-disc list-inside space-y-0.5">
-                          <li>All sales, products, employees, and settings data</li>
-                          <li>Database structure, relationships, and security policies</li>
-                          <li>Complete system state for disaster recovery</li>
-                        </ul>
+                      <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-[hsl(215,65%,30%)]/5 border border-[hsl(215,65%,30%)]/20 text-xs text-[hsl(215,65%,30%)]">
+                        <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold">Backup includes: </span>
+                          sales, products, employees, settings, schema, relationships &amp; security policies.
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  <p className="text-xs text-gray-500">
-                    Database credentials are configured during initial setup and stored securely.
+                  <p className="text-xs text-slate-400 mt-4">
+                    Database credentials are stored securely and configured during initial setup.
                   </p>
+                </CardContent>
+              </Card>
 
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Save Button */}
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8"
-              >
-                {saving ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Saving...</span>
-                  </div>
-                ) : (
-                  'Save Admin Settings'
-                )}
-              </Button>
-            </div>
-
+              {/* ── Save ───────────────────────────────────────────────── */}
+              <div className="flex justify-end pb-2">
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Settings
+                    </>
+                  )}
+                </Button>
               </div>
-          </div>
+
+            </div>
           )}
         </main>
 
-        {/* Modal Keyboard */}
         <ModalKeyboard
           open={kbOpen}
           type={kbType}
@@ -1059,7 +965,6 @@ const AdminPanel: React.FC = () => {
           onSubmit={applyKb}
           onClose={() => setKbOpen(false)}
         />
-
       </div>
     </SessionGuard>
   )

@@ -24,16 +24,17 @@ namespace BMS_POS_API.Controllers
             [FromQuery] DateTime? endDate = null,
             [FromQuery] int? userId = null,
             [FromQuery] string? actionType = null,
-            [FromQuery] int limit = 1000)
+            [FromQuery] int limit = 50,
+            [FromQuery] int offset = 0)
         {
             try
             {
-                var activities = await _userActivityService.GetActivitiesAsync(
-                    startDate, endDate, userId, actionType, limit);
+                var (items, totalCount) = await _userActivityService.GetActivitiesAsync(
+                    startDate, endDate, userId, actionType, limit, offset);
 
                 var response = new UserActivityResponse
                 {
-                    Activities = activities.Select(a => new UserActivityDto
+                    Activities = items.Select(a => new UserActivityDto
                     {
                         Id = a.Id,
                         UserId = a.UserId,
@@ -44,10 +45,9 @@ namespace BMS_POS_API.Controllers
                         EntityId = a.EntityId,
                         ActionType = a.ActionType,
                         IPAddress = a.IPAddress,
-                        // Return UTC timestamp with proper UTC kind for JSON serialization
                         Timestamp = DateTime.SpecifyKind(a.Timestamp, DateTimeKind.Utc)
                     }).ToList(),
-                    TotalCount = activities.Count
+                    TotalCount = totalCount
                 };
 
                 return Ok(response);
@@ -66,7 +66,7 @@ namespace BMS_POS_API.Controllers
         {
             try
             {
-                var activities = await _userActivityService.GetActivitiesAsync(startDate, endDate);
+                var (activities, _) = await _userActivityService.GetActivitiesAsync(startDate, endDate, limit: 10000);
 
                 var summary = new UserActivitySummaryResponse
                 {
