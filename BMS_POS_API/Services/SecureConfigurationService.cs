@@ -20,7 +20,7 @@ namespace BMS_POS_API.Services
         };
 
         /// <summary>
-        /// Processes connection string by replacing placeholders with environment variables
+        /// Processes connection string by replacing placeholders with environment variables.
         /// </summary>
         public string ProcessConnectionString(string connectionString)
         {
@@ -41,7 +41,6 @@ namespace BMS_POS_API.Services
                 }
                 else if (processed.Contains(placeholder))
                 {
-                    // Only warn if connection string actually contains placeholders
                     Console.WriteLine($"Warning: Environment variable '{envVarName}' not found. Using placeholder value.");
                 }
             }
