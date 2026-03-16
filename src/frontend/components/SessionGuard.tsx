@@ -35,14 +35,12 @@ const SessionGuard: React.FC<SessionGuardProps> = ({
 
         // Check role requirement
         if (requiredRole && session.role.toLowerCase() !== requiredRole.toLowerCase()) {
-          alert(`Access denied. Required role: ${requiredRole}`)
           navigate('/login')
           return
         }
 
         // Check permission requirement
         if (requiredPermission && !SessionManager.hasPermission(requiredPermission)) {
-          alert(`Access denied. Insufficient permissions.`)
           navigate('/manager') // Redirect to main dashboard
           return
         }

@@ -14,6 +14,7 @@ import SessionManager from '../utils/SessionManager'
 import { SystemSettings } from '../types/SystemSettings'
 import ApiClient from '../utils/ApiClient'
 import PageHeader from './ui/PageHeader'
+import { useToast } from '../contexts/ToastContext'
 
 // Product interface matching the API model
 interface Product {
@@ -38,6 +39,7 @@ interface Product {
 
 const Inventory: React.FC = () => {
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
   // Session and role validation handled by SessionGuard wrapper
 
@@ -127,7 +129,7 @@ const Inventory: React.FC = () => {
       })
       setProducts(data)
     } catch (err) {
-      alert(`Failed to load products!\n${err instanceof Error ? err.message : 'Unknown error'}\n\nPlease check your connection and try again.`)
+      showToast('Failed to load products: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
       console.error('Error loading products:', err)
     } finally {
       setLoading(false)
@@ -206,7 +208,7 @@ const Inventory: React.FC = () => {
       }
     } catch (err) {
       // Don't clear barcode field on error - user might want to manually add product with this barcode
-      alert(`Failed to search by barcode!\n${err instanceof Error ? err.message : 'Unknown error'}\n\nPlease try again.`)
+      showToast('Barcode search failed: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
       console.error('Error searching by barcode:', err)
     } finally {
       setIsSearching(false)
@@ -279,10 +281,10 @@ const Inventory: React.FC = () => {
           
         console.log('Product info populated from UPC database')
       } else {
-        alert(`Product not found!\n\nBarcode "${barcode}" not found in UPC database.\n\nPlease check the barcode or add the product manually.`)
+        showToast('Barcode "' + barcode + '" not found in UPC database', 'warning')
       }
     } catch (err) {
-      alert(`Failed to search UPC database!\n${err instanceof Error ? err.message : 'Unknown error'}\n\nPlease check your internet connection and try again.`)
+      showToast('UPC database search failed: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
       console.error('Error searching UPC database:', err)
     }
   }
@@ -309,9 +311,9 @@ const Inventory: React.FC = () => {
       
       await loadProducts() // Reload products
       clearForm()
-      alert('Product added successfully!\n\nThe new product has been added to your inventory.')
+      showToast('Product added successfully', 'success')
     } catch (err) {
-      alert(`Failed to add product!\n${err instanceof Error ? err.message : 'Unknown error'}\n\nPlease check all fields and try again.`)
+      showToast('Failed to add product: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
       console.error('Error adding product:', err)
     }
   }
@@ -352,7 +354,7 @@ const Inventory: React.FC = () => {
         await loadProducts() // Reload products
         setIsEditing(false)
         } catch (err) {
-        alert(`Failed to save product!\n${err instanceof Error ? err.message : 'Unknown error'}\n\nPlease check all fields and try again.`)
+        showToast('Failed to save product: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
         console.error('Error saving product:', err)
       }
     }
@@ -368,7 +370,7 @@ const Inventory: React.FC = () => {
         setSelectedProduct(null)
         setIsEditing(false)
         } catch (err) {
-        alert(`Failed to delete product!\n${err instanceof Error ? err.message : 'Unknown error'}\n\nPlease try again.`)
+        showToast('Failed to delete product: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
         console.error('Error deleting product:', err)
       }
     }

@@ -5,6 +5,7 @@ import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionManager from '../utils/SessionManager'
 import { useKeyboardSound } from '../utils/useKeyboardSound'
 import ApiClient from '../utils/ApiClient'
+import { useToast } from '../contexts/ToastContext'
 
 type Role = 'Cashier' | 'Inventory' | 'Manager'
 type CurrentField = 'employeeId' | 'pin'
@@ -13,6 +14,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate()
   const { businessSettings, loading } = useBusinessSettings()
   const { playKeySound } = useKeyboardSound()
+  const { showToast } = useToast()
   const [currentField, setCurrentField] = useState<CurrentField>('employeeId')
   const [employeeId, setEmployeeId] = useState('')
   const [pin, setPin] = useState('')
@@ -117,13 +119,13 @@ const Login: React.FC = () => {
         }, 1000)
       } else {
         const errorMessage = result.message || 'Invalid Employee ID or PIN'
-        alert(`Login Failed!\n\n${errorMessage}\n\nPlease check your credentials and try again.`)
+        showToast(errorMessage, 'error')
         clearAll()
         setStatusMessage('Please sign in')
       }
     } catch (error) {
       console.error('Login error:', error)
-      alert(`Login Failed!\n\nLogin failed - Please try again\n\nPlease check your connection and try again.`)
+      showToast('Login failed. Please check your connection and try again.', 'error')
       setStatusMessage('Please sign in')
     }
   }

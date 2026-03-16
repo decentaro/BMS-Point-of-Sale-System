@@ -13,6 +13,7 @@ import { formatCurrency } from '../utils/formatCurrency'
 import SessionStatus from './SessionStatus'
 import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
+import { useToast } from '../contexts/ToastContext'
 import DateDisplay from './DateDisplay'
 import { formatDateSync } from '../utils/dateFormat'
 import PageHeader from './ui/PageHeader'
@@ -84,7 +85,7 @@ interface ReturnItem {
 
 const Returns: React.FC = () => {
   const navigate = useNavigate()
-
+  const { showToast } = useToast()
 
   // State management
   const [systemSettings, setSystemSettings] = React.useState<SystemSettings | null>(null)
@@ -148,10 +149,10 @@ const Returns: React.FC = () => {
       
       // Check if returns are enabled
       if (!settings.enableReturns) {
-        alert('Returns system is disabled. Please enable it in System Settings.')
+        showToast('Returns system is disabled. Enable it in System Settings.', 'warning')
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to load system settings')
+      showToast(err instanceof Error ? err.message : 'Failed to load system settings', 'error')
     } finally {
       setLoading(false)
     }
@@ -160,7 +161,7 @@ const Returns: React.FC = () => {
   // Search for original sale by transaction ID (last 8 digits)
   const searchSaleByTransactionId = async () => {
     if (!searchTransactionId.trim()) {
-      alert('Please enter a transaction ID')
+      showToast('Please enter a transaction ID', 'warning')
       return
     }
 
@@ -187,7 +188,7 @@ const Returns: React.FC = () => {
         const errorMsg = isFullTransactionId 
           ? `Transaction ID "${searchTerm}" not found`
           : `Transaction ID ending in "${searchTerm}" not found`
-        alert(errorMsg)
+        showToast(errorMsg, 'error')
         setOriginalSale(null)
         return
       }
@@ -198,7 +199,7 @@ const Returns: React.FC = () => {
         const daysSinceSale = Math.floor((Date.now() - saleDate.getTime()) / (1000 * 60 * 60 * 24))
         
         if (daysSinceSale > systemSettings.returnTimeLimitDays) {
-          alert(`This transaction is ${daysSinceSale} days old. Returns are only allowed within ${systemSettings.returnTimeLimitDays} days.`)
+          showToast(`Return window expired. Transaction is ${daysSinceSale} days old (limit: ${systemSettings.returnTimeLimitDays} days)`, 'warning')
           setOriginalSale(null)
           return
         }
@@ -221,11 +222,11 @@ const Returns: React.FC = () => {
           const totalReturnedQuantities = existingReturn.returnItems.reduce((sum: number, item: any) => sum + item.returnQuantity, 0)
 
           if (totalReturnedQuantities >= totalOriginalQuantities) {
-            alert(`This transaction has already been fully returned.\n\nReturn ID: ${existingReturn.returnId}\nReturn Date: ${formatDateSync(existingReturn.returnDate)}\nRefund Amount: ${formatCurrency(existingReturn.totalRefundAmount)}\nProcessed by: ${existingReturn.processedByEmployee.name}`)
+            showToast(`Transaction already fully returned. Return ID: ${existingReturn.returnId}`, 'info')
             setSearchTransactionId('')
             return
           } else {
-            alert(`This transaction has been partially returned.\n\nExisting Return ID: ${existingReturn.returnId}\nPreviously Returned: ${totalReturnedQuantities} of ${totalOriginalQuantities} items\nRefund Amount: ${formatCurrency(existingReturn.totalRefundAmount)}`)
+            showToast(`Transaction partially returned. Return ID: ${existingReturn.returnId}`, 'info')
           }
         }
       } catch (error) {
@@ -251,7 +252,7 @@ const Returns: React.FC = () => {
       setReturnItems(items)
       
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to search for transaction')
+      showToast(err instanceof Error ? err.message : 'Failed to search for transaction', 'error')
     } finally {
       setSearchLoading(false)
     }
@@ -270,14 +271,14 @@ const Returns: React.FC = () => {
       // Validate return items
       const itemsToReturn = returnItems.filter(item => item.returnQuantity > 0)
       if (itemsToReturn.length === 0) {
-        alert('Please select at least one item to return')
+        showToast('Please select at least one item to return', 'warning')
         return
       }
 
       // Check if all items have reasons
       const missingReasons = itemsToReturn.filter(item => !item.reason)
       if (missingReasons.length > 0) {
-        alert('Please select a return reason for all items')
+        showToast('Please select a return reason for all items', 'warning')
         return
       }
 
@@ -291,7 +292,7 @@ const Returns: React.FC = () => {
       const session = SessionManager.getCurrentSession()
       
       if (!session) {
-        alert('User session expired. Please log in again.')
+        showToast('Session expired. Please log in again.', 'error')
         return
       }
 
@@ -313,7 +314,7 @@ const Returns: React.FC = () => {
       // Call API to process return
       const returnRecord = await ApiClient.postJson('/returns', returnRequest)
 
-      alert(`Return processed successfully!\nReturn ID: ${returnRecord.returnId}\nTotal refund: ${formatCurrency(returnTotal)}`)
+      showToast(`Return processed successfully. ID: ${returnRecord.returnId} | Refund: ${formatCurrency(returnTotal)}`, 'success')
 
       setLastReturnRecord(returnRecord)
 
@@ -325,7 +326,7 @@ const Returns: React.FC = () => {
       setAlreadyReturnedQty({})
       
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to process return')
+      showToast(err instanceof Error ? err.message : 'Failed to process return', 'error')
     } finally {
       setProcessingReturn(false)
     }
@@ -377,11 +378,11 @@ const Returns: React.FC = () => {
 
       const result = await window.electronAPI.printReceipt(receipt)
       if (!result.success) {
-        alert('Print failed: ' + result.message)
+        showToast('Print failed: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error printing return receipt:', error)
-      alert('Failed to print return receipt')
+      showToast('Failed to print return receipt', 'error')
     }
   }
 

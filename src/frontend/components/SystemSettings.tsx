@@ -13,6 +13,7 @@ import SessionManager from '../utils/SessionManager'
 import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
 import ApiClient from '../utils/ApiClient'
+import { useToast } from '../contexts/ToastContext'
 import { clearDateFormatCache } from '../utils/dateFormat'
 import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
@@ -60,7 +61,7 @@ interface SystemSettings {
 
 const SystemSettings: React.FC = () => {
   const navigate = useNavigate()
-
+  const { showToast } = useToast()
 
   // Session and role validation handled by SessionGuard wrapper
 
@@ -113,7 +114,7 @@ const SystemSettings: React.FC = () => {
       setSettings(settingsData)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load settings'
-      alert(`Failed to load settings!\n${errorMessage}\n\nPlease check your connection and try again.`)
+      showToast('Failed to load settings: ' + errorMessage, 'error')
       console.error('Error loading settings:', err)
     } finally {
       setLoading(false)
@@ -135,11 +136,10 @@ const SystemSettings: React.FC = () => {
       // Clear date format cache so components use the new format
       clearDateFormatCache()
       
-      // Show alert popup like payment confirmation
-      alert('Settings saved successfully!\nAll changes have been applied.')
+      showToast('Settings saved successfully', 'success')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save settings'
-      alert(`Failed to save settings!\n${errorMessage}\n\nPlease try again.`)
+      showToast('Failed to save settings: ' + errorMessage, 'error')
       console.error('Error saving settings:', err)
     } finally {
       setSaving(false)

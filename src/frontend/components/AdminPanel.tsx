@@ -10,6 +10,7 @@ import HybridInput from './HybridInput'
 import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
 import { AdminSettings, ApiResponse, BackupCapabilities, LocalBackupInfo } from '../types/AdminSettings'
 import ApiClient from '../utils/ApiClient'
+import { useToast } from '../contexts/ToastContext'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
 import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
@@ -23,6 +24,7 @@ import {
 
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
   // Session and role validation handled by SessionGuard wrapper
   const goBack = () => {
@@ -85,11 +87,11 @@ const AdminPanel: React.FC = () => {
         setAdminSettings(result.data)
       } else {
         console.error('Failed to load admin settings:', result.message)
-        alert('Failed to load admin settings: ' + result.message)
+        showToast('Failed to load admin settings: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error loading admin settings:', error)
-      alert('Error loading admin settings. Please check your connection.')
+      showToast('Error loading admin settings. Check your connection.', 'error')
     } finally {
       setLoading(false)
     }
@@ -155,10 +157,10 @@ const AdminPanel: React.FC = () => {
     if (window.confirm('This will restart the application to install the update. Continue?')) {
       try {
         // TODO: Trigger actual update installation
-        alert('Update will be installed and application will restart...')
+        showToast('Update will be installed and application will restart', 'info')
         // In real implementation, this would trigger the installer
       } catch (err) {
-        alert('Failed to install update!')
+        showToast('Failed to install update', 'error')
       }
     }
   }
@@ -172,17 +174,17 @@ const AdminPanel: React.FC = () => {
         if (window.electronAPI?.openPath) {
           const openResult = await window.electronAPI.openPath(result.data.folderPath)
           if (!openResult.success) {
-            alert(`Failed to open folder: ${openResult.error}\n\nFolder location: ${result.data.folderPath}`)
+            showToast('Failed to open folder: ' + openResult.error, 'error')
           }
         } else {
-          alert(`Log folder location:\n${result.data.folderPath}\n\nFiles found: ${result.data.fileCount}\n\nYou can manually navigate to this folder in your file manager.`)
+          showToast('Log folder: ' + result.data.folderPath + ' (' + result.data.fileCount + ' files)', 'info')
         }
       } else {
-        alert('Failed to get logs folder information: ' + result.message)
+        showToast('Failed to get log folder: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error opening log folder:', error)
-      alert('Failed to open log folder!')
+      showToast('Failed to open log folder', 'error')
     }
   }
 
@@ -210,20 +212,17 @@ const AdminPanel: React.FC = () => {
         if (window.electronAPI?.openPath) {
           const openResult = await window.electronAPI.openPath(result.data.filePath)
           if (!openResult.success) {
-            alert(`Failed to open file: ${openResult.error}\n\nFile location: ${result.data.filePath}`)
+            showToast('Failed to open file: ' + openResult.error, 'error')
           }
         } else {
-          const dateObj = new Date(result.data.lastModified)
-          const formattedDate = formatDateSync(dateObj)
-          const formattedTime = formatTime(dateObj)
-          alert(`Latest log file:\n${result.data.fileName}\nLast modified: ${formattedDate}, ${formattedTime}\nLocation: ${result.data.filePath}\n\nYou can manually navigate to this file in your file manager.`)
+          showToast('Latest log: ' + result.data.fileName, 'info')
         }
       } else {
-        alert('Failed to get latest log file: ' + result.message)
+        showToast('Failed to get log file: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error opening latest log file:', error)
-      alert('Failed to open log file!')
+      showToast('Failed to open log file', 'error')
     }
   }
 
@@ -236,13 +235,13 @@ const AdminPanel: React.FC = () => {
       
       if (result.success && result.data) {
         setAdminSettings(result.data)
-        alert('Admin settings saved successfully!')
+        showToast('Admin settings saved successfully', 'success')
       } else {
-        alert('Failed to save admin settings: ' + result.message)
+        showToast('Failed to save admin settings: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error saving admin settings:', error)
-      alert('Error saving admin settings. Please check your connection.')
+      showToast('Error saving admin settings. Check your connection.', 'error')
     } finally {
       setSaving(false)
     }
@@ -254,15 +253,15 @@ const AdminPanel: React.FC = () => {
       const result: ApiResponse<any> = await ApiClient.postJson('/AdminSettings/test-connection', {})
       
       if (result.success) {
-        alert('Database connection successful!')
+        showToast('Database connection successful', 'success')
         // Reload admin settings to update connection status
         await loadAdminSettings()
       } else {
-        alert('Database connection failed: ' + result.message)
+        showToast('Database connection failed: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error testing database connection:', error)
-      alert('Database connection test failed. Please check your connection.')
+      showToast('Database connection test failed', 'error')
     } finally {
       setLoading(false)
     }
@@ -280,13 +279,13 @@ const AdminPanel: React.FC = () => {
       if (result.success) {
         await loadAdminSettings()
         await loadBackupCapabilities()
-        alert(`Backup created successfully!\n\nBackup ID: ${result.data.backupId}\nSize: ${result.data.sizeFormatted}\nFiles: ${result.data.files}`)
+        showToast('Backup created. ID: ' + result.data.backupId + ' | Size: ' + result.data.sizeFormatted, 'success')
       } else {
-        alert(`Backup failed: ${result.message}\n\n${result.data?.suggestion || ''}`)
+        showToast('Backup failed: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error creating database backup:', error)
-      alert('Backup creation failed. Please check your connection and try again.')
+      showToast('Backup creation failed. Check your connection.', 'error')
     } finally {
       setBackupLoading(false)
     }
@@ -294,7 +293,7 @@ const AdminPanel: React.FC = () => {
 
   const handleRestoreBackup = async () => {
     if (!restoreFile) {
-      alert('Please select a backup file to restore.')
+      showToast('Please select a backup file to restore', 'warning')
       return
     }
 
@@ -321,11 +320,11 @@ const AdminPanel: React.FC = () => {
             formData.append('backupFile', file)
           } catch (err) {
             console.error('Error reading file:', err)
-            alert('Error reading the selected backup file. Please try again.')
+            showToast('Error reading the backup file. Please try again.', 'error')
             return
           }
         } else {
-          alert('File access not available in this environment. Please use a standard file browser.')
+          showToast('File access not available. Use a standard file browser.', 'warning')
           return
         }
       } else {
@@ -348,18 +347,15 @@ const AdminPanel: React.FC = () => {
       if (result.success) {
         await loadAdminSettings()
         await loadBackupCapabilities()
-        const dateObj = new Date(result.data.restoredAt)
-        const formattedDate = formatDateSync(dateObj)
-        const formattedTime = formatTime(dateObj)
-        alert(`Database restored successfully!\n\nRestored from: ${result.data.backupFile}\nCompleted: ${formattedDate}, ${formattedTime}`)
+        showToast('Database restored successfully from ' + result.data.backupFile, 'success')
         setRestoreFile(null)
         setNewConnectionString('')
       } else {
-        alert(`Restore failed: ${result.message}\n\n${result.data?.suggestion || ''}`)
+        showToast('Restore failed: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error restoring database:', error)
-      alert('Database restore failed. Please check your connection and try again.')
+      showToast('Database restore failed. Check your connection.', 'error')
     } finally {
       setBackupLoading(false)
     }
@@ -376,9 +372,9 @@ const AdminPanel: React.FC = () => {
     if (confirmed) {
       try {
         // TODO: Open database configuration modal/wizard
-        alert('Database connection change wizard would open here.\n\nThis would guide you through:\n• Backing up current data\n• Testing new connection\n• Migrating data (if needed)')
+        showToast('Database connection change not available in this build', 'info')
       } catch (err) {
-        alert('Failed to change database connection!')
+        showToast('Failed to change database connection', 'error')
       }
     }
   }
@@ -414,22 +410,22 @@ const AdminPanel: React.FC = () => {
             const result: ApiResponse<any> = await ApiClient.postJson('/AdminSettings/clear-database', {})
             
             if (result.success) {
-              alert(`Database cleared successfully!\n\nAll tables and sequences dropped.\nDatabase schema will be recreated on next app start.\n\nDefault admin account will be:\nEmployee ID: 0001\nPIN: 0000\n\nRestarting application...`)
+              showToast('Database cleared successfully. Restarting application...', 'success')
               
               // Clear session and reload the entire app to trigger migrations
               SessionManager.clearSession()
               window.location.href = '/login'
             } else {
-              alert('Failed to clear database: ' + result.message)
+              showToast('Failed to clear database: ' + result.message, 'error')
             }
           } catch (error) {
             console.error('Error clearing database:', error)
-            alert('Failed to clear database!')
+            showToast('Failed to clear database', 'error')
           } finally {
             setLoading(false)
           }
         } else {
-          alert('Database clear cancelled.')
+          showToast('Database clear cancelled', 'info')
         }
       }
     }

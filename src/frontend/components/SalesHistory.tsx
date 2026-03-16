@@ -19,6 +19,7 @@ import DateDisplay from './DateDisplay'
 import { formatDateForFile, formatDateSync } from '../utils/dateFormat'
 import { generateTextReceipt } from '../utils/receiptFormatter'
 import { formatCurrency } from '../utils/formatCurrency'
+import { useToast } from '../contexts/ToastContext'
 
 // Sale interface matching the API model
 interface Sale {
@@ -76,6 +77,7 @@ interface SaleItem {
 
 const SalesHistory: React.FC = () => {
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
   // State management
   const [sales, setSales] = React.useState<Sale[]>([])
@@ -133,7 +135,7 @@ const SalesHistory: React.FC = () => {
       await loadReturnsData(Array.isArray(salesData) ? salesData : [])
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load sales'
-      alert(`Failed to load sales history!\n\n${errorMessage}\n\nPlease check your connection and try again.`)
+      showToast('Failed to load sales: ' + errorMessage, 'error')
       console.error('Error loading sales:', err)
     } finally {
       setLoading(false)
@@ -315,7 +317,7 @@ const SalesHistory: React.FC = () => {
   // Handle reprint receipt
   const handleReprintReceipt = (sale: Sale) => {
     if (!systemSettings || !taxSettings) {
-      alert('System settings not loaded. Please try again.')
+      showToast('System settings not loaded. Please try again.', 'warning')
       return
     }
 
@@ -354,7 +356,7 @@ const SalesHistory: React.FC = () => {
   const handlePrintReceipt = async () => {
     try {
       if (!selectedSale || !systemSettings) {
-        alert('Missing receipt data or system settings')
+        showToast('Missing receipt data or system settings', 'error')
         return
       }
 
@@ -437,13 +439,13 @@ const SalesHistory: React.FC = () => {
       const result = await window.electronAPI.printReceipt(receiptText)
       
       if (result.success) {
-        alert(result.message)
+        showToast(result.message, 'success')
       } else {
-        alert(result.message)
+        showToast(result.message, 'error')
       }
     } catch (error) {
       console.error('Error reprinting receipt:', error)
-      alert('Failed to reprint receipt')
+      showToast('Failed to reprint receipt', 'error')
     }
     
     setShowReceiptPreview(false)

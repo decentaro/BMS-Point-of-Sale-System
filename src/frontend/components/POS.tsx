@@ -57,9 +57,6 @@ const POS: React.FC = () => {
   const [cart, setCart] = React.useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = React.useState<string>('')
 
-  // Alert debounce to prevent multiple alerts
-  const alertTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
-
   // Tax settings from API
   const [taxSettings, setTaxSettings] = React.useState<any>(null)
   const [discountPercent, setDiscountPercent] = React.useState<number>(0)
@@ -101,7 +98,7 @@ const POS: React.FC = () => {
       setProducts(data.filter((p: Product) => p.isActive))
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load products'
-      alert(`Failed to load products!\n\n${errorMessage}\n\nPlease check your connection and try again.`)
+      showToast('Failed to load products: ' + errorMessage, 'error')
       console.error('Error loading products:', err)
     } finally {
       setLoading(false)
@@ -154,14 +151,14 @@ const POS: React.FC = () => {
           openKb('discountReason', 'qwerty', 'Discount Reason (Optional)')
         }, 500)
       } else {
-        alert('Invalid manager PIN. Discount not applied.')
+        showToast('Invalid manager PIN. Discount not applied.', 'error')
         setShowManagerPinPrompt(false)
         setPendingDiscountPercent(0)
         setKbOpen(false)
       }
     } catch (error) {
       console.error('Error validating manager PIN:', error)
-      alert('Error validating manager PIN. Please try again.')
+      showToast('Error validating manager PIN. Please try again.', 'error')
       setShowManagerPinPrompt(false)
       setPendingDiscountPercent(0)
       setKbOpen(false)
@@ -220,15 +217,6 @@ const POS: React.FC = () => {
       if (scanTimeout) clearTimeout(scanTimeout)
     }
   }, [kbOpen, scanBuffer, scanTimeout])
-
-  // Cleanup alert timeout on component unmount
-  React.useEffect(() => {
-    return () => {
-      if (alertTimeoutRef.current) {
-        clearTimeout(alertTimeoutRef.current)
-      }
-    }
-  }, [])
 
   // Keyboard handling
   const openKb = (target: 'search' | 'discount' | 'discountReason' | 'amountPaid' | 'managerPin' | 'cartQuantity', type: KeyboardType, title: string, cartItemId?: number) => {
@@ -292,19 +280,8 @@ const POS: React.FC = () => {
       addToCart(product)
     } catch (err) {
       console.error('Error searching by barcode:', err)
-      alert(`Product with barcode "${barcode}" not found`)
+      showToast('Product not found: ' + barcode, 'warning')
     }
-  }
-
-  // Debounced alert function to prevent multiple alerts
-  const showDebouncedAlert = (message: string) => {
-    if (alertTimeoutRef.current) {
-      clearTimeout(alertTimeoutRef.current)
-    }
-    alertTimeoutRef.current = setTimeout(() => {
-      alert(message)
-      alertTimeoutRef.current = null
-    }, 100)
   }
 
   // Cart management
@@ -314,12 +291,12 @@ const POS: React.FC = () => {
     // Check stock limits before updating cart
     if (existingItem) {
       if (existingItem.quantity >= product.stockQuantity) {
-        showDebouncedAlert(`Cannot add more ${product.name}. Only ${product.stockQuantity} available in stock.`)
+        showToast(`Cannot add more ${product.name}. Only ${product.stockQuantity} available in stock.`, 'warning')
         return
       }
     } else {
       if (product.stockQuantity <= 0) {
-        showDebouncedAlert(`${product.name} is out of stock.`)
+        showToast(`${product.name} is out of stock.`, 'warning')
         return
       }
     }
@@ -348,7 +325,7 @@ const POS: React.FC = () => {
     // Find the product to check stock limits
     const product = products.find(p => p.id === productId)
     if (product && newQuantity > product.stockQuantity) {
-      showDebouncedAlert(`Cannot set quantity to ${newQuantity}. Only ${product.stockQuantity} available in stock for ${product.name}.`)
+      showToast(`Cannot set quantity to ${newQuantity}. Only ${product.stockQuantity} available in stock for ${product.name}.`, 'warning')
       return
     }
 
@@ -375,12 +352,12 @@ const POS: React.FC = () => {
   // Process payment
   const processPayment = async () => {
     if (cart.length === 0) {
-      alert('Cart is empty')
+      showToast('Cart is empty', 'warning')
       return
     }
 
     if (parseFloat(amountPaid) < finalTotal) {
-      alert('Insufficient payment amount')
+      showToast('Insufficient payment amount', 'warning')
       return
     }
 
@@ -388,7 +365,7 @@ const POS: React.FC = () => {
     try {
       const session = SessionManager.getCurrentSession()
       if (!session) {
-        alert('No user logged in')
+        showToast('No user logged in', 'error')
         return
       }
 
@@ -456,7 +433,7 @@ const POS: React.FC = () => {
       await loadProducts()
 
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to process payment')
+      showToast(err instanceof Error ? err.message : 'Failed to process payment', 'error')
       console.error('Payment error:', err)
     } finally {
       setIsProcessingPayment(false)
@@ -475,7 +452,7 @@ const POS: React.FC = () => {
   // Receipt preview actions
   const handlePrintReceipt = () => {
     if (!completedSale || !systemSettings) {
-      alert('Missing receipt data or system settings')
+      showToast('Missing receipt data or system settings', 'error')
       return
     }
 

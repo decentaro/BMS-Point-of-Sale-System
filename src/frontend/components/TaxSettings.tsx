@@ -12,6 +12,7 @@ import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
 import ApiClient from '../utils/ApiClient'
+import { useToast } from '../contexts/ToastContext'
 import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
 
@@ -33,6 +34,7 @@ interface TaxSettings {
 const TaxSettings: React.FC = () => {
   const navigate = useNavigate()
   const { refreshBusinessSettings } = useBusinessSettings()
+  const { showToast } = useToast()
 
   // Session and role validation handled by SessionGuard wrapper
 
@@ -79,7 +81,7 @@ const TaxSettings: React.FC = () => {
         console.log('No tax settings found, using defaults - this is normal for new setup')
         // Don't show alert for missing tax settings - it's expected behavior
       } else {
-        alert(`Failed to load tax settings!\n\n${errorMessage}\n\nPlease check your connection and try again.`)
+        showToast('Failed to load tax settings: ' + errorMessage, 'error')
         console.error('Error loading tax settings:', err)
       }
     } finally {
@@ -91,13 +93,13 @@ const TaxSettings: React.FC = () => {
     try {
       setSaving(true)
       await ApiClient.postJson('/tax-settings', settings)
-      alert('Tax settings saved successfully!')
+      showToast('Tax settings saved successfully', 'success')
       
       // Refresh business settings to update header display
       await refreshBusinessSettings()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save tax settings'
-      alert(`Failed to save tax settings!\n\n${errorMessage}\n\nPlease try again.`)
+      showToast('Failed to save tax settings: ' + errorMessage, 'error')
       console.error('Error saving tax settings:', err)
     } finally {
       setSaving(false)

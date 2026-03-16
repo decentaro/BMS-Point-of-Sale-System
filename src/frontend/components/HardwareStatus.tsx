@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useToast } from '../contexts/ToastContext'
 import {
   ScanBarcode, Printer, Database, Wifi,
   RefreshCw, Cpu, DollarSign
@@ -79,6 +80,7 @@ const StatusBadge = ({ status, tier }: { status: string; tier: StatusTier }) => 
 )
 
 export default function HardwareStatus({ compact = false, showDetails = true }: Props) {
+  const { showToast } = useToast()
   const [status, setStatus] = React.useState<HardwareStatus>({
     barcodeScanner: { status: 'inactive', lastScan: undefined, description: 'Checking scanner status...' },
     receiptPrinter: { status: 'not_found', description: 'Checking printer connection...' },
@@ -136,13 +138,13 @@ export default function HardwareStatus({ compact = false, showDetails = true }: 
     try {
       const result = await window.electronAPI.openCashDrawer()
       if (result.success) {
-        alert('Cash drawer opened successfully!')
+        showToast('Cash drawer opened successfully', 'success')
       } else {
-        alert(`Failed to open cash drawer: ${result.message}`)
+        showToast('Failed to open cash drawer: ' + result.message, 'error')
       }
     } catch (error) {
       console.error('Error opening cash drawer:', error)
-      alert('Failed to open cash drawer')
+      showToast('Failed to open cash drawer', 'error')
     } finally {
       setIsOpeningDrawer(false)
     }

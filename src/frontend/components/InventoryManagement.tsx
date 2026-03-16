@@ -12,6 +12,7 @@ import SessionGuard from './SessionGuard'
 import SessionStatus from './SessionStatus'
 import ApiClient from '../utils/ApiClient'
 import { useBusinessSettings } from '../contexts/SettingsContext'
+import { useToast } from '../contexts/ToastContext'
 import SessionManager from '../utils/SessionManager'
 import { formatDateSync } from '../utils/dateFormat'
 import PageHeader from './ui/PageHeader'
@@ -57,6 +58,7 @@ interface ProductBatch {
 const InventoryManagement: React.FC = () => {
   const navigate = useNavigate()
   useBusinessSettings()
+  const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState('adjustments')
   
   // Stock Adjustments State
@@ -193,7 +195,7 @@ const InventoryManagement: React.FC = () => {
     setLoading(true)
 
     if (!selectedProductObj) {
-      alert('Please select a valid product')
+      showToast('Please select a valid product', 'warning')
       setLoading(false)
       return
     }
@@ -210,7 +212,7 @@ const InventoryManagement: React.FC = () => {
 
       await ApiClient.post('/stockadjustments', adjustmentData)
       
-      alert('Stock adjustment created successfully!')
+      showToast('Stock adjustment created successfully', 'success')
       setSelectedProduct('')
       setSelectedProductObj(null)
       setProductSearch('')
@@ -229,7 +231,7 @@ const InventoryManagement: React.FC = () => {
         'StockAdjustment'
       )
     } catch (error: any) {
-      alert(`Failed to create stock adjustment!\n\n${error.message || 'Unknown error'}\n\nPlease try again.`)
+      showToast('Failed to create adjustment: ' + (error.message || 'Unknown error'), 'error')
     } finally {
       setLoading(false)
     }
@@ -238,12 +240,12 @@ const InventoryManagement: React.FC = () => {
   const handleApproveAdjustment = async (adjustmentId: number) => {
     try {
       await ApiClient.put(`/stockadjustments/${adjustmentId}/approve`, {})
-      alert('Stock adjustment approved and applied!')
+      showToast('Stock adjustment approved and applied', 'success')
       await loadProducts()
       await loadPendingAdjustments()
       await loadAdjustments()
     } catch (error: any) {
-      alert(`Failed to approve adjustment!\n\n${error.message || 'Unknown error'}\n\nPlease try again.`)
+      showToast('Failed to approve adjustment: ' + (error.message || 'Unknown error'), 'error')
     }
   }
 
@@ -592,7 +594,7 @@ const InventoryManagement: React.FC = () => {
                       <Button
                         onClick={async () => {
                           if (!selectedProductObj || !quantityChange) {
-                            alert('Please select a product and enter quantity')
+                            showToast('Please select a product and enter quantity', 'warning')
                             return
                           }
                           const today = new Date()
@@ -615,11 +617,11 @@ const InventoryManagement: React.FC = () => {
                               supplier: 'Manual Entry',
                               lotNumber: notes || null
                             })
-                            alert(`Product batch added successfully!\n\nBatch Number: ${autoBatchNumber}`)
+                            showToast(`Batch added successfully. Batch #${autoBatchNumber}`, 'success')
                             setProductSearch(''); setReason(''); setQuantityChange(''); setAdjustmentType(''); setNotes('')
                             setSelectedProductObj(null); setSelectedProduct(''); setShowProductDropdown(false)
                             await loadExpiringProducts(); await loadProducts()
-                          } catch (error: any) { alert(`Failed to add batch!\n\n${error.message || 'Unknown error'}\n\nPlease try again.`) }
+                          } catch (error: any) { showToast('Failed to add batch: ' + (error.message || 'Unknown error'), 'error') }
                         }}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
                       >
@@ -757,7 +759,7 @@ const InventoryManagement: React.FC = () => {
                         onClick={async () => {
                           if (!quantityChange) return
                           const diff = parseInt(quantityChange) - selectedProductObj.stockQuantity
-                          if (diff === 0) { alert('No adjustment needed — counts match!'); return }
+                          if (diff === 0) { showToast('No adjustment needed — counts match', 'info'); return }
                           try {
                             await ApiClient.post('/stockadjustments', {
                               productId: selectedProductObj.id,
@@ -765,10 +767,10 @@ const InventoryManagement: React.FC = () => {
                               quantityChange: diff,
                               reason: 'Physical count adjustment'
                             })
-                            alert('Stock adjusted based on physical count!')
+                            showToast('Stock adjusted based on physical count', 'success')
                             setProductSearch(''); setQuantityChange(''); setSelectedProductObj(null); setSelectedProduct('')
                             await loadProducts(); await loadAdjustments()
-                          } catch (error: any) { alert(`Failed to create adjustment!\n\n${error.message || 'Unknown error'}\n\nPlease try again.`) }
+                          } catch (error: any) { showToast('Failed to create adjustment: ' + (error.message || 'Unknown error'), 'error') }
                         }}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
                       >

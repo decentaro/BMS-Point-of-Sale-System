@@ -11,6 +11,7 @@ import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
 import ApiClient from '../utils/ApiClient'
 import PageHeader from './ui/PageHeader'
+import { useToast } from '../contexts/ToastContext'
 
 // Employee interface matching the API model
 interface Employee {
@@ -27,6 +28,7 @@ interface Employee {
 
 const Employees: React.FC = () => {
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
   // Session and role validation handled by SessionGuard wrapper
 
@@ -63,7 +65,7 @@ const Employees: React.FC = () => {
     if (isResettingPin) {
       // Handle PIN reset
       if (!val || val.length < 4 || val.length > 6 || !/^\d+$/.test(val)) {
-        alert('PIN must be 4-6 digits')
+        showToast('PIN must be 4–6 digits', 'warning')
         setKbOpen(false)
         setIsResettingPin(false)
         return
@@ -86,9 +88,9 @@ const Employees: React.FC = () => {
 
         await loadEmployees() // Refresh the list
         setForm(prev => ({ ...prev, pin: val })) // Update form to show new PIN
-        alert('PIN reset successfully')
+        showToast('PIN reset successfully', 'success')
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to reset PIN')
+        showToast(err instanceof Error ? err.message : 'Failed to reset PIN', 'error')
         console.error('Error resetting PIN:', err)
       }
       
@@ -151,7 +153,7 @@ const Employees: React.FC = () => {
   // Add new employee
   const addEmployee = async () => {
     if (!form.name.trim() || !form.employeeId.trim() || !form.pin.trim()) {
-      alert('Please fill in all required fields')
+      showToast('Please fill in all required fields', 'warning')
       return
     }
 
@@ -169,7 +171,7 @@ const Employees: React.FC = () => {
       await loadEmployees() // Refresh the list
       clearForm() // Clear the form
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create employee')
+      showToast(err instanceof Error ? err.message : 'Failed to create employee', 'error')
       console.error('Error creating employee:', err)
     }
   }
@@ -177,12 +179,12 @@ const Employees: React.FC = () => {
   // Save (update) employee
   const saveEmployee = async () => {
     if (!selectedEmployee) {
-      alert('Please select an employee to update')
+      showToast('Please select an employee to update', 'warning')
       return
     }
 
     if (!form.name.trim() || !form.employeeId.trim() || !form.pin.trim()) {
-      alert('Please fill in all required fields')
+      showToast('Please fill in all required fields', 'warning')
       return
     }
 
@@ -203,7 +205,7 @@ const Employees: React.FC = () => {
       clearForm() // Clear the form
       console.log('Employee updated successfully')
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update employee')
+      showToast(err instanceof Error ? err.message : 'Failed to update employee', 'error')
       console.error('Error updating employee:', err)
     }
   }
@@ -211,13 +213,13 @@ const Employees: React.FC = () => {
   // Deactivate employee
   const deactivateEmployee = async () => {
     if (!selectedEmployee) {
-      alert('Please select an employee to deactivate')
+      showToast('Please select an employee', 'warning')
       return
     }
 
     const employee = employees.find(emp => emp.id === selectedEmployee)
     if (!employee) {
-      alert('Employee not found')
+      showToast('Employee not found', 'error')
       return
     }
 
@@ -235,7 +237,7 @@ const Employees: React.FC = () => {
       clearForm() // Clear the form
       console.log(`Employee ${actionText} successfully`)
     } catch (err) {
-      alert(err instanceof Error ? err.message : `Failed to ${action} employee`)
+      showToast(err instanceof Error ? err.message : `Failed to ${action} employee`, 'error')
       console.error(`Error ${action}ing employee:`, err)
     }
   }
@@ -244,7 +246,7 @@ const Employees: React.FC = () => {
   const resetPin = () => {
     console.log('resetPin called, selectedEmployee:', selectedEmployee)
     if (!selectedEmployee) {
-      alert('Please select an employee to reset PIN')
+      showToast('Please select an employee to reset PIN', 'warning')
       return
     }
 
