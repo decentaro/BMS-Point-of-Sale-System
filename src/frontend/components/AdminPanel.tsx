@@ -291,7 +291,7 @@ const AdminPanel: React.FC = () => {
     }
 
     const fileSize = restoreFile.size ? (restoreFile.size / 1024 / 1024).toFixed(1) : 'Unknown'
-    const confirmMessage = `Restore database from backup?\n\nFile: ${restoreFile.name}\nSize: ${fileSize} MB\n\n⚠️ WARNING: This will overwrite your current database!\n\nContinue?`
+    const confirmMessage = `Restore database from backup?\n\nFile: ${restoreFile.name}\nSize: ${fileSize} MB\n\nWARNING: This will overwrite your current database!\n\nContinue?`
     
     if (!window.confirm(confirmMessage)) {
       return
@@ -383,7 +383,7 @@ const AdminPanel: React.FC = () => {
       '• All products and inventory\n' +
       '• All sales and transaction history\n' +
       '• All system settings\n\n' +
-      '⚠️ THIS CANNOT BE UNDONE!\n\n' +
+      'THIS CANNOT BE UNDONE!\n\n' +
       'Are you absolutely sure?'
     )
     

@@ -109,7 +109,11 @@ const generateCompactTextReceipt = (saleData: any, settings: SystemSettings, pap
   
   // Business name will be added dynamically by main.js from tax settings
   receipt += '[LOGO PLACEHOLDER]\n\n'
-  
+
+  if (saleData.isReturn) {
+    receipt += centerText('*** RETURN/REPRINT RECEIPT ***') + '\n'
+  }
+
   // Header - EXACTLY like SharedReceiptRenderer line 87-102
   if (settings.receiptHeaderText) {
     receipt += centerText(settings.receiptHeaderText)
@@ -128,19 +132,27 @@ const generateCompactTextReceipt = (saleData: any, settings: SystemSettings, pap
   // Items - EXACTLY like your preview with barcode and name on same line
   saleData.cart.forEach((item: any) => {
     // Calculate barcodeEnd exactly like Standard template
-    const barcodeEnd = item.product.barcode && item.product.barcode.length > 5 
-      ? item.product.barcode.slice(-5) 
+    const barcodeEnd = item.product.barcode && item.product.barcode.length > 5
+      ? item.product.barcode.slice(-5)
       : item.product.barcode || '00000'
-    
+
     // Line 1: #barcode + product name on left, total price on right
     const leftText = `#${barcodeEnd} ${item.product.name}`
     const rightText = formatCurrency(item.total)
     receipt += twoColumn(leftText, rightText) + '\n'
-    
-    // Line 2: Indented quantity x unit price  
+
+    // Line 2: Indented quantity x unit price
     receipt += `  ${item.quantity} x ${formatCurrency(item.product.price)}` + '\n'
+
+    if (item.returnedQuantity && item.returnedQuantity > 0) {
+      if (item.returnedQuantity >= item.quantity) {
+        receipt += `  ** FULLY RETURNED **\n`
+      } else {
+        receipt += `  ** RETURNED: ${item.returnedQuantity} of ${item.quantity} **\n`
+      }
+    }
   })
-  
+
   // EXACTLY like line 123: border-t border-gray-400 pt-1 mt-1
   receipt += '-'.repeat(paperWidth) + '\n'
   
@@ -188,8 +200,11 @@ const generateStandardTextReceipt = (saleData: any, settings: SystemSettings, pa
   // Line 169-178: Business Logo - Raw placeholder for main.js to replace
   // Business name will be added dynamically by main.js from tax settings
   receipt += '[LOGO PLACEHOLDER]\n\n'
-  
-  
+
+  if (saleData.isReturn) {
+    receipt += centerText('*** RETURN/REPRINT RECEIPT ***') + '\n'
+  }
+
   // Line 180-185: Receipt Header
   if (settings.receiptHeaderText) {
     receipt += centerText(settings.receiptHeaderText)
@@ -219,17 +234,25 @@ const generateStandardTextReceipt = (saleData: any, settings: SystemSettings, pa
   receipt += '\n' + dashedLine + '\n'
   saleData.cart.forEach((item: any) => {
     // Line 228-230: barcodeEnd calculation
-    const barcodeEnd = item.product.barcode && item.product.barcode.length > 5 
-      ? item.product.barcode.slice(-5) 
+    const barcodeEnd = item.product.barcode && item.product.barcode.length > 5
+      ? item.product.barcode.slice(-5)
       : item.product.barcode || '00000'
-    
+
     // Line 234-238: flex justify-between items-start with flex-1 pr-2 break-words
     const leftText = `#${barcodeEnd} ${item.product.name}`
     const rightText = formatCurrency(item.total)
     receipt += twoColumn(leftText, rightText) + '\n'
-    
+
     // Line 240-242: text-xs text-gray-600 ml-2 indented
     receipt += `  ${item.quantity} x ${formatCurrency(item.product.price)}` + '\n'
+
+    if (item.returnedQuantity && item.returnedQuantity > 0) {
+      if (item.returnedQuantity >= item.quantity) {
+        receipt += `  ** FULLY RETURNED **\n`
+      } else {
+        receipt += `  ** RETURNED: ${item.returnedQuantity} of ${item.quantity} **\n`
+      }
+    }
   })
 
   // Line 248-249: Totals section
@@ -307,7 +330,11 @@ const generateDetailedTextReceipt = (saleData: any, settings: SystemSettings, pa
   
   // Business name will be added dynamically by main.js from tax settings
   receipt += '[LOGO PLACEHOLDER]\n\n'
-  
+
+  if (saleData.isReturn) {
+    receipt += centerText('*** RETURN/REPRINT RECEIPT ***') + '\n'
+  }
+
   // Enhanced Header - EXACTLY like line 355-370
   if (settings.receiptHeaderText) {
     receipt += centerText(settings.receiptHeaderText)
@@ -337,14 +364,22 @@ const generateDetailedTextReceipt = (saleData: any, settings: SystemSettings, pa
   receipt += divider + '\n'
   
   saleData.cart.forEach((item: any, index: number) => {
-    const barcodeEnd = item.product.barcode && item.product.barcode.length > 5 
-      ? item.product.barcode.slice(-5) 
+    const barcodeEnd = item.product.barcode && item.product.barcode.length > 5
+      ? item.product.barcode.slice(-5)
       : item.product.barcode || '00000'
-    
+
     if (index > 0) receipt += dashedLine + '\n'
     receipt += twoColumn(item.product.name, formatCurrency(item.total)) + '\n'
     receipt += `Barcode: #${item.product.barcode || barcodeEnd}` + '\n'
     receipt += `Quantity: ${item.quantity} × Unit Price: ${formatCurrency(item.product.price)}` + '\n'
+
+    if (item.returnedQuantity && item.returnedQuantity > 0) {
+      if (item.returnedQuantity >= item.quantity) {
+        receipt += `  ** FULLY RETURNED **\n`
+      } else {
+        receipt += `  ** RETURNED: ${item.returnedQuantity} of ${item.quantity} **\n`
+      }
+    }
   })
 
   // Totals

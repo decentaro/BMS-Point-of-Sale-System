@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
 
 interface Props {
   children?: ReactNode;
@@ -29,7 +30,7 @@ class ErrorBoundary extends Component<Props, State> {
       return (
         this.props.fallback || (
           <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-white rounded-lg shadow-sm border border-red-100">
-            <div className="text-red-500 text-5xl mb-4">⚠️</div>
+            <div className="flex justify-center mb-4"><AlertTriangle className="w-16 h-16 text-red-500" /></div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Something went wrong</h2>
             <p className="text-slate-600 mb-6 max-w-md">
               The component crashed while rendering. This is likely due to unexpected data format or a logic error.

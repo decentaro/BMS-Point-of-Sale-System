@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Plus, Trash2, DollarSign, FileText, Edit, RefreshCcw } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import SessionStatus from './SessionStatus'
@@ -141,16 +142,16 @@ const UserActivity: React.FC = () => {
     navigate('/manager')
   }
 
-  const getActionTypeIcon = (actionType: string) => {
+  const getActionTypeIcon = (actionType: string): React.ReactNode => {
     switch (actionType?.toLowerCase()) {
-      case 'login': return '🔐'
-      case 'logout': return '🚪'
-      case 'create': return '➕'
-      case 'update': return '📝'
-      case 'delete': return '🗑️'
-      case 'sale': return '💰'
-      case 'return': return '↩️'
-      default: return '📋'
+      case 'login': return <FileText className="w-4 h-4" />
+      case 'logout': return <FileText className="w-4 h-4" />
+      case 'create': return <Plus className="w-4 h-4" />
+      case 'update': return <Edit className="w-4 h-4" />
+      case 'delete': return <Trash2 className="w-4 h-4" />
+      case 'sale': return <DollarSign className="w-4 h-4" />
+      case 'return': return <RefreshCcw className="w-4 h-4" />
+      default: return <FileText className="w-4 h-4" />
     }
   }
 

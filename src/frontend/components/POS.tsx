@@ -12,6 +12,7 @@ import HybridInput from './HybridInput'
 import { SystemSettings } from '../types/SystemSettings'
 import ApiClient from '../utils/ApiClient'
 import { generateTextReceipt } from '../utils/receiptFormatter'
+import { useToast } from '../contexts/ToastContext'
 
 // Product interface matching the API model
 interface Product {
@@ -43,6 +44,7 @@ interface CartItem {
 
 const POS: React.FC = () => {
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
 
   // State management
@@ -70,6 +72,7 @@ const POS: React.FC = () => {
   const [showReceiptPreview, setShowReceiptPreview] = React.useState<boolean>(false)
   const [completedSale, setCompletedSale] = React.useState<any>(null)
   const [systemSettings, setSystemSettings] = React.useState<SystemSettings | null>(null)
+
 
   // Modal keyboard state
   const [kbOpen, setKbOpen] = React.useState<boolean>(false)
@@ -405,40 +408,43 @@ const POS: React.FC = () => {
       }
 
       const sale = await ApiClient.postJson('/sales', saleData)
-      
+
       // Extend session for this business action (completing sale)
       SessionManager.extendForBusinessAction('Sale completed')
       
-      // Check if receipt preview is enabled
+      // Prepare sale data for receipt
+      const previewSaleData = {
+        subtotal: subtotal,
+        taxAmount: taxAmount,
+        secondaryTaxAmount: secondaryTaxAmount,
+        taxLabel: taxLabel,
+        secondaryTaxLabel: secondaryTaxLabel,
+        discountAmount: discountAmount,
+        discountPercent: discountPercent,
+        discountReason: discountReason,
+        finalTotal: finalTotal,
+        amountPaid: parseFloat(amountPaid),
+        changeAmount: changeAmount,
+        paymentMethod: paymentMethod,
+        cart: cart,
+        transactionId: sale.transactionId,
+        cashierName: session.name || session.employeeId || 'Unknown Cashier',
+        saleDate: sale.saleDate
+      }
+
+      setCompletedSale(previewSaleData)
+      setShowPaymentModal(false)
+
       if (systemSettings?.showReceiptPreview) {
-        // Get current user for cashier name
-        // session is already defined above
-        
-        // Prepare sale data for preview
-        const previewSaleData = {
-          subtotal: subtotal,
-          taxAmount: taxAmount,
-          secondaryTaxAmount: secondaryTaxAmount,
-          taxLabel: taxLabel,
-          secondaryTaxLabel: secondaryTaxLabel,
-          discountAmount: discountAmount,
-          discountPercent: discountPercent,
-          discountReason: discountReason,
-          finalTotal: finalTotal,
-          amountPaid: parseFloat(amountPaid),
-          changeAmount: changeAmount,
-          paymentMethod: paymentMethod,
-          cart: cart,
-          transactionId: sale.transactionId,
-          cashierName: session.name || session.employeeId || 'Unknown Cashier',
-          saleDate: sale.saleDate
-        }
-        
-        setCompletedSale(previewSaleData)
+        // Show preview first, let user choose to print
         setShowReceiptPreview(true)
-        setShowPaymentModal(false)
+      } else if (systemSettings?.printReceiptAutomatically !== false) {
+        // Auto-print fire-and-forget — don't block cart clear on printer response
+        const receiptText = generateTextReceipt(previewSaleData, systemSettings!)
+        window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath)
+          .catch((err: unknown) => console.error('Auto-print error:', err))
+        handlePaymentSuccess(sale.transactionId)
       } else {
-        // Original flow - direct success
         handlePaymentSuccess(sale.transactionId)
       }
       
@@ -455,36 +461,25 @@ const POS: React.FC = () => {
 
   // Handle payment success (common logic)
   const handlePaymentSuccess = (transactionId: string) => {
-    alert(`Payment successful!\nTransaction ID: ${transactionId}\nChange: ${formatCurrency(changeAmount)}`)
     clearCart()
     setShowPaymentModal(false)
     setShowReceiptPreview(false)
     setCompletedSale(null)
+    showToast(`Payment successful! | ID: ${transactionId} | Change: ${formatCurrency(changeAmount)}`)
   }
 
   // Receipt preview actions
-  const handlePrintReceipt = async () => {
-    try {
-      if (!completedSale || !systemSettings) {
-        alert('❌ Missing receipt data or system settings')
-        return
-      }
-
-      // Generate plain text receipt respecting system settings
-      const receiptText = generateTextReceipt(completedSale, systemSettings)
-
-      const result = await window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath)
-      
-      if (result.success) {
-        alert('✅ ' + result.message)
-        handlePaymentSuccess(completedSale?.transactionId || 'Unknown')
-      } else {
-        alert('❌ ' + result.message)
-      }
-    } catch (error) {
-      console.error('Error printing receipt:', error)
-      alert('❌ Failed to print receipt')
+  const handlePrintReceipt = () => {
+    if (!completedSale || !systemSettings) {
+      alert('Missing receipt data or system settings')
+      return
     }
+
+    // Fire-and-forget — clear cart immediately, print in background
+    const receiptText = generateTextReceipt(completedSale, systemSettings)
+    window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath)
+      .catch((err: unknown) => console.error('Print error:', err))
+    handlePaymentSuccess(completedSale?.transactionId || 'Unknown')
   }
 
   const handleSkipPrint = () => {
@@ -554,6 +549,7 @@ const POS: React.FC = () => {
   return (
     <SessionGuard>
       <div className="w-screen h-screen flex flex-col bg-white overflow-hidden">
+
       {/* Top */}
       <header className="h-14 px-4 border-b flex items-center justify-between">
         <Button variant="outline" size="sm" onClick={goBack}>← Back</Button>
@@ -571,14 +567,22 @@ const POS: React.FC = () => {
           <div className="h-full flex flex-col bg-white rounded-lg shadow-sm flex-1 lg:flex-[3]">
             {/* Search and scanner */}
             <div className="p-2 bg-white border-b">
-              <div className="mb-2">
-                <HybridInput 
-                  placeholder="Search products..." 
-                  className="w-full h-8 px-2 text-sm border rounded" 
-                  value={searchQuery} 
+              <div className="mb-2 flex gap-2">
+                <HybridInput
+                  placeholder="Search products..."
+                  className="flex-1 h-8 px-2 text-sm border rounded"
+                  value={searchQuery}
                   onChange={setSearchQuery}
                   onTouchKeyboard={() => openKb('search', 'qwerty', 'Search Products')}
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="h-8 px-3 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 border rounded"
+                  >
+                    CLEAR
+                  </button>
+                )}
               </div>
               <div className="text-[10px] text-slate-500">
                 {loading ? 'Loading...' : `${filteredProducts.length} products`}
@@ -663,7 +667,12 @@ const POS: React.FC = () => {
                         {/* Product info */}
                         <div className="p-1.5 flex-1 flex flex-col justify-between">
                           <div className="text-xs font-medium text-slate-900 line-clamp-2 leading-tight" title={product.name}>{product.name}</div>
-                          <div className="text-[10px] text-blue-600 font-semibold">{formatCurrency(product.price)}</div>
+                          <div className="flex items-center justify-between mt-0.5">
+                            <div className="text-[10px] text-blue-600 font-semibold">{formatCurrency(product.price)}</div>
+                            <div className={`text-[10px] font-medium ${isOutOfStock ? 'text-red-500' : isLowStock ? 'text-orange-500' : 'text-slate-400'}`}>
+                              Qty: {product.stockQuantity}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )
@@ -779,7 +788,7 @@ const POS: React.FC = () => {
                   size="sm" 
                   disabled={cart.length === 0} 
                   className="bg-green-600 hover:bg-green-700"
-                  onClick={() => setShowPaymentModal(true)}
+                  onClick={() => { window.electronAPI?.openCashDrawer().catch(() => {}); setShowPaymentModal(true) }}
                 >
                   Pay {formatCurrency(finalTotal)}
                 </Button>

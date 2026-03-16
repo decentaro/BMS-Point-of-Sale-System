@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Info } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import HybridInput from './HybridInput'
@@ -631,7 +632,7 @@ const SystemSettings: React.FC = () => {
                         </Button>
                       </div>
                     </div>
-                    <p className="text-xs text-blue-600 mt-2">💡 Tip: Having consistent categories helps with inventory organization, reporting, and finding products quickly</p>
+                    <p className="text-xs text-blue-600 mt-2"><Info className="w-3 h-3 inline mr-1" />Tip: Having consistent categories helps with inventory organization, reporting, and finding products quickly</p>
                   </div>
                 </div>
                 
@@ -756,7 +757,7 @@ const SystemSettings: React.FC = () => {
                         <p className="text-xs text-gray-500 mt-1">
                           <strong>Pet Store Examples:</strong> "Defective Product", "Wrong Size", "Pet Doesn't Like", "Food Allergies", "Damaged Package", "Changed Mind", "Other"
                         </p>
-                        <p className="text-xs text-blue-600 mt-1">💡 Tip: Customize these reasons based on what you commonly see at your store</p>
+                        <p className="text-xs text-blue-600 mt-1"><Info className="w-3 h-3 inline mr-1" />Tip: Customize these reasons based on what you commonly see at your store</p>
                         
                         {/* Quick Preset Buttons */}
                         <div className="mt-3">

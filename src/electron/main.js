@@ -495,16 +495,18 @@ ipcMain.handle('check-printer', async () => {
 });
 
 ipcMain.handle('check-database', async () => {
-    // Check database connectivity
+    // Check database connectivity via public health endpoint (no auth required)
     try {
         const startTime = Date.now();
-        const response = await fetch(`${apiConfigManager.getConfig().baseUrl}/employees/1`);
+        const response = await fetch(`${apiConfigManager.getConfig().baseUrl}/system-settings`);
         const latency = Date.now() - startTime;
-        
+        // 200 = connected, 404 = backend up but no settings yet (still connected)
+        const connected = response.status === 200 || response.status === 404;
+
         return {
-            connected: response.ok,
+            connected: connected,
             latency: latency,
-            description: `Database ${response.ok ? 'connected' : 'error'} - ${latency}ms`
+            description: `Database ${connected ? 'connected' : 'error'} - ${latency}ms`
         };
     } catch (error) {
         return {

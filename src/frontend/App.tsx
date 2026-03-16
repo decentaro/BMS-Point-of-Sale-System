@@ -16,11 +16,15 @@ import InventoryManagement from './components/InventoryManagement'
 import InventoryDashboard from './components/InventoryDashboard'
 import AdminPanel from './components/AdminPanel'
 import { SettingsProvider } from './contexts/SettingsContext'
+import { ToastProvider } from './contexts/ToastContext'
+import ToastContainer from './components/ui/ToastContainer'
 
 function App() {
   return (
     <SettingsProvider>
+      <ToastProvider>
       <Router>
+      <ToastContainer />
       <div className="w-screen h-screen overflow-hidden bg-slate-50">
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
@@ -42,6 +46,7 @@ function App() {
         </Routes>
       </div>
       </Router>
+      </ToastProvider>
     </SettingsProvider>
   )
 }

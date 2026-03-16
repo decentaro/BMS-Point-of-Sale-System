@@ -116,13 +116,13 @@ export default function HardwareStatus({ compact = false, showDetails = true }: 
     try {
       const result = await window.electronAPI.openCashDrawer()
       if (result.success) {
-        alert('✅ Cash drawer opened successfully!')
+        alert('Cash drawer opened successfully!')
       } else {
-        alert(`❌ Failed to open cash drawer: ${result.message}`)
+        alert(`Failed to open cash drawer: ${result.message}`)
       }
     } catch (error) {
       console.error('Error opening cash drawer:', error)
-      alert('❌ Failed to open cash drawer')
+      alert('Failed to open cash drawer')
     } finally {
       setIsOpeningDrawer(false)
     }

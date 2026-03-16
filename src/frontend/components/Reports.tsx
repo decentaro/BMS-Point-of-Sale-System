@@ -50,6 +50,15 @@ interface EmployeePerformance {
   averageTransactionValue: number
 }
 
+interface ReturnsSummary {
+  period: string
+  totalReturns: number
+  totalRefundAmount: number
+  totalItemsReturned: number
+  returnsByReason: { reason: string; count: number; totalRefund: number }[]
+  topReturnedProducts: { productName: string; returnQuantity: number; totalRefund: number }[]
+}
+
 
 const Reports: React.FC = () => {
   const navigate = useNavigate()
@@ -66,6 +75,8 @@ const Reports: React.FC = () => {
   const [paymentBreakdown, setPaymentBreakdown] = React.useState<PaymentBreakdown | null>(null)
   const [taxSummary, setTaxSummary] = React.useState<TaxSummary | null>(null)
   const [employeePerformance, setEmployeePerformance] = React.useState<EmployeePerformance[]>([])
+  const [returnsSummary, setReturnsSummary] = React.useState<ReturnsSummary | null>(null)
+  const [returnsPeriod, setReturnsPeriod] = React.useState<string>('today')
 
   // Load all summaries
   const loadTodaySummary = async () => {
@@ -137,6 +148,15 @@ const Reports: React.FC = () => {
     }
   }
 
+  const loadReturnsSummary = async (period = returnsPeriod) => {
+    try {
+      const data = await ApiClient.getJson<ReturnsSummary>(`/returns/summary?period=${period}`)
+      setReturnsSummary(data)
+    } catch (err) {
+      console.error('Error loading returns summary:', err)
+    }
+  }
+
   // Load all reports data
   const loadReports = async () => {
     try {
@@ -148,7 +168,8 @@ const Reports: React.FC = () => {
         loadTopProducts(),
         loadPaymentBreakdown(),
         loadTaxSummary(),
-        loadEmployeePerformance()
+        loadEmployeePerformance(),
+        loadReturnsSummary()
       ])
     } catch (err) {
       console.error('Error loading reports:', err)
@@ -166,6 +187,12 @@ const Reports: React.FC = () => {
       loadTopProducts()
     }
   }, [topProductsDays])
+
+  React.useEffect(() => {
+    if (!loading) {
+      loadReturnsSummary(returnsPeriod)
+    }
+  }, [returnsPeriod])
 
   const goBack = () => {
     navigate('/manager')
@@ -221,6 +248,31 @@ const Reports: React.FC = () => {
       })
     }
     
+    // Add returns summary
+    if (returnsSummary) {
+      csvData.push('')
+      csvData.push(`Returns Summary (${returnsSummary.period})`)
+      csvData.push(`Total Returns,${returnsSummary.totalReturns}`)
+      csvData.push(`Total Refunded,${returnsSummary.totalRefundAmount}`)
+      csvData.push(`Total Items Returned,${returnsSummary.totalItemsReturned}`)
+      if (returnsSummary.returnsByReason.length > 0) {
+        csvData.push('')
+        csvData.push('Returns by Reason')
+        csvData.push('Reason,Items Returned,Total Refund')
+        returnsSummary.returnsByReason.forEach(r => {
+          csvData.push(`${r.reason.replace(/,/g, ';')},${r.count},${r.totalRefund}`)
+        })
+      }
+      if (returnsSummary.topReturnedProducts.length > 0) {
+        csvData.push('')
+        csvData.push('Most Returned Products')
+        csvData.push('Product,Qty Returned,Total Refund')
+        returnsSummary.topReturnedProducts.forEach(p => {
+          csvData.push(`${p.productName.replace(/,/g, ';')},${p.returnQuantity},${p.totalRefund}`)
+        })
+      }
+    }
+
     // Add top products
     csvData.push('')
     csvData.push('Top Products (Last ' + topProductsDays + ' days)')
@@ -389,6 +441,111 @@ const Reports: React.FC = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Returns Summary */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-red-700">Returns & Refunds</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Period:</span>
+                  <select
+                    className="text-sm border rounded px-2 py-1"
+                    value={returnsPeriod}
+                    onChange={(e) => setReturnsPeriod(e.target.value)}
+                  >
+                    <option value="today">Today</option>
+                    <option value="week">Last 7 days</option>
+                    <option value="month">Last 30 days</option>
+                    <option value="all">All time</option>
+                  </select>
+                </div>
+              </div>
+
+              {returnsSummary ? (
+                <div className="space-y-4">
+                  {/* KPI row */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="p-4 text-center bg-red-50 rounded-lg">
+                      <div className="text-2xl font-bold text-red-600">{returnsSummary.totalReturns}</div>
+                      <div className="text-xs text-red-700">Return Transactions</div>
+                    </div>
+                    <div className="p-4 text-center bg-red-50 rounded-lg">
+                      <div className="text-2xl font-bold text-red-600">{formatCurrency(returnsSummary.totalRefundAmount)}</div>
+                      <div className="text-xs text-red-700">Total Refunded</div>
+                    </div>
+                    <div className="p-4 text-center bg-red-50 rounded-lg">
+                      <div className="text-2xl font-bold text-red-600">{returnsSummary.totalItemsReturned}</div>
+                      <div className="text-xs text-red-700">Items Returned</div>
+                    </div>
+                  </div>
+
+                  {/* Net revenue note */}
+                  {(monthSummary || weekSummary || todaySummary) && returnsPeriod !== 'all' && (
+                    (() => {
+                      const base = returnsPeriod === 'today' ? todaySummary : returnsPeriod === 'week' ? weekSummary : monthSummary
+                      if (!base) return null
+                      const net = base.totalRevenue - returnsSummary.totalRefundAmount
+                      return (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-700">Gross Revenue ({returnsSummary.period}):</span>
+                            <span className="font-semibold">{formatCurrency(base.totalRevenue)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-red-600">
+                            <span>Returns / Refunds:</span>
+                            <span className="font-semibold">- {formatCurrency(returnsSummary.totalRefundAmount)}</span>
+                          </div>
+                          <div className="flex justify-between items-center font-bold border-t border-amber-300 mt-1 pt-1 text-emerald-700">
+                            <span>Net Revenue:</span>
+                            <span>{formatCurrency(net)}</span>
+                          </div>
+                        </div>
+                      )
+                    })()
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Returns by Reason */}
+                    {returnsSummary.returnsByReason.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2 text-gray-700">Returns by Reason</h4>
+                        <div className="space-y-1">
+                          {returnsSummary.returnsByReason.map((r, i) => (
+                            <div key={i} className="flex justify-between text-sm p-2 bg-gray-50 rounded">
+                              <span className="text-gray-700 truncate pr-2">{r.reason || 'Not specified'}</span>
+                              <span className="text-red-600 font-medium whitespace-nowrap">{r.count} item{r.count !== 1 ? 's' : ''} · {formatCurrency(r.totalRefund)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Most Returned Products */}
+                    {returnsSummary.topReturnedProducts.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2 text-gray-700">Most Returned Products</h4>
+                        <div className="space-y-1">
+                          {returnsSummary.topReturnedProducts.map((p, i) => (
+                            <div key={i} className="flex justify-between text-sm p-2 bg-gray-50 rounded">
+                              <span className="text-gray-700 truncate pr-2">{p.productName}</span>
+                              <span className="text-red-600 font-medium whitespace-nowrap">{p.returnQuantity} returned · {formatCurrency(p.totalRefund)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {returnsSummary.totalReturns === 0 && (
+                    <div className="text-center text-gray-500 py-4 text-sm">No returns for this period</div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-8 text-sm">No returns data</div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Top Products */}
           <Card>

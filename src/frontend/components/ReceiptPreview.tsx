@@ -1,4 +1,5 @@
 import React from 'react'
+import { Printer } from 'lucide-react'
 import { Button } from './ui/button'
 import SharedReceiptRenderer, { StandardReceiptData } from './SharedReceiptRenderer'
 import { SystemSettings } from '../types/SystemSettings'
@@ -7,12 +8,14 @@ interface Product {
   id: number
   name: string
   price: number
+  barcode: string
 }
 
 interface CartItem {
   product: Product
   quantity: number
   total: number
+  returnedQuantity?: number
 }
 
 interface SaleData {
@@ -32,6 +35,7 @@ interface SaleData {
   transactionId: string
   cashierName?: string
   saleDate?: string
+  isReturn?: boolean
 }
 
 interface ReceiptPreviewProps {
@@ -51,8 +55,6 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   onSkip,
   onBack
 }) => {
-  console.log('ReceiptPreview props:', { isOpen, saleData, systemSettings })
-
   if (!isOpen) return null
 
   // Convert saleData to StandardReceiptData format
@@ -72,7 +74,8 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
     secondaryTaxLabel: saleData.secondaryTaxLabel,
     finalTotal: saleData.finalTotal,
     amountPaid: saleData.amountPaid,
-    changeAmount: saleData.changeAmount
+    changeAmount: saleData.changeAmount,
+    isReturn: saleData.isReturn
   }
 
   return (
@@ -112,7 +115,7 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
             onClick={onPrint}
             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
           >
-            🖨️ Print Receipt
+            <><Printer className="w-4 h-4 mr-1 inline" /> Print Receipt</>
           </Button>
         </div>
       </div>

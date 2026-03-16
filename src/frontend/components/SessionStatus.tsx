@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AlertTriangle } from 'lucide-react'
 import SessionManager from '../utils/SessionManager'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
 
@@ -120,7 +121,7 @@ const SessionStatus: React.FC<SessionStatusProps> = ({ showLogout = false }) => 
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md mx-4">
             <div className="text-center">
-              <div className="text-orange-500 text-4xl mb-4">⚠️</div>
+              <div className="flex justify-center mb-4"><AlertTriangle className="w-12 h-12 text-orange-500" /></div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Session Expiring Soon
               </h3>

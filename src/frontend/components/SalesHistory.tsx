@@ -110,7 +110,7 @@ const SalesHistory: React.FC = () => {
     try {
       setLoading(true)
       const endpoint = '/sales'
-      const salesData = await ApiClient.getJson<Sale[]>(endpoint, false)
+      const salesData = await ApiClient.getJson<Sale[]>(endpoint)
       
       // Always expect an array from /sales endpoint
       if (Array.isArray(salesData)) {
@@ -134,7 +134,7 @@ const SalesHistory: React.FC = () => {
   const loadReturnsData = async (salesData: Sale[]) => {
     try {
       setLoadingReturns(true)
-      const returnsData = await ApiClient.getJson<any[]>('/returns', false)
+      const returnsData = await ApiClient.getJson<any[]>('/returns')
       setReturns(returnsData)
       
       // Enhance sales data with return information
@@ -294,76 +294,28 @@ const SalesHistory: React.FC = () => {
     // Show warning for returned transactions
     if (sale.hasReturns) {
       const returnInfo = sale.returnInfo!
-      const returnMessage = returnInfo.isPartial 
-        ? `⚠️ CAUTION: This transaction has been PARTIALLY RETURNED\n\n` +
+      const returnMessage = returnInfo.isPartial
+        ? `CAUTION: This transaction has been PARTIALLY RETURNED\n\n` +
           `Return ID: ${returnInfo.returnId}\n` +
           `Return Date: ${formatDateSync(returnInfo.returnDate)}\n` +
           `Items Returned: ${returnInfo.returnedItems} of ${returnInfo.totalItems}\n` +
           `Refund Amount: ${formatCurrency(returnInfo.refundAmount)}\n\n` +
           `This receipt is for reference only. Customer has already received partial refund.`
-        : `⚠️ CAUTION: This transaction has been FULLY RETURNED\n\n` +
+        : `CAUTION: This transaction has been FULLY RETURNED\n\n` +
           `Return ID: ${returnInfo.returnId}\n` +
           `Return Date: ${formatDateSync(returnInfo.returnDate)}\n` +
           `Refund Amount: ${formatCurrency(returnInfo.refundAmount)}\n\n` +
           `This receipt is for reference only. Customer has already received full refund.`
-      
+
       const confirmReprint = confirm(
         `${returnMessage}\n\n` +
         `Do you still want to reprint this receipt?\n\n` +
-        `⚠️ WARNING: Reprinting may lead to duplicate refund requests!`
+        `WARNING: Reprinting may lead to duplicate refund requests!`
       )
       
       if (!confirmReprint) {
         return
       }
-    }
-
-    // Calculate proper tax labels using the same logic as POS
-    let taxLabel = ''
-    let secondaryTaxLabel = ''
-    
-    if (taxSettings && taxSettings.enableTax && sale.taxAmount > 0) {
-      // Calculate the tax rate from the actual tax amount
-      const calculatedTaxRate = sale.subtotal > 0 ? (sale.taxAmount / sale.subtotal) * 100 : taxSettings.taxRate
-      taxLabel = `${taxSettings.taxName} (${calculatedTaxRate.toFixed(3)}%)`
-      
-      // Secondary tax if enabled (not currently stored separately, but prepare for future)
-      if (taxSettings.enableSecondaryTax) {
-        secondaryTaxLabel = `${taxSettings.secondaryTaxName} (${taxSettings.secondaryTaxRate}%)`
-      }
-    } else if (sale.taxAmount === 0 && taxSettings?.enableTaxExemptions) {
-      taxLabel = 'Tax Exempt'
-    } else if (!taxSettings?.enableTax) {
-      taxLabel = 'No Tax'
-    }
-
-    // Convert sale to receipt preview format
-    const receiptData = {
-      subtotal: sale.subtotal,
-      taxAmount: sale.taxAmount,
-      secondaryTaxAmount: 0, // Not stored separately in current schema
-      taxLabel: taxLabel,
-      secondaryTaxLabel: secondaryTaxLabel,
-      discountAmount: sale.discountAmount,
-      discountPercent: (sale.subtotal + sale.taxAmount) > 0 ? Math.round((sale.discountAmount / (sale.subtotal + sale.taxAmount)) * 100) : 0,
-      discountReason: sale.discountReason || '',
-      finalTotal: sale.total,
-      amountPaid: sale.amountPaid,
-      changeAmount: sale.change,
-      paymentMethod: sale.paymentMethod,
-      cart: sale.saleItems.map(item => ({
-        product: {
-          id: item.productId,
-          name: item.productName,
-          price: item.unitPrice,
-          barcode: item.productBarcode
-        },
-        quantity: item.quantity,
-        total: item.lineTotal
-      })),
-      transactionId: sale.transactionId,
-      cashierName: sale.employee.name || sale.employee.employeeId,
-      saleDate: sale.saleDate
     }
 
     setSelectedSale(sale)
@@ -374,7 +326,7 @@ const SalesHistory: React.FC = () => {
   const handlePrintReceipt = async () => {
     try {
       if (!selectedSale || !systemSettings) {
-        alert('❌ Missing receipt data or system settings')
+        alert('Missing receipt data or system settings')
         return
       }
 
@@ -396,6 +348,18 @@ const SalesHistory: React.FC = () => {
         taxLabel = 'No Tax'
       }
 
+      // Build returned quantity map for selectedSale
+      const reprintReturnedQtyMap: Record<number, number> = {}
+      if (selectedSale.hasReturns) {
+        const saleReturns = returns.filter((r: any) => r.originalSaleId === selectedSale.id)
+        saleReturns.forEach((ret: any) => {
+          ret.returnItems.forEach((item: any) => {
+            const id = item.originalSaleItemId
+            reprintReturnedQtyMap[id] = (reprintReturnedQtyMap[id] || 0) + item.returnQuantity
+          })
+        })
+      }
+
       // Convert selectedSale format to match POS receipt format
       const reprintSaleData = {
         transactionId: selectedSale.transactionId,
@@ -410,7 +374,8 @@ const SalesHistory: React.FC = () => {
             barcode: item.productBarcode || '00000'
           },
           quantity: item.quantity,
-          total: item.lineTotal
+          total: item.lineTotal,
+          returnedQuantity: reprintReturnedQtyMap[item.id] || 0
         })),
         subtotal: selectedSale.subtotal,
         discountAmount: selectedSale.discountAmount || 0,
@@ -422,7 +387,8 @@ const SalesHistory: React.FC = () => {
         secondaryTaxLabel: secondaryTaxLabel,
         finalTotal: selectedSale.total,
         amountPaid: selectedSale.amountPaid,
-        changeAmount: selectedSale.change || 0
+        changeAmount: selectedSale.change || 0,
+        isReturn: selectedSale.hasReturns === true
       }
 
       // Generate receipt using receiptFormatter (no custom overrides)
@@ -443,13 +409,13 @@ const SalesHistory: React.FC = () => {
       const result = await window.electronAPI.printReceipt(receiptText)
       
       if (result.success) {
-        alert('✅ ' + result.message)
+        alert(result.message)
       } else {
-        alert('❌ ' + result.message)
+        alert(result.message)
       }
     } catch (error) {
       console.error('Error reprinting receipt:', error)
-      alert('❌ Failed to reprint receipt')
+      alert('Failed to reprint receipt')
     }
     
     setShowReceiptPreview(false)
@@ -682,19 +648,31 @@ const SalesHistory: React.FC = () => {
               amountPaid: selectedSale.amountPaid,
               changeAmount: selectedSale.change,
               paymentMethod: selectedSale.paymentMethod,
-              cart: selectedSale.saleItems.map(item => ({
-                product: {
-                  id: item.productId,
-                  name: item.productName,
-                  price: item.unitPrice,
-                  barcode: item.productBarcode
-                },
-                quantity: item.quantity,
-                total: item.lineTotal
-              })),
+              cart: (() => {
+                const previewReturnedQtyMap: Record<number, number> = {}
+                if (selectedSale.hasReturns) {
+                  returns.filter((r: any) => r.originalSaleId === selectedSale.id).forEach((ret: any) => {
+                    ret.returnItems.forEach((ri: any) => {
+                      previewReturnedQtyMap[ri.originalSaleItemId] = (previewReturnedQtyMap[ri.originalSaleItemId] || 0) + ri.returnQuantity
+                    })
+                  })
+                }
+                return selectedSale.saleItems.map(item => ({
+                  product: {
+                    id: item.productId,
+                    name: item.productName,
+                    price: item.unitPrice,
+                    barcode: item.productBarcode
+                  },
+                  quantity: item.quantity,
+                  total: item.lineTotal,
+                  returnedQuantity: previewReturnedQtyMap[item.id] || 0
+                }))
+              })(),
               transactionId: selectedSale.transactionId,
               cashierName: selectedSale.employee.name || selectedSale.employee.employeeId,
-              saleDate: selectedSale.saleDate
+              saleDate: selectedSale.saleDate,
+              isReturn: selectedSale.hasReturns === true
             }}
             systemSettings={systemSettings}
             onPrint={handlePrintReceipt}

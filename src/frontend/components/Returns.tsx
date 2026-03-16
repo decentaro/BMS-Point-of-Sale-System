@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AlertTriangle, Info } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import HybridInput from './HybridInput'
@@ -95,6 +96,8 @@ const Returns: React.FC = () => {
   const [managerPin, setManagerPin] = React.useState<string>('')
   const [showManagerPinModal, setShowManagerPinModal] = React.useState<boolean>(false)
   const [processingReturn, setProcessingReturn] = React.useState<boolean>(false)
+
+  const [lastReturnRecord, setLastReturnRecord] = React.useState<any>(null)
 
   // Modal keyboard state
   const [kbOpen, setKbOpen] = React.useState<boolean>(false)
@@ -297,7 +300,9 @@ const Returns: React.FC = () => {
       const returnRecord = await ApiClient.postJson('/returns', returnRequest)
 
       alert(`Return processed successfully!\nReturn ID: ${returnRecord.returnId}\nTotal refund: ${formatCurrency(returnTotal)}`)
-      
+
+      setLastReturnRecord(returnRecord)
+
       // Reset form
       setOriginalSale(null)
       setReturnItems([])
@@ -320,6 +325,51 @@ const Returns: React.FC = () => {
     navigate('/manager')
   }
 
+  const printReturnReceipt = async (returnRecord: any) => {
+    try {
+      const paperWidth = 48
+      const dashedLine = '-'.repeat(paperWidth)
+      const centerText = (text: string) => {
+        const padding = Math.max(0, Math.floor((paperWidth - text.length) / 2))
+        return ' '.repeat(padding) + text + '\n'
+      }
+      const twoCol = (left: string, right: string) => {
+        const rightStr = right.toString()
+        const leftWidth = paperWidth - rightStr.length - 1
+        return left.substring(0, leftWidth).padEnd(leftWidth) + ' ' + rightStr + '\n'
+      }
+
+      let receipt = centerText('*** RETURN RECEIPT ***') + '\n'
+      receipt += centerText(new Date(returnRecord.returnDate).toLocaleDateString())
+      receipt += centerText(new Date(returnRecord.returnDate).toLocaleTimeString())
+      receipt += '\n' + dashedLine + '\n'
+      receipt += twoCol('Return ID:', returnRecord.returnId)
+      if (returnRecord.originalSale?.transactionId) {
+        receipt += twoCol('Original TXN:', returnRecord.originalSale.transactionId)
+      }
+      receipt += '\n' + dashedLine + '\n'
+      receipt += centerText('RETURNED ITEMS')
+      receipt += dashedLine + '\n'
+      returnRecord.returnItems?.forEach((item: any) => {
+        receipt += twoCol(item.productName, formatCurrency(item.lineTotal))
+        receipt += `  ${item.returnQuantity} x ${formatCurrency(item.unitPrice)}  [${item.condition}]\n`
+        receipt += `  Reason: ${item.reason}\n`
+      })
+      receipt += '\n' + dashedLine + '\n'
+      receipt += twoCol('TOTAL REFUND:', formatCurrency(returnRecord.totalRefundAmount))
+      receipt += '\n' + centerText('Thank you')
+      receipt += '\n\n\n\n'
+
+      const result = await window.electronAPI.printReceipt(receipt)
+      if (!result.success) {
+        alert('Print failed: ' + result.message)
+      }
+    } catch (error) {
+      console.error('Error printing return receipt:', error)
+      alert('Failed to print return receipt')
+    }
+  }
+
   // Show loading state
   if (loading) {
     return (
@@ -337,7 +387,7 @@ const Returns: React.FC = () => {
     return (
       <div className="w-full h-full flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <div className="flex justify-center mb-4"><AlertTriangle className="w-16 h-16 text-red-600" /></div>
           <h2 className="text-xl font-semibold mb-2">Returns System Disabled</h2>
           <p className="text-gray-600 mb-4">The returns system is currently disabled.</p>
           <p className="text-sm text-gray-500 mb-6">Enable it in System Settings to process returns.</p>
@@ -384,9 +434,9 @@ const Returns: React.FC = () => {
                     onTouchKeyboard={() => openKb('search', 'qwerty', 'Transaction ID (scan or enter last 8 digits)')}
                   />
                   {systemSettings.requireReceiptForReturns && (
-                    <p className="text-xs text-orange-600 mt-1">⚠️ Receipt required for returns</p>
+                    <p className="text-xs text-orange-600 mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Receipt required for returns</p>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">💡 Only enter the last 8 digits of the transaction ID from your receipt</p>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Info className="w-3 h-3" /> Only enter the last 8 digits of the transaction ID from your receipt</p>
                 </div>
                 
                 <Button 
@@ -527,7 +577,7 @@ const Returns: React.FC = () => {
                     
                     {needsManagerApproval && (
                       <div className="mt-2 text-sm text-orange-600">
-                        ⚠️ Manager approval required for this return
+                        <span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Manager approval required for this return</span>
                       </div>
                     )}
                   </div>
@@ -555,6 +605,30 @@ const Returns: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {lastReturnRecord && (
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold mb-2">Return Processed Successfully</h2>
+                <div className="bg-green-50 p-4 rounded-lg mb-4 text-sm">
+                  <div>Return ID: <span className="font-mono font-semibold">{lastReturnRecord.returnId}</span></div>
+                  <div>Refund Amount: <span className="font-semibold text-green-700">{formatCurrency(lastReturnRecord.totalRefundAmount)}</span></div>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => printReturnReceipt(lastReturnRecord)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Print Return Receipt
+                  </Button>
+                  <Button variant="outline" onClick={() => setLastReturnRecord(null)}>
+                    Dismiss
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           </div>
         </div>
       </main>

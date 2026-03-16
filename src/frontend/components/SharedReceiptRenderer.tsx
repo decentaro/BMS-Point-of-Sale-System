@@ -1,5 +1,6 @@
 import React from 'react'
 import Barcode from './Barcode'
+import { MapPin, Phone } from 'lucide-react'
 import { SystemSettings } from '../types/SystemSettings'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
 
@@ -18,6 +19,7 @@ export interface StandardReceiptData {
     }
     quantity: number
     total: number
+    returnedQuantity?: number
   }>
   subtotal: number
   discountAmount: number
@@ -30,6 +32,7 @@ export interface StandardReceiptData {
   finalTotal: number
   amountPaid: number
   changeAmount: number
+  isReturn?: boolean
 }
 
 interface SharedReceiptRendererProps {
@@ -75,7 +78,13 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
   // Compact Template - Minimal layout
   const renderCompactTemplate = () => (
     <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-2 ${fontSize} font-mono`}>
-      
+
+      {receiptData.isReturn && (
+        <div className="text-center font-bold text-red-600 border border-red-400 p-1 mb-2 text-xs">
+          *** RETURN/REPRINT RECEIPT ***
+        </div>
+      )}
+
       {/* Header */}
       {systemSettings.receiptHeaderText && (
         <div className="text-center font-bold mb-1 text-xs">
@@ -108,6 +117,11 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
             </span>
             <span style={{whiteSpace: 'nowrap', flexShrink: 0, display: 'inline-block', maxWidth: 'fit-content'}}>{item.quantity}x {formatCurrency(item.total)}</span>
           </div>
+          {item.returnedQuantity != null && item.returnedQuantity > 0 && (
+            item.returnedQuantity >= item.quantity
+              ? <div className="text-xs text-red-600 ml-2">** FULLY RETURNED **</div>
+              : <div className="text-xs text-red-600 ml-2">** RETURNED: {item.returnedQuantity} of {item.quantity} **</div>
+          )}
         </div>
       ))}
       
@@ -158,7 +172,13 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
   // Standard Template - Current layout
   const renderStandardTemplate = () => (
     <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-3 ${fontSize} font-mono`}>
-      
+
+      {receiptData.isReturn && (
+        <div className="text-center font-bold text-red-600 border border-red-400 p-1 mb-2 text-xs">
+          *** RETURN/REPRINT RECEIPT ***
+        </div>
+      )}
+
       {/* Receipt Header */}
       {systemSettings.receiptHeaderText && (
         <div className="text-center font-bold mb-2">
@@ -222,6 +242,11 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
               <div className="text-xs text-gray-600 ml-2">
                 {item.quantity} x {formatCurrency(item.product.price)}
               </div>
+              {item.returnedQuantity != null && item.returnedQuantity > 0 && (
+                item.returnedQuantity >= item.quantity
+                  ? <div className="text-xs text-red-600 ml-2">** FULLY RETURNED **</div>
+                  : <div className="text-xs text-red-600 ml-2">** RETURNED: {item.returnedQuantity} of {item.quantity} **</div>
+              )}
             </div>
           )
         })}
@@ -242,10 +267,10 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
           </div>
         )}
         
-        {receiptData.secondaryTaxAmount > 0 && (
+        {(receiptData.secondaryTaxAmount ?? 0) > 0 && (
           <div style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'start'}}>
             <span>{receiptData.secondaryTaxLabel}:</span>
-            <span className="text-right font-mono" style={{whiteSpace: 'pre', display: 'inline-block'}}>{formatCurrency(receiptData.secondaryTaxAmount)}</span>
+            <span className="text-right font-mono" style={{whiteSpace: 'pre', display: 'inline-block'}}>{formatCurrency(receiptData.secondaryTaxAmount!)}</span>
           </div>
         )}
 
@@ -323,7 +348,13 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
   // Detailed Template - Comprehensive layout
   const renderDetailedTemplate = () => (
     <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-3 ${fontSize} font-mono`}>
-      
+
+      {receiptData.isReturn && (
+        <div className="text-center font-bold text-red-600 border border-red-400 p-1 mb-2 text-xs">
+          *** RETURN/REPRINT RECEIPT ***
+        </div>
+      )}
+
       {/* Enhanced Header */}
       {systemSettings.receiptHeaderText && (
         <div className="text-center font-bold mb-2 text-sm">
@@ -332,12 +363,12 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
       )}
       {systemSettings.storeLocation && (
         <div className="text-center text-xs mb-1">
-          📍 {systemSettings.storeLocation}
+          <MapPin className="w-3 h-3 inline mr-1" />{systemSettings.storeLocation}
         </div>
       )}
       {systemSettings.phoneNumber && (
         <div className="text-center text-xs mb-2">
-          📞 {systemSettings.phoneNumber}
+          <Phone className="w-3 h-3 inline mr-1" />{systemSettings.phoneNumber}
         </div>
       )}
       
@@ -391,6 +422,11 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
                 <div className="text-xs text-gray-600">
                   Quantity: {item.quantity} × Unit Price: {formatCurrency(item.product.price)}
                 </div>
+                {item.returnedQuantity != null && item.returnedQuantity > 0 && (
+                  item.returnedQuantity >= item.quantity
+                    ? <div className="text-xs text-red-600 ml-2">** FULLY RETURNED **</div>
+                    : <div className="text-xs text-red-600 ml-2">** RETURNED: {item.returnedQuantity} of {item.quantity} **</div>
+                )}
               </div>
             )
           })}
@@ -411,10 +447,10 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
           </div>
         )}
         
-        {receiptData.secondaryTaxAmount > 0 && (
+        {(receiptData.secondaryTaxAmount ?? 0) > 0 && (
           <div className="text-xs mb-1" style={{display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'start'}}>
             <span>{receiptData.secondaryTaxLabel}:</span>
-            <span className="text-right font-mono" style={{whiteSpace: 'pre', display: 'inline-block'}}>{formatCurrency(receiptData.secondaryTaxAmount)}</span>
+            <span className="text-right font-mono" style={{whiteSpace: 'pre', display: 'inline-block'}}>{formatCurrency(receiptData.secondaryTaxAmount!)}</span>
           </div>
         )}
 

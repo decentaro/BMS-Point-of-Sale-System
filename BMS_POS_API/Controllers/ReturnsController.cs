@@ -44,6 +44,73 @@ namespace BMS_POS_API.Controllers
                 .ToListAsync();
         }
 
+        // GET: api/returns/summary?period=today|week|month|all
+        [HttpGet("summary")]
+        public async Task<ActionResult<object>> GetReturnsSummary([FromQuery] string period = "month")
+        {
+            var now = DateTime.UtcNow;
+            DateTime cutoff = period switch
+            {
+                "today" => now.Date,
+                "week"  => now.AddDays(-7),
+                "month" => now.AddDays(-30),
+                _       => DateTime.MinValue
+            };
+
+            var periodLabel = period switch
+            {
+                "today" => "Today",
+                "week"  => "Last 7 Days",
+                "month" => "Last 30 Days",
+                _       => "All Time"
+            };
+
+            var returnsQuery = _context.Returns
+                .Include(r => r.ReturnItems)
+                .Where(r => r.Status == "Completed");
+
+            if (cutoff > DateTime.MinValue)
+                returnsQuery = returnsQuery.Where(r => r.ReturnDate >= cutoff);
+
+            var returns = await returnsQuery.ToListAsync();
+            var allItems = returns.SelectMany(r => r.ReturnItems).ToList();
+
+            var totalReturns      = returns.Count;
+            var totalRefundAmount = returns.Sum(r => r.TotalRefundAmount);
+            var totalItemsReturned = allItems.Sum(i => i.ReturnQuantity);
+
+            var returnsByReason = allItems
+                .GroupBy(i => i.Reason)
+                .Select(g => new {
+                    reason      = g.Key,
+                    count       = g.Sum(i => i.ReturnQuantity),
+                    totalRefund = g.Sum(i => i.LineTotal)
+                })
+                .OrderByDescending(x => x.count)
+                .ToList();
+
+            var topReturnedProducts = allItems
+                .GroupBy(i => i.ProductName)
+                .Select(g => new {
+                    productName    = g.Key,
+                    returnQuantity = g.Sum(i => i.ReturnQuantity),
+                    totalRefund    = g.Sum(i => i.LineTotal)
+                })
+                .OrderByDescending(x => x.returnQuantity)
+                .Take(10)
+                .ToList();
+
+            return Ok(new
+            {
+                period             = periodLabel,
+                totalReturns,
+                totalRefundAmount,
+                totalItemsReturned,
+                returnsByReason,
+                topReturnedProducts
+            });
+        }
+
         // GET: api/returns/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<Return>> GetReturn(int id)
