@@ -57,7 +57,7 @@ cd ..
 
 # Wait for backend to start and be ready
 echo "Waiting for backend to be ready..."
-while ! curl -s http://localhost:5002/api/tax-settings > /dev/null; do
+while ! curl -s http://127.0.0.1:5002/api/tax-settings > /dev/null; do
     sleep 1
     echo -n "."
 done

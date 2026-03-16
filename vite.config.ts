@@ -19,7 +19,7 @@ export default defineConfig({
     port: 3001,
     strictPort: true,
     open: false,  // Prevent browser from opening automatically
-    host: 'localhost',  // Explicitly set host
+    host: '127.0.0.1',  // Explicit IPv4 — avoids localhost resolving to ::1 on Linux
     watch: {
       ignored: [
         '**/BMS_POS_API/logs/**',

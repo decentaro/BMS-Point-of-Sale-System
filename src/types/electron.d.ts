@@ -51,6 +51,14 @@ export interface ElectronAPI {
     message: string
   }>
 
+  // API configuration
+  getApiConfig: () => Promise<{ baseUrl: string }>
+  setApiConfig: (config: { baseUrl: string }) => Promise<void>
+
+  // JWT token management
+  setAuthToken: (token: string) => void
+  clearAuthToken: () => void
+
   // Utility
   setScale: (scale: number) => boolean
   debug: () => string

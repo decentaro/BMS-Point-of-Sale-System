@@ -4,32 +4,15 @@ interface ApiConfig {
 }
 
 const getApiConfig = (): ApiConfig => {
-  // Check if we're in development mode
-  const isDev = process.env.NODE_ENV === 'development'
-  
-  // Check for environment variable first (allows override)
-  const envApiUrl = process.env.VITE_API_BASE_URL || process.env.REACT_APP_API_BASE_URL
-  
+  // Vite exposes env vars via import.meta.env — process.env does not exist in the renderer
+  const envApiUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
+
   if (envApiUrl) {
-    return {
-      baseUrl: envApiUrl,
-      timeout: 30000
-    }
+    return { baseUrl: envApiUrl, timeout: 30000 }
   }
-  
-  // Default configuration based on environment
-  if (isDev) {
-    return {
-      baseUrl: 'http://localhost:5002/api',
-      timeout: 30000
-    }
-  }
-  
-  // Production configuration - you can update this when deploying
-  return {
-    baseUrl: 'http://localhost:5002/api', // Update for production
-    timeout: 30000
-  }
+
+  // Default — .NET API always runs on localhost regardless of dev/prod
+  return { baseUrl: 'http://127.0.0.1:5002/api', timeout: 30000 }
 }
 
 export const API_CONFIG = getApiConfig()
