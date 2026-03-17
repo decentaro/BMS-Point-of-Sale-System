@@ -38,5 +38,11 @@ namespace BMS_POS_API.Models
 
         [Column("created_date")]
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        [Column("failed_login_attempts")]
+        public int FailedLoginAttempts { get; set; } = 0;
+
+        [Column("locked_until")]
+        public DateTime? LockedUntil { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace BMS_POS_API.Middleware
 {
@@ -73,8 +74,13 @@ namespace BMS_POS_API.Middleware
             }
         }
 
+        // Fields whose values must never appear in logs
+        private static readonly HashSet<string> _sensitiveFields =
+            new(StringComparer.OrdinalIgnoreCase) { "pin", "managerPin", "password", "confirmationPhrase" };
+
         /// <summary>
-        /// Extract employee ID from request body for authentication requests
+        /// Extract employee ID from auth request body using a proper JSON parser.
+        /// Sensitive fields are explicitly excluded so PIN values are never logged.
         /// </summary>
         private async Task<string?> TryExtractEmployeeId(HttpContext context)
         {
@@ -83,19 +89,21 @@ namespace BMS_POS_API.Middleware
                 context.Request.EnableBuffering();
                 var body = await new StreamReader(context.Request.Body).ReadToEndAsync();
                 context.Request.Body.Position = 0;
-                
-                // Simple JSON parsing to extract employeeId
-                if (body.Contains("employeeId"))
+
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+
+                if (root.ValueKind != JsonValueKind.Object) return null;
+
+                foreach (var prop in root.EnumerateObject())
                 {
-                    var start = body.IndexOf("\"employeeId\":");
-                    if (start >= 0)
+                    // Never log the value of a sensitive field
+                    if (_sensitiveFields.Contains(prop.Name)) continue;
+
+                    if (prop.Name.Equals("employeeId", StringComparison.OrdinalIgnoreCase)
+                        && prop.Value.ValueKind == JsonValueKind.String)
                     {
-                        start = body.IndexOf('\"', start + 13);
-                        var end = body.IndexOf('\"', start + 1);
-                        if (start >= 0 && end >= 0)
-                        {
-                            return body.Substring(start + 1, end - start - 1);
-                        }
+                        return prop.Value.GetString();
                     }
                 }
             }
@@ -103,7 +111,7 @@ namespace BMS_POS_API.Middleware
             {
                 // Don't break request processing if employee ID extraction fails
             }
-            
+
             return null;
         }
 

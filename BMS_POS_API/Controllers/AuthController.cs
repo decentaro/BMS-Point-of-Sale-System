@@ -64,7 +64,7 @@ namespace BMS_POS_API.Controllers
             }
 
             // Check account lockout before hitting the database
-            if (_lockoutService.IsLockedOut(request.EmployeeId))
+            if (await _lockoutService.IsLockedOutAsync(request.EmployeeId))
             {
                 return StatusCode(423, ApiResponse<LoginResponse>.ErrorResponse(
                     "Account temporarily locked due to too many failed attempts. Try again in 15 minutes.",
@@ -83,7 +83,7 @@ namespace BMS_POS_API.Controllers
 
                 if (employee == null)
                 {
-                    _lockoutService.RecordFailedAttempt(request.EmployeeId, maxAttempts);
+                    await _lockoutService.RecordFailedAttemptAsync(request.EmployeeId, maxAttempts);
                     await LogFailedLoginAttempt(request.EmployeeId, "Employee not found", null);
                     await _metricsService.LogLoginAttempt(request.EmployeeId, false, "Employee not found");
                     return Unauthorized(ApiResponse<LoginResponse>.ErrorResponse(
@@ -94,7 +94,7 @@ namespace BMS_POS_API.Controllers
 
                 if (!IsValidPin(employee.Pin, request.Pin))
                 {
-                    _lockoutService.RecordFailedAttempt(request.EmployeeId, maxAttempts);
+                    await _lockoutService.RecordFailedAttemptAsync(request.EmployeeId, maxAttempts);
                     await LogFailedLoginAttempt(request.EmployeeId, "Invalid PIN", employee.Id);
                     await _metricsService.LogLoginAttempt(request.EmployeeId, false, "Invalid PIN");
                     return Unauthorized(ApiResponse<LoginResponse>.ErrorResponse(
@@ -108,7 +108,7 @@ namespace BMS_POS_API.Controllers
                     var employeeRole = employee.Role ?? (employee.IsManager ? "Manager" : "Cashier");
                     if (!employeeRole.Equals(request.SelectedRole, StringComparison.OrdinalIgnoreCase))
                     {
-                        _lockoutService.RecordFailedAttempt(request.EmployeeId, maxAttempts);
+                        await _lockoutService.RecordFailedAttemptAsync(request.EmployeeId, maxAttempts);
                         await LogFailedLoginAttempt(
                             request.EmployeeId,
                             $"Role mismatch - Employee: {employeeRole}, Selected: {request.SelectedRole}",
@@ -123,7 +123,7 @@ namespace BMS_POS_API.Controllers
                 }
 
                 // Success — reset lockout counter
-                _lockoutService.ResetAttempts(request.EmployeeId);
+                await _lockoutService.ResetAttemptsAsync(request.EmployeeId);
 
                 // Synchronously upgrade legacy plaintext PIN to BCrypt hash.
                 // Done here (not fire-and-forget) so plaintext never persists
@@ -189,6 +189,7 @@ namespace BMS_POS_API.Controllers
             {
                 new Claim(JwtRegisteredClaimNames.Sub, employee.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.UniqueName, employee.EmployeeId),
+                new Claim(ClaimTypes.Name, employee.Name ?? employee.EmployeeId),
                 new Claim(ClaimTypes.Role, role),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };

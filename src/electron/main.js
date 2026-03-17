@@ -617,11 +617,28 @@ ipcMain.handle('open-cash-drawer', async () => {
     }
 });
 
+/**
+ * Strip ESC/POS control characters from user-supplied text to prevent
+ * printer command injection via product names, business names, etc.
+ * Keeps printable ASCII (0x20–0x7E), newlines, carriage returns, and tabs.
+ */
+function sanitizeForPrinter(text) {
+    if (!text) return '';
+    return text.split('').filter(c => {
+        const code = c.charCodeAt(0);
+        return code === 0x09 || code === 0x0A || code === 0x0D
+            || (code >= 0x20 && code <= 0x7E);
+    }).join('');
+}
+
 // Receipt printing handler
 ipcMain.handle('print-receipt', async (event, receiptContent, logoPath = null) => {
     try {
         const fs = require('fs');
         const { execSync } = require('child_process');
+
+        // Sanitize caller-supplied content before it enters the ESC/POS stream
+        receiptContent = sanitizeForPrinter(receiptContent);
         
         // Get available printer for receipt printing
         let availablePrinter = null;
@@ -673,7 +690,7 @@ ipcMain.handle('print-receipt', async (event, receiptContent, logoPath = null) =
             const response = await fetch(`${apiConfigManager.getConfig().baseUrl}/tax-settings`);
             if (response.ok) {
                 const taxSettings = await response.json();
-                businessName = taxSettings.businessName || 'Business Name';
+                businessName = sanitizeForPrinter(taxSettings.businessName || 'Business Name');
                 console.log('🔥 Using dynamic business name:', businessName);
             }
         } catch (error) {

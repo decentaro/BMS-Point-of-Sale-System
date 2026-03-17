@@ -1,59 +1,86 @@
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.EntityFrameworkCore;
+using BMS_POS_API.Data;
 
 namespace BMS_POS_API.Services
 {
     public interface ILoginLockoutService
     {
-        bool IsLockedOut(string employeeId);
-        void RecordFailedAttempt(string employeeId, int maxAttempts);
-        void ResetAttempts(string employeeId);
-        int GetFailedAttempts(string employeeId);
+        Task<bool> IsLockedOutAsync(string employeeId);
+        Task RecordFailedAttemptAsync(string employeeId, int maxAttempts);
+        Task ResetAttemptsAsync(string employeeId);
+        Task<int> GetFailedAttemptsAsync(string employeeId);
     }
 
+    /// <summary>
+    /// Database-backed login lockout service. Persists failed attempt counts and
+    /// lockout expiry on the Employee row so lockouts survive process restarts.
+    /// Registered as Singleton; uses IServiceScopeFactory to access the scoped DbContext.
+    /// </summary>
     public class LoginLockoutService : ILoginLockoutService
     {
-        private readonly IMemoryCache _cache;
+        private readonly IServiceScopeFactory _scopeFactory;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
-        private const string AttemptKeyPrefix = "login_attempts_";
-        private const string LockoutKeyPrefix  = "login_lockout_";
 
-        public LoginLockoutService(IMemoryCache cache)
+        public LoginLockoutService(IServiceScopeFactory scopeFactory)
         {
-            _cache = cache;
+            _scopeFactory = scopeFactory;
         }
 
-        public bool IsLockedOut(string employeeId) =>
-            _cache.TryGetValue(LockoutKeyPrefix + employeeId, out _);
-
-        public void RecordFailedAttempt(string employeeId, int maxAttempts)
+        public async Task<bool> IsLockedOutAsync(string employeeId)
         {
-            var attemptsKey = AttemptKeyPrefix + employeeId;
-            var attempts = _cache.GetOrCreate(attemptsKey, e =>
-            {
-                e.SlidingExpiration = TimeSpan.FromMinutes(30);
-                return 0;
-            });
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<BmsPosDbContext>();
+            var employee = await context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
 
-            attempts++;
-            _cache.Set(attemptsKey, attempts, new MemoryCacheEntryOptions
-            {
-                SlidingExpiration = TimeSpan.FromMinutes(30)
-            });
+            return employee?.LockedUntil.HasValue == true
+                   && employee.LockedUntil.Value > DateTime.UtcNow;
+        }
 
-            if (attempts >= maxAttempts)
+        public async Task RecordFailedAttemptAsync(string employeeId, int maxAttempts)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<BmsPosDbContext>();
+            var employee = await context.Employees
+                .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+
+            if (employee == null) return;
+
+            employee.FailedLoginAttempts++;
+
+            if (employee.FailedLoginAttempts >= maxAttempts)
             {
-                _cache.Set(LockoutKeyPrefix + employeeId, true, LockoutDuration);
-                _cache.Remove(attemptsKey);
+                employee.LockedUntil = DateTime.UtcNow.Add(LockoutDuration);
+                employee.FailedLoginAttempts = 0;
             }
+
+            await context.SaveChangesAsync();
         }
 
-        public void ResetAttempts(string employeeId)
+        public async Task ResetAttemptsAsync(string employeeId)
         {
-            _cache.Remove(AttemptKeyPrefix + employeeId);
-            _cache.Remove(LockoutKeyPrefix + employeeId);
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<BmsPosDbContext>();
+            var employee = await context.Employees
+                .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+
+            if (employee == null) return;
+
+            employee.FailedLoginAttempts = 0;
+            employee.LockedUntil = null;
+            await context.SaveChangesAsync();
         }
 
-        public int GetFailedAttempts(string employeeId) =>
-            _cache.TryGetValue(AttemptKeyPrefix + employeeId, out int attempts) ? attempts : 0;
+        public async Task<int> GetFailedAttemptsAsync(string employeeId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<BmsPosDbContext>();
+            var employee = await context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+
+            return employee?.FailedLoginAttempts ?? 0;
+        }
     }
 }

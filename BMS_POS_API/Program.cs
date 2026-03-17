@@ -70,7 +70,7 @@ builder.Services.AddScoped<ISupabaseBackupService, SupabaseBackupService>();
 // Add memory cache (used by lockout service)
 builder.Services.AddMemoryCache();
 
-// Add login lockout service
+// Add login lockout service (DB-backed — survives restarts)
 builder.Services.AddSingleton<ILoginLockoutService, LoginLockoutService>();
 
 // Add JWT secret holder (generates a random secret on startup)
@@ -212,6 +212,11 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseAuthentication();
+
+// Overwrite X-User-Id / X-User-Name headers with validated JWT claim values
+// so controllers always see the real authenticated identity (P1-5)
+app.UseMiddleware<ClaimsEnforcementMiddleware>();
+
 app.UseAuthorization();
 
 // Add Health Check endpoints

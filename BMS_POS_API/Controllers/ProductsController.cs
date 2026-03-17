@@ -401,14 +401,16 @@ namespace BMS_POS_API.Controllers
                 return NotFound();
             }
 
-            // Store product info for logging before deletion
+            // Store product info for logging
             var productName = product.Name;
             var productBarcode = product.Barcode;
             var productPrice = product.Price;
             var productStock = product.StockQuantity;
 
-            // Hard delete - actually remove from database
-            _context.Products.Remove(product);
+            // Soft delete — preserves audit trail and foreign-key integrity
+            // with SaleItems / ReturnItems that reference this product
+            product.IsActive = false;
+            product.LastUpdated = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             // Log product deletion activity
