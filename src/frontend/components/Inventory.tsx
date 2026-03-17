@@ -44,20 +44,7 @@ const Inventory: React.FC = () => {
   // Session and role validation handled by SessionGuard wrapper
 
   const goBack = () => {
-    // Check user role from session manager
-    const session = SessionManager.getCurrentSession()
-    if (session) {
-      // Navigate based on role
-      if (session.role === 'Manager') {
-        navigate('/manager')
-      } else if (session.role === 'Inventory') {
-        navigate('/inventory-dashboard')
-      } else {
-        navigate('/login')
-      }
-    } else {
-      navigate('/login')
-    }
+    navigate(SessionManager.getDashboardRoute())
   }
 
   // State management

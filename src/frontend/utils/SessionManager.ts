@@ -220,6 +220,24 @@ class SessionManager {
   }
 
   /**
+   * Returns the correct dashboard route for the current session's role.
+   * Use this for "back" / "home" navigation so non-manager roles land on
+   * their own dashboard instead of /manager.
+   */
+  static getDashboardRoute(): string {
+    const session = this.getCurrentSession()
+    if (!session) return '/login'
+    const roles = (session.role || '').split(',').map(r => r.trim())
+    if (roles.includes('Manager')) return '/manager'
+    const hasCashier   = roles.includes('Cashier')
+    const hasInventory = roles.includes('Inventory')
+    if (hasCashier && hasInventory) return '/cashier-inventory'
+    if (hasCashier)   return '/cashier-dashboard'
+    if (hasInventory) return '/inventory-dashboard'
+    return '/manager'
+  }
+
+  /**
    * Clear current session and JWT token
    */
   static clearSession(): void {

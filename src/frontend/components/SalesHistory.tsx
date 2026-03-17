@@ -20,6 +20,7 @@ import { formatDateSync } from '../utils/dateFormat'
 import { generateTextReceipt } from '../utils/receiptFormatter'
 import { formatCurrency } from '../utils/formatCurrency'
 import { useToast } from '../contexts/ToastContext'
+import SessionManager from '../utils/SessionManager'
 
 // Sale interface matching the API model
 interface Sale {
@@ -424,7 +425,7 @@ const SalesHistory: React.FC = () => {
   }
 
   const goBack = () => {
-    navigate('/manager')
+    navigate(SessionManager.getDashboardRoute())
   }
 
   const StyledSelect = ({ value, onChange, children }: {

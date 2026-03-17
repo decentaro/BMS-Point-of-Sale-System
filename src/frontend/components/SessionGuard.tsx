@@ -35,13 +35,13 @@ const SessionGuard: React.FC<SessionGuardProps> = ({
 
         // Check role requirement (supports multi-role — any matching role satisfies the guard)
         if (requiredRole && !SessionManager.hasRole(requiredRole)) {
-          navigate('/login')
+          navigate(SessionManager.getDashboardRoute())
           return
         }
 
         // Check permission requirement
         if (requiredPermission && !SessionManager.hasPermission(requiredPermission)) {
-          navigate('/manager') // Redirect to main dashboard
+          navigate(SessionManager.getDashboardRoute())
           return
         }
 

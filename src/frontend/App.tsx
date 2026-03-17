@@ -14,6 +14,8 @@ import Reports from './components/Reports'
 import UserActivity from './components/UserActivity'
 import InventoryManagement from './components/InventoryManagement'
 import InventoryDashboard from './components/InventoryDashboard'
+import CashierDashboard from './components/CashierDashboard'
+import CashierInventoryDashboard from './components/CashierInventoryDashboard'
 import AdminPanel from './components/AdminPanel'
 import SessionGuard from './components/SessionGuard'
 import { SettingsProvider } from './contexts/SettingsContext'
@@ -107,8 +109,10 @@ function App() {
                 <Route path="/returns" element={<ProtectedRoute element={<Returns />} />} />
                 <Route path="/reports" element={<ProtectedRoute element={<Reports />} requiredRole="Manager" />} />
                 <Route path="/user-activity" element={<ProtectedRoute element={<UserActivity />} requiredRole="Manager" />} />
-                <Route path="/inventory-management" element={<ProtectedRoute element={<InventoryManagement />} requiredRole="Manager" />} />
+                <Route path="/inventory-management" element={<ProtectedRoute element={<InventoryManagement />} requiredPermission="inventory.adjust" />} />
                 <Route path="/inventory-dashboard" element={<ProtectedRoute element={<InventoryDashboard />} requiredRole="Inventory" />} />
+                <Route path="/cashier-dashboard" element={<ProtectedRoute element={<CashierDashboard />} requiredRole="Cashier" />} />
+                <Route path="/cashier-inventory" element={<ProtectedRoute element={<CashierInventoryDashboard />} requiredRole="Cashier" />} />
                 <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} requiredPermission="admin.view" />} />
               </Routes>
             </div>

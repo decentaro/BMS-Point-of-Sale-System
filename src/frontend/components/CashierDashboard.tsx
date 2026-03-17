@@ -6,15 +6,15 @@ import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionGuard from './SessionGuard'
 import SessionManager from '../utils/SessionManager'
 import SessionStatus from './SessionStatus'
-import { INVENTORY_CARDS } from '../config/nav-data'
+import { CASHIER_CARDS } from '../config/nav-data'
 import NavCardButton from './ui/NavCardButton'
 
-const InventoryDashboard: React.FC = () => {
+const CashierDashboard: React.FC = () => {
   const navigate = useNavigate()
   const { businessSettings, loading } = useBusinessSettings()
 
   return (
-    <SessionGuard requiredRole="Inventory">
+    <SessionGuard requiredRole="Cashier">
       <div className="w-full h-full flex flex-col bg-slate-50">
         <header className="h-14 px-4 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0">
           <Button
@@ -31,7 +31,7 @@ const InventoryDashboard: React.FC = () => {
             <h1 className="text-2xl font-bold text-emerald-600 leading-tight">
               {loading ? '—' : (businessSettings.businessName || 'Business Name')}
             </h1>
-            <p className="text-[10px] text-slate-500 font-medium">Inventory Dashboard</p>
+            <p className="text-[10px] text-slate-500 font-medium">Cashier Dashboard</p>
           </div>
 
           <SessionStatus />
@@ -41,10 +41,10 @@ const InventoryDashboard: React.FC = () => {
           <div className="max-w-2xl mx-auto space-y-5">
             <section>
               <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
-                Inventory
+                Quick Actions
               </h2>
-              <div className="grid grid-cols-2 gap-3">
-                {INVENTORY_CARDS.map(card => (
+              <div className="grid grid-cols-3 gap-3">
+                {CASHIER_CARDS.map(card => (
                   <NavCardButton key={card.route} card={card} onClick={() => navigate(card.route)} />
                 ))}
               </div>
@@ -56,4 +56,4 @@ const InventoryDashboard: React.FC = () => {
   )
 }
 
-export default InventoryDashboard
+export default CashierDashboard

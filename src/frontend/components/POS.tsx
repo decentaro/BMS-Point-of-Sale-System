@@ -516,12 +516,7 @@ const POS: React.FC = () => {
   }, [products, searchQuery])
 
   const goBack = () => {
-    const session = SessionManager.getCurrentSession()
-    if (session) {
-      navigate('/manager')
-    } else {
-      navigate('/login')
-    }
+    navigate(SessionManager.getDashboardRoute())
   }
 
   // Payment method icon helper

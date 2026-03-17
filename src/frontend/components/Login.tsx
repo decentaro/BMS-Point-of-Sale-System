@@ -108,7 +108,19 @@ const Login: React.FC = () => {
           isManager: result.data.employee.isManager || fullRole.includes('Manager')
         })
 
-        setTimeout(() => navigate('/manager'), 1000)
+        const roles = fullRole.split(',').map((r: string) => r.trim())
+        const hasCashier = roles.includes('Cashier')
+        const hasInventory = roles.includes('Inventory')
+        const landingPage = roles.includes('Manager')
+          ? '/manager'
+          : hasCashier && hasInventory
+          ? '/cashier-inventory'
+          : hasCashier
+          ? '/cashier-dashboard'
+          : hasInventory
+          ? '/inventory-dashboard'
+          : '/pos'
+        setTimeout(() => navigate(landingPage), 1000)
       } else {
         const isLockout = result.message?.toLowerCase().includes('locked')
         const errorMessage = isLockout ? result.message : 'Invalid Employee ID or PIN'

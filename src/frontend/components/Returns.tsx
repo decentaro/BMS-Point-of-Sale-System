@@ -351,7 +351,7 @@ const Returns: React.FC = () => {
   }, [])
 
   const goBack = () => {
-    navigate('/manager')
+    navigate(SessionManager.getDashboardRoute())
   }
 
   const printReturnReceipt = async (returnRecord: any) => {

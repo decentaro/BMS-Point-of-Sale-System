@@ -100,7 +100,7 @@ const SessionStatus: React.FC<SessionStatusProps> = ({ showLogout = false }) => 
           <span>{formatTimeForPOS(currentTime)}</span>
         </div>
         <div className="flex items-center justify-center space-x-2">
-          <span className="font-medium">{session.role}</span>
+          <span className="font-medium">{session.name}</span>
           <span className="text-slate-400">•</span>
           <span className={timeLeft <= 5 ? 'text-orange-600 font-medium' : ''}>
             {timeLeft}min
