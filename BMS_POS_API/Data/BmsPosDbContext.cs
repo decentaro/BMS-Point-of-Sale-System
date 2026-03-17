@@ -24,6 +24,7 @@ namespace BMS_POS_API.Data
         public DbSet<InventoryCount> InventoryCounts { get; set; }
         public DbSet<InventoryCountItem> InventoryCountItems { get; set; }
         public DbSet<AdminSettings> AdminSettings { get; set; }
+        public DbSet<CashSession> CashSessions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,7 +32,7 @@ namespace BMS_POS_API.Data
 
             // Configure consistent snake_case table names
             modelBuilder.Entity<Employee>().ToTable("employees");
-            modelBuilder.Entity<Product>().ToTable("products"); 
+            modelBuilder.Entity<Product>().ToTable("products");
             modelBuilder.Entity<Sale>().ToTable("sales");
             modelBuilder.Entity<SaleItem>().ToTable("sale_items");
             modelBuilder.Entity<TaxSettings>().ToTable("tax_settings");
@@ -44,6 +45,7 @@ namespace BMS_POS_API.Data
             modelBuilder.Entity<InventoryCount>().ToTable("inventory_counts");
             modelBuilder.Entity<InventoryCountItem>().ToTable("inventory_count_items");
             modelBuilder.Entity<AdminSettings>().ToTable("admin_settings");
+            modelBuilder.Entity<CashSession>().ToTable("cash_sessions");
 
             // Create initial admin user only if no users exist
             // This will be handled by the startup logic instead of seed data
@@ -92,10 +94,11 @@ namespace BMS_POS_API.Data
             {
                 var tableNames = new[]
                 {
-                    "employees", "products", "sales", "sale_items", 
+                    "employees", "products", "sales", "sale_items",
                     "tax_settings", "system_settings", "returns", "return_items",
                     "user_activities", "stock_adjustments", "product_batches",
-                    "inventory_counts", "inventory_count_items", "admin_settings"
+                    "inventory_counts", "inventory_count_items", "admin_settings",
+                    "cash_sessions"
                 };
 
                 foreach (var tableName in tableNames)

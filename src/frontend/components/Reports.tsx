@@ -9,6 +9,7 @@ import ApiClient from '../utils/ApiClient'
 import { formatDateForFile } from '../utils/dateFormat'
 import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
+import Reconciliation from './Reconciliation'
 import {
   Download, ChevronRight, TrendingUp, ShoppingCart, Banknote,
   Percent, Users, RotateCcw, PackageX, ShoppingBag, Receipt,
@@ -66,8 +67,11 @@ interface ReturnsSummary {
 }
 
 
+type ReportsTab = 'sales' | 'reconciliation'
+
 const Reports: React.FC = () => {
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = React.useState<ReportsTab>('sales')
 
   // Session and role validation handled by SessionGuard wrapper
 
@@ -367,8 +371,34 @@ const Reports: React.FC = () => {
           right={<SessionStatus />}
         />
 
+        {/* Tab bar */}
+        <div className="border-b border-slate-200 bg-white px-6">
+          <div className="flex gap-0">
+            {([
+              { id: 'sales' as ReportsTab, label: 'Sales Reports' },
+              { id: 'reconciliation' as ReportsTab, label: 'Z-Report / Reconciliation' },
+            ]).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-emerald-500 text-emerald-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <main className="flex-1 overflow-y-auto bg-slate-50">
-          {loading ? (
+          {activeTab === 'reconciliation' ? (
+            <div className="max-w-6xl mx-auto px-6 py-6">
+              <Reconciliation />
+            </div>
+          ) : loading ? (
             <SectionLoader message="Loading reports..." />
           ) : (
             <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">

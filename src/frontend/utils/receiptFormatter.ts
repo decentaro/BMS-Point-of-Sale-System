@@ -428,8 +428,135 @@ const generateDetailedTextReceipt = (saleData: any, settings: SystemSettings, pa
     receipt += barcodeCommand + '\n'
   }
   
-  // Add proper paper feed  
+  // Add proper paper feed
   receipt += '\n\n\n\n'
-  
+
   return receipt
+}
+
+// ── Z-Report receipt ───────────────────────────────────────────────────────
+
+interface ZReportForPrint {
+  date: string
+  sessionCode: string
+  sessionStatus: string
+  openedByEmployeeName: string | null
+  closedByEmployeeName: string | null
+  openedAt: string | null
+  closedAt: string | null
+  openingCash: number
+  closingCash: number | null
+  totalTransactions: number
+  grossSales: number
+  totalDiscounts: number
+  netSales: number
+  totalTax: number
+  totalReturns: number
+  totalRefunds: number
+  paymentBreakdown: { paymentMethod: string; transactionCount: number; totalAmount: number }[]
+  expectedClosingCash: number
+  cashVariance: number | null
+  notes: string | null
+}
+
+export const generateZReportReceipt = (report: ZReportForPrint, settings: SystemSettings): string => {
+  const W = 48
+  const divider = '='.repeat(W)
+  const dash = '-'.repeat(W)
+  const printedAt = new Date()
+
+  const center = (text: string): string => {
+    const len = text.length
+    const pad = Math.max(0, Math.floor((W - len) / 2))
+    return ' '.repeat(pad) + text + '\n'
+  }
+
+  const two = (left: string, right: string): string => {
+    const r = right.toString()
+    const avail = W - r.length - 1
+    const l = left.length <= avail ? left.padEnd(avail) : left.slice(0, avail - 1) + '…'
+    return l + ' ' + r + '\n'
+  }
+
+  const cur = (n: number) => formatCurrency(n)
+
+  let r = ''
+
+  // Header
+  if (settings.businessName) r += center(settings.businessName)
+  if (settings.storeLocation) r += center(settings.storeLocation)
+  if (settings.phoneNumber) r += center(settings.phoneNumber)
+  r += '\n'
+  r += center('*** Z-REPORT ***')
+  r += center('END OF DAY RECONCILIATION')
+  r += '\n'
+  r += divider + '\n'
+
+  // Date / session info
+  const reportDateObj = new Date(report.date.slice(0, 10) + 'T12:00:00')
+  r += two('Report Date:', reportDateObj.toLocaleDateString())
+  r += two('Printed:', printedAt.toLocaleDateString() + ' ' + printedAt.toLocaleTimeString())
+  if (report.sessionCode) r += two('Session:', report.sessionCode)
+  r += two('Status:', report.sessionStatus)
+  if (report.openedAt) {
+    r += two('Opened:', new Date(report.openedAt).toLocaleTimeString() + (report.openedByEmployeeName ? ` by ${report.openedByEmployeeName}` : ''))
+  }
+  if (report.closedAt) {
+    r += two('Closed:', new Date(report.closedAt).toLocaleTimeString() + (report.closedByEmployeeName ? ` by ${report.closedByEmployeeName}` : ''))
+  }
+
+  // Sales summary
+  r += dash + '\n'
+  r += center('SALES SUMMARY')
+  r += dash + '\n'
+  r += two('Total Transactions:', String(report.totalTransactions))
+  r += two('Gross Sales:', cur(report.grossSales))
+  if (report.totalDiscounts > 0) r += two('Discounts:', '-' + cur(report.totalDiscounts))
+  r += two('Net Sales:', cur(report.netSales))
+  r += two('Tax Collected:', cur(report.totalTax))
+  if (report.totalReturns > 0) {
+    r += dash + '\n'
+    r += two('Returns:', String(report.totalReturns))
+    r += two('Total Refunds:', '-' + cur(report.totalRefunds))
+  }
+
+  // Payment breakdown
+  if (report.paymentBreakdown.length > 0) {
+    r += dash + '\n'
+    r += center('PAYMENT BREAKDOWN')
+    r += dash + '\n'
+    for (const p of report.paymentBreakdown) {
+      r += two(`${p.paymentMethod} (${p.transactionCount} txn):`, cur(p.totalAmount))
+    }
+  }
+
+  // Cash reconciliation
+  r += dash + '\n'
+  r += center('CASH RECONCILIATION')
+  r += dash + '\n'
+  r += two('Opening Cash:', cur(report.openingCash))
+  r += two('+ Cash Sales:', cur(report.paymentBreakdown.find(p => p.paymentMethod === 'Cash')?.totalAmount ?? 0))
+  if (report.totalRefunds > 0) r += two('- Cash Refunds:', cur(report.totalRefunds))
+  r += two('Expected Closing:', cur(report.expectedClosingCash))
+  if (report.closingCash != null) {
+    r += two('Actual Closing:', cur(report.closingCash))
+    const variance = report.cashVariance ?? 0
+    const varianceLabel = Math.abs(variance) < 0.01
+      ? 'BALANCED'
+      : variance > 0 ? `OVER  +${cur(variance)}` : `SHORT ${cur(variance)}`
+    r += two('Variance:', varianceLabel)
+  } else {
+    r += two('Actual Closing:', 'NOT CLOSED')
+  }
+
+  if (report.notes) {
+    r += dash + '\n'
+    r += 'Notes: ' + report.notes + '\n'
+  }
+
+  r += divider + '\n'
+  r += center('*** END OF Z-REPORT ***')
+  r += '\n\n\n\n'
+
+  return r
 }
