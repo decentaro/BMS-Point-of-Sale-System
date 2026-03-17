@@ -128,3 +128,9 @@
   transform: scale(var(--app-scale-x), var(--app-scale-y));
   overflow: hidden;
 }
+
+/* Hide cursor by default; enabled via Admin Panel toggle */
+body:not(.cursor-enabled),
+body:not(.cursor-enabled) * {
+  cursor: none !important;
+}

@@ -25,6 +25,24 @@ const DESIGN_H = 640
 
 function App() {
   useEffect(() => {
+    const applyCursor = () => {
+      const show = localStorage.getItem('bms-show-cursor') !== 'false'
+      document.body.classList.toggle('cursor-enabled', show)
+    }
+
+    applyCursor()
+
+    // Re-apply if another tab/window updates the setting
+    window.addEventListener('storage', applyCursor)
+    // Re-apply on custom event fired by AdminPanel toggle
+    window.addEventListener('bms:cursor-changed', applyCursor)
+    return () => {
+      window.removeEventListener('storage', applyCursor)
+      window.removeEventListener('bms:cursor-changed', applyCursor)
+    }
+  }, [])
+
+  useEffect(() => {
     const updateScale = () => {
       const vw = window.innerWidth
       const vh = window.innerHeight

@@ -58,6 +58,17 @@ const AdminPanel: React.FC = () => {
   const [kbTitle, setKbTitle] = React.useState<string>('')
   const [kbTarget, setKbTarget] = React.useState<FormKeys>('newConnectionString')
 
+  // Cursor visibility (stored in localStorage, applied globally)
+  const [cursorEnabled, setCursorEnabled] = React.useState<boolean>(
+    () => localStorage.getItem('bms-show-cursor') !== 'false'
+  )
+
+  const toggleCursor = (enabled: boolean) => {
+    setCursorEnabled(enabled)
+    localStorage.setItem('bms-show-cursor', String(enabled))
+    window.dispatchEvent(new Event('bms:cursor-changed'))
+  }
+
   // Clear database modal state
   const [showClearModal, setShowClearModal] = React.useState<boolean>(false)
   const [clearConfirmPhrase, setClearConfirmPhrase] = React.useState<string>('')
@@ -748,6 +759,13 @@ const AdminPanel: React.FC = () => {
 
                     {/* Toggles */}
                     <div className="space-y-3">
+                      <ToggleRow
+                        id="cursorEnabled"
+                        checked={cursorEnabled}
+                        onChange={toggleCursor}
+                        label="Show Cursor"
+                        sub="Enable mouse cursor — disable for touch-only terminals"
+                      />
                       <ToggleRow
                         id="performanceMetrics"
                         checked={adminSettings.performanceMetricsEnabled}
