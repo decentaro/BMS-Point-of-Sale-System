@@ -3,6 +3,7 @@ using BMS_POS_API.Data;
 using BMS_POS_API.Models;
 using BMS_POS_API.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 
 namespace BMS_POS_API.Tests
 {
@@ -10,31 +11,49 @@ namespace BMS_POS_API.Tests
     {
         protected BmsPosDbContext Context { get; private set; }
         protected IUserActivityService UserActivityService { get; private set; }
+        protected IPinSecurityService PinSecurityService { get; private set; }
+        protected Mock<IMetricsService> MockMetricsService { get; private set; }
+        protected Mock<ILoginLockoutService> MockLockoutService { get; private set; }
+        protected JwtSecretHolder JwtSecretHolder { get; private set; }
         protected IServiceProvider ServiceProvider { get; private set; }
 
         public TestBase()
         {
-            // Create in-memory database for testing
             var options = new DbContextOptionsBuilder<BmsPosDbContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
 
             Context = new BmsPosDbContext(options);
 
-            // Create service collection and configure services
             var services = new ServiceCollection();
-            services.AddScoped(_ => Context);
+            services.AddSingleton(_ => Context);
             ServiceProvider = services.BuildServiceProvider();
 
-            // Create real UserActivityService with service provider
+            // Real implementations — no external dependencies
             UserActivityService = new UserActivityService(ServiceProvider);
+            PinSecurityService = new PinSecurityService();
+            JwtSecretHolder = new JwtSecretHolder();
+
+            // Mocked services — tests verify controller behaviour, not service internals
+            MockMetricsService = new Mock<IMetricsService>();
+            MockMetricsService.Setup(m => m.LogLoginAttempt(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>()))
+                              .Returns(Task.CompletedTask);
+            MockMetricsService.Setup(m => m.LogTransaction(It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<int>()))
+                              .Returns(Task.CompletedTask);
+            MockMetricsService.Setup(m => m.LogSystemEvent(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                              .Returns(Task.CompletedTask);
+
+            MockLockoutService = new Mock<ILoginLockoutService>();
+            MockLockoutService.Setup(l => l.IsLockedOutAsync(It.IsAny<string>())).ReturnsAsync(false);
+            MockLockoutService.Setup(l => l.RecordFailedAttemptAsync(It.IsAny<string>(), It.IsAny<int>())).Returns(Task.CompletedTask);
+            MockLockoutService.Setup(l => l.ResetAttemptsAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
+            MockLockoutService.Setup(l => l.GetFailedAttemptsAsync(It.IsAny<string>())).ReturnsAsync(0);
 
             SeedDatabase();
         }
 
         protected virtual void SeedDatabase()
         {
-            // Add test employees
             Context.Employees.AddRange(
                 new Employee
                 {
@@ -44,6 +63,7 @@ namespace BMS_POS_API.Tests
                     Name = "Test Manager",
                     Role = "Manager",
                     IsManager = true,
+                    IsActive = true,
                     CreatedDate = DateTime.UtcNow
                 },
                 new Employee
@@ -54,6 +74,7 @@ namespace BMS_POS_API.Tests
                     Name = "Test Cashier",
                     Role = "Cashier",
                     IsManager = false,
+                    IsActive = true,
                     CreatedDate = DateTime.UtcNow
                 },
                 new Employee
@@ -64,11 +85,11 @@ namespace BMS_POS_API.Tests
                     Name = "Test Inventory",
                     Role = "Inventory",
                     IsManager = false,
+                    IsActive = true,
                     CreatedDate = DateTime.UtcNow
                 }
             );
 
-            // Add test products
             Context.Products.AddRange(
                 new Product
                 {
@@ -98,16 +119,12 @@ namespace BMS_POS_API.Tests
                 }
             );
 
-            // Add test system settings
+            // Seed only fields that exist in the current SystemSettings model
             Context.SystemSettings.Add(new SystemSettings
             {
                 Id = 1,
-                Currency = "₱",
-                CurrencyCode = "PHP",
                 DateFormat = "MM/DD/YYYY",
-                TimeZone = "UTC",
                 Theme = "light",
-                Language = "en",
                 AutoLogoutMinutes = 30,
                 CreatedDate = DateTime.UtcNow
             });
@@ -119,9 +136,7 @@ namespace BMS_POS_API.Tests
         {
             Context?.Dispose();
             if (ServiceProvider is IDisposable disposableProvider)
-            {
                 disposableProvider.Dispose();
-            }
         }
     }
 }

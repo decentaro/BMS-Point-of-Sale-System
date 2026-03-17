@@ -7,6 +7,7 @@ using BMS_POS_API.Controllers;
 using BMS_POS_API.Models;
 using BMS_POS_API.Services;
 using System.Net;
+using System.Reflection;
 
 namespace BMS_POS_API.Tests.Controllers
 {
@@ -18,7 +19,7 @@ namespace BMS_POS_API.Tests.Controllers
         public AuthControllerTests()
         {
             _mockLogger = new Mock<ILogger<AuthController>>();
-            _controller = new AuthController(Context, UserActivityService);
+            _controller = new AuthController(Context, UserActivityService, PinSecurityService, MockMetricsService.Object, MockLockoutService.Object, JwtSecretHolder);
             
             // Setup fake HttpContext
             var mockHttpContext = new Mock<HttpContext>();
@@ -119,10 +120,14 @@ namespace BMS_POS_API.Tests.Controllers
             var response = okResult.Value;
             Assert.NotNull(response);
             
-            // Use reflection to check the employee data in response
-            var employeeProperty = response.GetType().GetProperty("employee");
+            // Navigate ApiResponse<LoginResponse>.Data.Employee
+            var dataProperty = response.GetType().GetProperty("Data");
+            Assert.NotNull(dataProperty);
+            var loginResponse = dataProperty.GetValue(response);
+            Assert.NotNull(loginResponse);
+            var employeeProperty = loginResponse.GetType().GetProperty("Employee");
             Assert.NotNull(employeeProperty);
-            var employee = employeeProperty.GetValue(response) as Employee;
+            var employee = employeeProperty.GetValue(loginResponse) as Employee;
             Assert.NotNull(employee);
             Assert.True(employee.IsManager);
             Assert.Equal("Manager", employee.Role);
@@ -142,9 +147,13 @@ namespace BMS_POS_API.Tests.Controllers
             var response = okResult.Value;
             Assert.NotNull(response);
             
-            var employeeProperty = response.GetType().GetProperty("employee");
+            var dataProperty = response.GetType().GetProperty("Data");
+            Assert.NotNull(dataProperty);
+            var loginResponse = dataProperty.GetValue(response);
+            Assert.NotNull(loginResponse);
+            var employeeProperty = loginResponse.GetType().GetProperty("Employee");
             Assert.NotNull(employeeProperty);
-            var employee = employeeProperty.GetValue(response) as Employee;
+            var employee = employeeProperty.GetValue(loginResponse) as Employee;
             Assert.NotNull(employee);
             Assert.False(employee.IsManager);
             Assert.Equal("Cashier", employee.Role);
@@ -167,8 +176,14 @@ namespace BMS_POS_API.Tests.Controllers
             var response = okResult.Value;
             Assert.NotNull(response);
             
-            var employeeProperty = response.GetType().GetProperty("employee");
-            var employee = employeeProperty.GetValue(response) as Employee;
+            var dataProperty = response.GetType().GetProperty("Data");
+            Assert.NotNull(dataProperty);
+            var loginResponse = dataProperty.GetValue(response);
+            Assert.NotNull(loginResponse);
+            var employeeProperty = loginResponse.GetType().GetProperty("Employee");
+            Assert.NotNull(employeeProperty);
+            var employee = employeeProperty.GetValue(loginResponse) as Employee;
+            Assert.NotNull(employee);
             Assert.Equal(expectedIsManager, employee.IsManager);
         }
 

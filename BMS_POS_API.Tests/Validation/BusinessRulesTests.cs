@@ -25,9 +25,9 @@ namespace BMS_POS_API.Tests.Validation
             _mockProductLogger = new Mock<ILogger<ProductsController>>();
             _mockAuthLogger = new Mock<ILogger<AuthController>>();
             
-            _employeesController = new EmployeesController(Context, UserActivityService);
+            _employeesController = new EmployeesController(Context, UserActivityService, PinSecurityService);
             _productsController = new ProductsController(Context, UserActivityService);
-            _authController = new AuthController(Context, UserActivityService);
+            _authController = new AuthController(Context, UserActivityService, PinSecurityService, MockMetricsService.Object, MockLockoutService.Object, JwtSecretHolder);
             
             // Setup fake HttpContext for all controllers with headers
             var mockHttpContext = new Mock<HttpContext>();
@@ -423,10 +423,10 @@ namespace BMS_POS_API.Tests.Validation
             // Assert
             Assert.IsType<OkObjectResult>(result);
 
-            // Verify PIN was actually changed
+            // Verify PIN was actually changed — stored as BCrypt hash, verify via service
             var employee = Context.Employees.Find(2);
             Assert.NotNull(employee);
-            Assert.Equal("888999", employee.Pin);
+            Assert.True(PinSecurityService.VerifyPin("888999", employee.Pin));
         }
 
         [Theory]

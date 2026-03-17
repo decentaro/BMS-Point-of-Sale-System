@@ -18,7 +18,7 @@ namespace BMS_POS_API.Tests.Controllers
         public EmployeesControllerTests()
         {
             _mockLogger = new Mock<ILogger<EmployeesController>>();
-            _controller = new EmployeesController(Context, UserActivityService);
+            _controller = new EmployeesController(Context, UserActivityService, PinSecurityService);
             
             // Setup fake HttpContext with headers
             var mockHttpContext = new Mock<HttpContext>();
@@ -132,7 +132,7 @@ namespace BMS_POS_API.Tests.Controllers
                 EmployeeId = "TEST001",
                 Pin = "123456",
                 Name = "Updated Test Manager",
-                Role = "Senior Manager",
+                Role = "Manager",
                 IsManager = true
             };
 
@@ -145,7 +145,7 @@ namespace BMS_POS_API.Tests.Controllers
             // Verify the employee was updated
             var employee = Context.Employees.Find(1);
             Assert.Equal("Updated Test Manager", employee.Name);
-            Assert.Equal("Senior Manager", employee.Role);
+            Assert.Equal("Manager", employee.Role);
 
             // User activity logging tested separately
         }
@@ -196,14 +196,15 @@ namespace BMS_POS_API.Tests.Controllers
         public async Task DeleteEmployee_WithValidId_ReturnsNoContent()
         {
             // Act
-            var result = await _controller.DeleteEmployee(3);
+            var result = await _controller.DeactivateEmployee(3);
 
             // Assert
             Assert.IsType<NoContentResult>(result);
 
-            // Verify the employee was deleted
+            // Verify the employee was deactivated (soft delete)
             var employee = Context.Employees.Find(3);
-            Assert.Null(employee);
+            Assert.NotNull(employee);
+            Assert.False(employee!.IsActive);
 
             // User activity logging tested separately
         }
@@ -212,7 +213,7 @@ namespace BMS_POS_API.Tests.Controllers
         public async Task DeleteEmployee_WithNonExistentId_ReturnsNotFound()
         {
             // Act
-            var result = await _controller.DeleteEmployee(999);
+            var result = await _controller.DeactivateEmployee(999);
 
             // Assert
             Assert.IsType<NotFoundResult>(result);
@@ -231,10 +232,10 @@ namespace BMS_POS_API.Tests.Controllers
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
 
-            // Verify the PIN was updated
+            // Verify the PIN was updated — stored as BCrypt hash, verify via service
             var employee = Context.Employees.Find(2);
             Assert.NotNull(employee);
-            Assert.Equal("999999", employee.Pin);
+            Assert.True(PinSecurityService.VerifyPin("999999", employee.Pin));
 
             // User activity logging tested separately
         }

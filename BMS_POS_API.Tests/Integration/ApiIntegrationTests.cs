@@ -30,17 +30,27 @@ namespace BMS_POS_API.Tests.Integration
                         services.Remove(service);
                     }
 
-                    // Remove all health check related services
-                    var healthCheckServices = services.Where(s => s.ServiceType.FullName?.Contains("HealthCheck") == true).ToList();
+                    // Remove all health check related services (including hosted publisher)
+                    // then re-add a simple no-DB health check for tests
+                    var healthCheckServices = services.Where(s =>
+                        s.ServiceType.FullName?.Contains("HealthCheck") == true ||
+                        s.ImplementationType?.FullName?.Contains("HealthCheck") == true).ToList();
                     foreach (var service in healthCheckServices)
                     {
                         services.Remove(service);
                     }
+                    services.AddHealthChecks();
 
-                    // Add DbContext using in-memory database for testing
+                    // Add DbContext using in-memory database with its own internal service provider
+                    // to avoid conflicts with the Npgsql provider already registered in the app's DI
+                    var inMemoryProvider = new ServiceCollection()
+                        .AddEntityFrameworkInMemoryDatabase()
+                        .BuildServiceProvider();
+
                     services.AddDbContext<BmsPosDbContext>(options =>
                     {
                         options.UseInMemoryDatabase("InMemoryDbForTesting");
+                        options.UseInternalServiceProvider(inMemoryProvider);
                     });
 
                     // Build service provider and seed the database
@@ -52,12 +62,26 @@ namespace BMS_POS_API.Tests.Integration
             });
 
             _client = _factory.CreateClient();
+
+            // Obtain a JWT token and attach it to all subsequent requests
+            var loginJson = JsonSerializer.Serialize(new { EmployeeId = "TEST001", Pin = "123456", SelectedRole = "Manager" });
+            var loginContent = new StringContent(loginJson, Encoding.UTF8, "application/json");
+            var loginResponse = _client.PostAsync("/api/auth/login", loginContent).GetAwaiter().GetResult();
+            if (loginResponse.IsSuccessStatusCode)
+            {
+                var loginBody = loginResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                var loginDoc = JsonDocument.Parse(loginBody);
+                if (loginDoc.RootElement.TryGetProperty("data", out var data) &&
+                    data.TryGetProperty("token", out var tokenEl))
+                {
+                    _client.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenEl.GetString());
+                }
+            }
         }
 
         private void SeedTestData(BmsPosDbContext context)
         {
-            context.Database.EnsureCreated();
-
             // Clear existing data
             context.UserActivities.RemoveRange(context.UserActivities);
             context.Products.RemoveRange(context.Products);
@@ -119,16 +143,12 @@ namespace BMS_POS_API.Tests.Integration
                 }
             );
 
-            // Add test system settings
+            // Add test system settings — only fields that exist in the current model
             context.SystemSettings.Add(new SystemSettings
             {
                 Id = 1,
-                Currency = "₱",
-                CurrencyCode = "PHP",
                 DateFormat = "MM/DD/YYYY",
-                TimeZone = "UTC",
                 Theme = "light",
-                Language = "en",
                 AutoLogoutMinutes = 30,
                 CreatedDate = DateTime.UtcNow
             });
@@ -188,9 +208,10 @@ namespace BMS_POS_API.Tests.Integration
             var responseContent = await response.Content.ReadAsStringAsync();
             Assert.NotEmpty(responseContent);
 
-            // Verify response contains expected data
+            // Verify response contains expected data (wrapped in ApiResponse<LoginResponse>)
             var responseJson = JsonDocument.Parse(responseContent);
-            Assert.True(responseJson.RootElement.TryGetProperty("employee", out var employeeProperty));
+            Assert.True(responseJson.RootElement.TryGetProperty("data", out var dataProperty));
+            Assert.True(dataProperty.TryGetProperty("employee", out var employeeProperty));
             Assert.True(employeeProperty.TryGetProperty("name", out var nameProperty));
             Assert.Equal("Test Manager", nameProperty.GetString());
         }
@@ -352,8 +373,8 @@ namespace BMS_POS_API.Tests.Integration
             var content = await response.Content.ReadAsStringAsync();
             var settings = JsonSerializer.Deserialize<JsonElement>(content);
             
-            Assert.True(settings.TryGetProperty("currency", out var currencyProperty));
-            Assert.Equal("₱", currencyProperty.GetString());
+            Assert.True(settings.TryGetProperty("dateFormat", out var dateFormatProperty));
+            Assert.Equal("MM/DD/YYYY", dateFormatProperty.GetString());
         }
 
         [Fact]

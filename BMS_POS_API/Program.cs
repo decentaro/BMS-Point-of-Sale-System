@@ -156,10 +156,16 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<BmsPosDbContext>();
-    context.Database.Migrate(); // This applies pending migrations
-    
-    // Enable real-time functionality for all tables after migration
-    await context.EnableRealTimeForAllTablesAsync();
+    var providerName = context.Database.ProviderName ?? "";
+    if (!providerName.Contains("InMemory"))
+    {
+        context.Database.Migrate(); // This applies pending migrations
+        await context.EnableRealTimeForAllTablesAsync();
+    }
+    else
+    {
+        context.Database.EnsureCreated(); // InMemory (used in tests)
+    }
     
     // Create default admin accounts if database is empty, or update existing users' roles
     var existingEmployees = context.Employees.ToList();
