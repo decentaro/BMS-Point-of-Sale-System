@@ -126,7 +126,8 @@ const Login: React.FC = () => {
           }
         }, 1000)
       } else {
-        const errorMessage = result.message || 'Invalid Employee ID or PIN'
+        const isLockout = result.message?.toLowerCase().includes('locked')
+        const errorMessage = isLockout ? result.message : 'Invalid Employee ID or PIN'
         showToast(errorMessage, 'error')
         clearAll()
         setStatusMessage('Please sign in')
