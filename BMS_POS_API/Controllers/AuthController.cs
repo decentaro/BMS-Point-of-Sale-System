@@ -105,18 +105,20 @@ namespace BMS_POS_API.Controllers
 
                 if (!string.IsNullOrEmpty(request.SelectedRole))
                 {
-                    var employeeRole = employee.Role ?? (employee.IsManager ? "Manager" : "Cashier");
-                    if (!employeeRole.Equals(request.SelectedRole, StringComparison.OrdinalIgnoreCase))
+                    var employeeRoles = (employee.Role ?? (employee.IsManager ? "Manager" : "Cashier"))
+                        .Split(',').Select(r => r.Trim()).ToArray();
+                    if (!employeeRoles.Any(r => r.Equals(request.SelectedRole, StringComparison.OrdinalIgnoreCase)))
                     {
+                        var rolesDisplay = string.Join(" or ", employeeRoles);
                         await _lockoutService.RecordFailedAttemptAsync(request.EmployeeId, maxAttempts);
                         await LogFailedLoginAttempt(
                             request.EmployeeId,
-                            $"Role mismatch - Employee: {employeeRole}, Selected: {request.SelectedRole}",
+                            $"Role mismatch - Employee roles: {string.Join(",", employeeRoles)}, Selected: {request.SelectedRole}",
                             employee.Id
                         );
-                        await _metricsService.LogLoginAttempt(request.EmployeeId, false, $"Role mismatch: {employeeRole} vs {request.SelectedRole}");
+                        await _metricsService.LogLoginAttempt(request.EmployeeId, false, $"Role mismatch: {string.Join(",", employeeRoles)} vs {request.SelectedRole}");
                         return Unauthorized(ApiResponse<LoginResponse>.ErrorResponse(
-                            $"You are registered as a {employeeRole}. Please select '{employeeRole}' and try again.",
+                            $"You are not assigned the '{request.SelectedRole}' role. Please select one of: {rolesDisplay}.",
                             AuthErrorCodes.ROLE_MISMATCH
                         ));
                     }
@@ -210,7 +212,7 @@ namespace BMS_POS_API.Controllers
         {
             // Find managers and verify PIN with hashing support
             var managers = await _context.Employees
-                .Where(e => (e.Role == "Manager" || e.IsManager == true) && e.IsActive)
+                .Where(e => (e.Role.Contains("Manager") || e.IsManager == true) && e.IsActive)
                 .ToListAsync();
 
             // Check PIN against all managers (supports both legacy and hashed PINs)

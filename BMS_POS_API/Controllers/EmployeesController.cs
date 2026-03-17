@@ -75,22 +75,18 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("PIN cannot be empty");
             }
 
-            if (employee.Pin.Length != 6)
-            {
-                return BadRequest("PIN must be exactly 6 characters long");
-            }
+            var pinError = await ValidatePin(employee.Pin);
+            if (pinError != null)
+                return BadRequest(pinError);
 
-            if (!employee.Pin.All(char.IsDigit))
+            // Validate Role (supports comma-separated multi-role, e.g. "Cashier,Inventory")
+            var validRoles = new HashSet<string> { "Manager", "Cashier", "Inventory" };
+            var assignedRoles = (employee.Role ?? "").Split(',').Select(r => r.Trim()).Where(r => r.Length > 0).ToArray();
+            if (assignedRoles.Length == 0 || assignedRoles.Any(r => !validRoles.Contains(r)))
             {
-                return BadRequest("PIN must contain only digits");
+                return BadRequest("Each role must be one of: Manager, Cashier, Inventory");
             }
-
-            // Validate Role
-            var validRoles = new[] { "Manager", "Cashier", "Inventory" };
-            if (string.IsNullOrWhiteSpace(employee.Role) || !validRoles.Contains(employee.Role))
-            {
-                return BadRequest("Role must be one of: Manager, Cashier, Inventory");
-            }
+            employee.Role = string.Join(",", assignedRoles.Distinct());
 
             // Check if employee ID already exists
             if (await _context.Employees.AnyAsync(e => e.EmployeeId == employee.EmployeeId))
@@ -101,6 +97,8 @@ namespace BMS_POS_API.Controllers
             // Hash the PIN before saving
             employee.Pin = _pinSecurityService.HashPin(employee.Pin);
             employee.CreatedDate = DateTime.UtcNow;
+            if (employee.HireDate.HasValue && employee.HireDate.Value.Kind == DateTimeKind.Unspecified)
+                employee.HireDate = DateTime.SpecifyKind(employee.HireDate.Value, DateTimeKind.Utc);
             _context.Employees.Add(employee);
             await _context.SaveChangesAsync();
 
@@ -146,6 +144,18 @@ namespace BMS_POS_API.Controllers
             {
                 return BadRequest("Employee ID already exists");
             }
+
+            // Validate Role (supports comma-separated multi-role, e.g. "Cashier,Inventory")
+            var validRoles = new HashSet<string> { "Manager", "Cashier", "Inventory" };
+            var assignedRoles = (employee.Role ?? "").Split(',').Select(r => r.Trim()).Where(r => r.Length > 0).ToArray();
+            if (assignedRoles.Length == 0 || assignedRoles.Any(r => !validRoles.Contains(r)))
+            {
+                return BadRequest("Each role must be one of: Manager, Cashier, Inventory");
+            }
+            employee.Role = string.Join(",", assignedRoles.Distinct());
+
+            if (employee.HireDate.HasValue && employee.HireDate.Value.Kind == DateTimeKind.Unspecified)
+                employee.HireDate = DateTime.SpecifyKind(employee.HireDate.Value, DateTimeKind.Utc);
 
             // Clear change tracker to avoid conflicts
             _context.ChangeTracker.Clear();
@@ -294,15 +304,9 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("PIN cannot be empty");
             }
 
-            if (request.NewPin.Length != 6)
-            {
-                return BadRequest("PIN must be exactly 6 characters long");
-            }
-
-            if (!request.NewPin.All(char.IsDigit))
-            {
-                return BadRequest("PIN must contain only digits");
-            }
+            var pinError = await ValidatePin(request.NewPin);
+            if (pinError != null)
+                return BadRequest(pinError);
 
             // Store old PIN info for logging (don't log actual PIN values for security)
             var oldPinLength = employee.Pin?.Length ?? 0;
@@ -335,6 +339,43 @@ namespace BMS_POS_API.Controllers
         private bool EmployeeExists(int id)
         {
             return _context.Employees.Any(e => e.Id == id);
+        }
+
+        /// <summary>
+        /// Validates a plain-text PIN against length and optional strength rules.
+        /// Returns null on success, or a descriptive error message on failure.
+        /// </summary>
+        private async Task<string?> ValidatePin(string pin)
+        {
+            if (!pin.All(char.IsDigit))
+                return "PIN must contain digits only — no letters or special characters";
+
+            if (pin.Length < 4)
+                return $"PIN is too short — minimum 4 digits (you entered {pin.Length})";
+
+            if (pin.Length > 6)
+                return $"PIN is too long — maximum 6 digits (you entered {pin.Length})";
+
+            var settings = await _context.AdminSettings.FirstOrDefaultAsync();
+            if (settings?.RequireStrongPins == true)
+            {
+                if (pin.Length < 6)
+                    return $"Strong PINs are required — minimum 6 digits (you entered {pin.Length})";
+
+                if (pin.Distinct().Count() == 1)
+                    return "PIN is too weak — all digits are the same (e.g. 1111). Use a mix of digits";
+
+                bool ascending = true, descending = true;
+                for (int i = 1; i < pin.Length; i++)
+                {
+                    if (pin[i] - pin[i - 1] != 1) ascending  = false;
+                    if (pin[i - 1] - pin[i] != 1) descending = false;
+                }
+                if (ascending || descending)
+                    return "PIN is too weak — sequential digits (e.g. 1234) are not allowed. Use a mix of digits";
+            }
+
+            return null;
         }
     }
 

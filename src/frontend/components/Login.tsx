@@ -7,7 +7,6 @@ import { useKeyboardSound } from '../utils/useKeyboardSound'
 import ApiClient from '../utils/ApiClient'
 import { useToast } from '../contexts/ToastContext'
 
-type Role = 'Cashier' | 'Inventory' | 'Manager'
 type CurrentField = 'employeeId' | 'pin'
 
 const Login: React.FC = () => {
@@ -19,7 +18,6 @@ const Login: React.FC = () => {
   const [currentField, setCurrentField] = useState<CurrentField>('employeeId')
   const [employeeId, setEmployeeId] = useState('')
   const [pin, setPin] = useState('')
-  const [selectedRole, setSelectedRole] = useState<Role>('Cashier')
   const [statusMessage, setStatusMessage] = useState('Please sign in')
 
   const inputNumber = (num: string) => {
@@ -88,43 +86,29 @@ const Login: React.FC = () => {
 
       let result
       if (window.electronAPI?.validateLogin) {
-        result = await window.electronAPI.validateLogin(employeeId, pin, selectedRole)
+        result = await window.electronAPI.validateLogin(employeeId, pin, null)
       } else {
-        result = await ApiClient.postJson('/auth/login', { employeeId, pin, selectedRole }, false)
+        result = await ApiClient.postJson('/auth/login', { employeeId, pin }, false)
       }
 
       if (result.success && result.data?.employee) {
-        const employeeRole = result.data.employee.role || (result.data.employee.isManager ? 'Manager' : 'Cashier')
-
         setStatusMessage(`Welcome ${result.data.employee.name}!`)
 
         if (result.data?.token) {
           SessionManager.setToken(result.data.token)
         }
 
+        const fullRole = result.data.employee.role || (result.data.employee.isManager ? 'Manager' : 'Cashier')
+
         await SessionManager.createSession({
           id: result.data.employee.id,
           employeeId: result.data.employee.employeeId,
           name: result.data.employee.name,
-          role: employeeRole,
-          isManager: result.data.employee.isManager || employeeRole === 'Manager'
+          role: fullRole,
+          isManager: result.data.employee.isManager || fullRole.includes('Manager')
         })
 
-        setTimeout(() => {
-          switch (employeeRole) {
-            case 'Manager':
-              navigate('/manager')
-              break
-            case 'Cashier':
-              navigate('/manager')
-              break
-            case 'Inventory':
-              navigate('/inventory-dashboard')
-              break
-            default:
-              setStatusMessage('Unknown role - contact administrator')
-          }
-        }, 1000)
+        setTimeout(() => navigate('/manager'), 1000)
       } else {
         const isLockout = result.message?.toLowerCase().includes('locked')
         const errorMessage = isLockout ? result.message : 'Invalid Employee ID or PIN'
@@ -158,34 +142,6 @@ const Login: React.FC = () => {
           </div>
 
           <div className="flex-1 space-y-3">
-            {/* Role Selection */}
-            <div>
-              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5 block text-center">
-                Role
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['Cashier', 'Inventory', 'Manager'] as Role[]).map((role) => (
-                  <button
-                    key={role}
-                    type="button"
-                    onClick={() => {
-                      playKeySound()
-                      setSelectedRole(role)
-                    }}
-                    className={`
-                      py-2 rounded-lg border text-sm font-medium transition-all
-                      ${selectedRole === role
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'
-                      }
-                    `}
-                  >
-                    {role}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Employee ID */}
             <div>
               <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5 block">

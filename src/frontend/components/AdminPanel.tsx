@@ -710,7 +710,7 @@ const AdminPanel: React.FC = () => {
                       checked={adminSettings.requireStrongPins}
                       onChange={v => setAdminSettings({...adminSettings, requireStrongPins: v})}
                       label="Require Strong PINs"
-                      sub="6+ digits, no repeated patterns"
+                      sub="Minimum 6 digits, no repeated or sequential patterns (e.g. 1111, 1234)"
                     />
 
                     <div className="space-y-2">

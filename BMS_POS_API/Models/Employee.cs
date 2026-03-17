@@ -25,10 +25,21 @@ namespace BMS_POS_API.Models
         [Column("name")]
         public string Name { get; set; } = string.Empty;
 
-        [Required]
         [StringLength(20)]
+        [Column("phone_number")]
+        public string? PhoneNumber { get; set; }
+
+        [StringLength(20)]
+        [Column("employment_type")]
+        public string? EmploymentType { get; set; } // Full-time, Part-time, Contractual
+
+        [Column("hire_date")]
+        public DateTime? HireDate { get; set; }
+
+        [Required]
+        [StringLength(50)]
         [Column("role")]
-        public string Role { get; set; } = "Cashier"; // Cashier, Inventory, Manager
+        public string Role { get; set; } = "Cashier"; // Comma-separated: Cashier, Inventory, Manager
         
         [Column("is_manager")]
         public bool IsManager { get; set; } = false; // Keep for backward compatibility

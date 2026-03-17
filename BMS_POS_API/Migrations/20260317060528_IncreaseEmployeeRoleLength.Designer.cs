@@ -3,6 +3,7 @@ using System;
 using BMS_POS_API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BMS_POS_API.Migrations
 {
     [DbContext(typeof(BmsPosDbContext))]
-    partial class BmsPosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260317060528_IncreaseEmployeeRoleLength")]
+    partial class IncreaseEmployeeRoleLength
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -106,18 +109,9 @@ namespace BMS_POS_API.Migrations
                         .HasColumnType("character varying(10)")
                         .HasColumnName("employee_id");
 
-                    b.Property<string>("EmploymentType")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("employment_type");
-
                     b.Property<int>("FailedLoginAttempts")
                         .HasColumnType("integer")
                         .HasColumnName("failed_login_attempts");
-
-                    b.Property<DateTime?>("HireDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("hire_date");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -136,11 +130,6 @@ namespace BMS_POS_API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("phone_number");
 
                     b.Property<string>("Pin")
                         .IsRequired()

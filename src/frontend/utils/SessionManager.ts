@@ -273,23 +273,30 @@ class SessionManager {
   }
 
   /**
-   * Check if user has specific permission
+   * Check if the current session has a specific role assigned (supports multi-role)
+   */
+  static hasRole(role: string): boolean {
+    const session = this.getCurrentSession()
+    if (!session) return false
+    return session.role.split(',').map(r => r.trim().toLowerCase()).includes(role.toLowerCase())
+  }
+
+  /**
+   * Check if user has specific permission (unions across all assigned roles)
    */
   static hasPermission(permission: string): boolean {
     const session = this.getCurrentSession()
     if (!session) return false
-    
-    // Basic role-based permissions for now
-    switch (session.role.toLowerCase()) {
-      case 'manager':
-        return true // Managers have all permissions
-      case 'cashier':
-        return ['pos.sale', 'pos.return', 'inventory.view'].includes(permission)
-      case 'inventory':
-        return ['inventory.view', 'inventory.add', 'inventory.edit', 'inventory.adjust'].includes(permission)
-      default:
-        return false
+
+    const ROLE_PERMISSIONS: Record<string, string[]> = {
+      manager:   [], // handled below — managers have all permissions
+      cashier:   ['pos.sale', 'pos.return', 'inventory.view'],
+      inventory: ['inventory.view', 'inventory.add', 'inventory.edit', 'inventory.adjust'],
     }
+
+    const roles = session.role.split(',').map(r => r.trim().toLowerCase())
+    if (roles.includes('manager')) return true
+    return roles.some(r => (ROLE_PERMISSIONS[r] ?? []).includes(permission))
   }
 
   /**

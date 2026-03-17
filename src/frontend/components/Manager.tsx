@@ -34,11 +34,14 @@ const CASHIER_CARDS: NavCard[] = [
   { route: '/returns',       label: 'Returns',        sub: 'Process refunds',    icon: RotateCcw,    accent: 'orange'  },
 ]
 
-const MANAGEMENT_CARDS: NavCard[] = [
+const INVENTORY_CARDS: NavCard[] = [
   { route: '/inventory',            label: 'Basic Inventory',    sub: 'Add / edit products',    icon: Package,  accent: 'teal'   },
   { route: '/inventory-management', label: 'Advanced Inventory', sub: 'Adjustments & tracking', icon: Boxes,    accent: 'teal'   },
-  { route: '/employees',            label: 'Employees',          sub: 'Manage staff',           icon: Users,    accent: 'violet' },
-  { route: '/tax-settings',         label: 'Tax Settings',       sub: 'Configure taxes',        icon: Receipt,  accent: 'navy'   },
+]
+
+const MANAGER_CARDS: NavCard[] = [
+  { route: '/employees',    label: 'Employees',   sub: 'Manage staff',    icon: Users,   accent: 'violet' },
+  { route: '/tax-settings', label: 'Tax Settings', sub: 'Configure taxes', icon: Receipt, accent: 'navy'   },
 ]
 
 const SYSTEM_CARDS: NavCard[] = [
@@ -84,7 +87,10 @@ const Manager: React.FC = () => {
   const { businessSettings, loading } = useBusinessSettings()
 
   const session = SessionManager.getCurrentSession()
-  const userRole = session?.role || 'Cashier'
+  const roles = (session?.role || 'Cashier').split(',').map(r => r.trim())
+  const hasCashier  = roles.includes('Cashier')  || roles.includes('Manager')
+  const hasInventory = roles.includes('Inventory') || roles.includes('Manager')
+  const isManager   = roles.includes('Manager')
 
   return (
     <SessionGuard>
@@ -109,7 +115,7 @@ const Manager: React.FC = () => {
               {loading ? '—' : (businessSettings.businessName || 'Business Name')}
             </h1>
             <p className="text-[10px] text-slate-500 font-medium">
-              {userRole === 'Cashier' ? 'Cashier Dashboard' : 'Manager Dashboard'}
+              {roles.join(' · ')} Dashboard
             </p>
           </div>
 
@@ -120,27 +126,43 @@ const Manager: React.FC = () => {
         <main className="flex-1 px-5 py-5 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-5">
 
-            {/* Quick Actions */}
-            <section>
-              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
-                Quick Actions
-              </h2>
-              <div className="grid grid-cols-3 gap-3">
-                {CASHIER_CARDS.map(card => (
-                  <NavCardButton key={card.route} card={card} onClick={() => navigate(card.route)} />
-                ))}
-              </div>
-            </section>
+            {/* Cashier section */}
+            {hasCashier && (
+              <section>
+                <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
+                  Quick Actions
+                </h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {CASHIER_CARDS.map(card => (
+                    <NavCardButton key={card.route} card={card} onClick={() => navigate(card.route)} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Inventory section */}
+            {hasInventory && (
+              <section>
+                <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
+                  Inventory
+                </h2>
+                <div className="grid grid-cols-2 gap-3">
+                  {INVENTORY_CARDS.map(card => (
+                    <NavCardButton key={card.route} card={card} onClick={() => navigate(card.route)} />
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Manager-only sections */}
-            {userRole === 'Manager' && (
+            {isManager && (
               <>
                 <section>
                   <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
-                    Management Tools
+                    Management
                   </h2>
                   <div className="grid grid-cols-4 gap-3">
-                    {MANAGEMENT_CARDS.map(card => (
+                    {MANAGER_CARDS.map(card => (
                       <NavCardButton key={card.route} card={card} onClick={() => navigate(card.route)} />
                     ))}
                   </div>

@@ -33,8 +33,8 @@ const SessionGuard: React.FC<SessionGuardProps> = ({
           return
         }
 
-        // Check role requirement
-        if (requiredRole && session.role.toLowerCase() !== requiredRole.toLowerCase()) {
+        // Check role requirement (supports multi-role — any matching role satisfies the guard)
+        if (requiredRole && !SessionManager.hasRole(requiredRole)) {
           navigate('/login')
           return
         }

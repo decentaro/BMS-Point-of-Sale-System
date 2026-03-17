@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Users, Search, Plus, Save, UserX, UserCheck,
-  X, KeyRound, ChevronDown, Shield, ShoppingCart, Package
+  X, KeyRound, Shield, ShoppingCart, Package
 } from 'lucide-react'
 import { Button } from './ui/button'
 import HybridInput from './HybridInput'
@@ -19,6 +19,9 @@ interface Employee {
   employeeId: string
   pin: string
   name: string
+  phoneNumber?: string
+  employmentType?: string
+  hireDate?: string
   role: string
   isManager: boolean
   isActive: boolean
@@ -38,20 +41,24 @@ const Employees: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null)
   const [selectedEmployee, setSelectedEmployee] = React.useState<number | null>(null)
   const [isEditing, setIsEditing] = React.useState<boolean>(false)
+  const isEditingRef = React.useRef(false)
+  React.useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
   const [showInactive, setShowInactive] = React.useState<boolean>(false)
 
   // Modal keyboard state for search and form inputs
-  type FieldKeys = 'search' | 'name' | 'employeeId' | 'pin'
+  type FieldKeys = 'search' | 'name' | 'employeeId' | 'pin' | 'phone' | 'hireDate'
   const [kbOpen, setKbOpen] = React.useState<boolean>(false)
   const [kbType, setKbType] = React.useState<KeyboardType>('qwerty')
   const [kbTitle, setKbTitle] = React.useState<string>('')
   const [kbTarget, setKbTarget] = React.useState<FieldKeys>('search')
   const [kbMasked, setKbMasked] = React.useState<boolean>(false)
   const [isResettingPin, setIsResettingPin] = React.useState<boolean>(false)
+  const [deactivateModal, setDeactivateModal] = React.useState<{ open: boolean; employeeId: number | null; action: string; actionText: string }>({ open: false, employeeId: null, action: '', actionText: '' })
   const [form, setForm] = React.useState<Record<FieldKeys, string>>({
-    search: '', name: '', employeeId: '', pin: ''
+    search: '', name: '', employeeId: '', pin: '', phone: '', hireDate: ''
   })
-  const [selectedRole, setSelectedRole] = React.useState<string>('Cashier')
+  const [selectedRoles, setSelectedRoles] = React.useState<string[]>([])
+  const [employmentType, setEmploymentType] = React.useState<string>('')
 
   const openKb = (target: FieldKeys, type: KeyboardType, title: string, masked: boolean = false) => {
     setKbTarget(target)
@@ -64,11 +71,17 @@ const Employees: React.FC = () => {
   const applyKb = async (val: string) => {
     if (isResettingPin) {
       // Handle PIN reset
-      if (!val || val.length < 4 || val.length > 6 || !/^\d+$/.test(val)) {
-        showToast('PIN must be 4–6 digits', 'warning')
-        setKbOpen(false)
-        setIsResettingPin(false)
-        return
+      if (!val || !/^\d+$/.test(val)) {
+        showToast('PIN must contain digits only', 'warning')
+        setKbOpen(false); setIsResettingPin(false); return
+      }
+      if (val.length < 4) {
+        showToast(`PIN is too short — minimum 4 digits (entered ${val.length})`, 'warning')
+        setKbOpen(false); setIsResettingPin(false); return
+      }
+      if (val.length > 6) {
+        showToast(`PIN is too long — maximum 6 digits (entered ${val.length})`, 'warning')
+        setKbOpen(false); setIsResettingPin(false); return
       }
       
       try {
@@ -79,15 +92,9 @@ const Employees: React.FC = () => {
           return
         }
 
-        const updatedEmployee = {
-          ...employee,
-          pin: val
-        }
+        await ApiClient.put(`/employees/${selectedEmployee}/reset-pin`, { newPin: val })
 
-        await ApiClient.put(`/employees/${selectedEmployee}`, updatedEmployee)
-
-        await loadEmployees() // Refresh the list
-        setForm(prev => ({ ...prev, pin: val })) // Update form to show new PIN
+        await loadEmployees()
         showToast('PIN reset successfully', 'success')
       } catch (err) {
         showToast('Failed to reset PIN. Please try again.', 'error')
@@ -104,13 +111,22 @@ const Employees: React.FC = () => {
     setKbOpen(false)
   }
 
-  // Load employees from API
+  const getNextEmployeeId = (list: Employee[]) => {
+    const max = list.reduce((acc, e) => {
+      const n = parseInt(e.employeeId, 10)
+      return isNaN(n) ? acc : Math.max(acc, n)
+    }, 0)
+    return String(max + 1).padStart(4, '0')
+  }
+
+  // Load employees from API — always fetch all (including inactive) so next ID is always correct
   const loadEmployees = async () => {
     try {
       setLoading(true)
-      const data = await ApiClient.getEmployees(showInactive)
+      const data = await ApiClient.getEmployees(true)
       setEmployees(data)
       setError(null)
+      if (!isEditingRef.current) setForm(f => ({ ...f, employeeId: getNextEmployeeId(data) }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load employees')
       console.error('Error loading employees:', err)
@@ -128,24 +144,30 @@ const Employees: React.FC = () => {
   const selectEmployee = (employee: Employee) => {
     setSelectedEmployee(employee.id)
     setForm({
-      search: form.search, // Keep search value
+      search: form.search,
       name: employee.name,
       employeeId: employee.employeeId,
-      pin: employee.pin
+      pin: employee.pin,
+      phone: employee.phoneNumber || '',
+      hireDate: employee.hireDate ? employee.hireDate.split('T')[0] : ''
     })
-    setSelectedRole(employee.role)
+    setSelectedRoles(employee.role.split(',').map(r => r.trim()).filter(Boolean))
+    setEmploymentType(employee.employmentType || '')
     setIsEditing(true)
   }
 
   // Clear form
   const clearForm = () => {
     setForm({
-      search: form.search, // Keep search value
+      search: form.search,
       name: '',
-      employeeId: '',
-      pin: ''
+      employeeId: getNextEmployeeId(employees),
+      pin: '',
+      phone: '',
+      hireDate: ''
     })
-    setSelectedRole('Cashier')
+    setSelectedRoles([])
+    setEmploymentType('')
     setSelectedEmployee(null)
     setIsEditing(false)
   }
@@ -156,22 +178,43 @@ const Employees: React.FC = () => {
       showToast('Please fill in all required fields', 'warning')
       return
     }
+    if (!/^\d+$/.test(form.pin)) {
+      showToast('PIN must contain digits only', 'warning')
+      return
+    }
+    if (form.pin.length < 4) {
+      showToast(`PIN is too short — minimum 4 digits (entered ${form.pin.length})`, 'warning')
+      return
+    }
+    if (form.pin.length > 6) {
+      showToast(`PIN is too long — maximum 6 digits (entered ${form.pin.length})`, 'warning')
+      return
+    }
+    if (selectedRoles.length === 0) {
+      showToast('Please select at least one role', 'warning')
+      return
+    }
 
     try {
       const newEmployee = {
         employeeId: form.employeeId,
         pin: form.pin,
         name: form.name,
-        role: selectedRole,
-        isManager: selectedRole === 'Manager'
+        phoneNumber: form.phone || null,
+        employmentType: employmentType || null,
+        hireDate: form.hireDate || null,
+        role: selectedRoles.join(','),
+        isManager: selectedRoles.includes('Manager')
       }
 
       await ApiClient.postJson('/employees', newEmployee)
 
-      await loadEmployees() // Refresh the list
-      clearForm() // Clear the form
+      await loadEmployees()
+      clearForm()
+      showToast('Employee created successfully', 'success')
     } catch (err) {
-      showToast('Failed to create employee. Please try again.', 'error')
+      const msg = err instanceof Error ? err.message : 'Failed to create employee'
+      showToast(msg, 'error')
       console.error('Error creating employee:', err)
     }
   }
@@ -187,6 +230,10 @@ const Employees: React.FC = () => {
       showToast('Please fill in all required fields', 'warning')
       return
     }
+    if (selectedRoles.length === 0) {
+      showToast('Please select at least one role', 'warning')
+      return
+    }
 
     try {
       const updatedEmployee = {
@@ -194,18 +241,23 @@ const Employees: React.FC = () => {
         employeeId: form.employeeId,
         pin: form.pin,
         name: form.name,
-        role: selectedRole,
-        isManager: selectedRole === 'Manager',
-        createdDate: new Date().toISOString() // Will be ignored by API
+        phoneNumber: form.phone || null,
+        employmentType: employmentType || null,
+        hireDate: form.hireDate || null,
+        role: selectedRoles.join(','),
+        isManager: selectedRoles.includes('Manager'),
+        isActive: selectedEmp?.isActive ?? true,
+        createdDate: selectedEmp?.createdDate ?? new Date().toISOString()
       }
 
       await ApiClient.put(`/employees/${selectedEmployee}`, updatedEmployee)
 
       await loadEmployees() // Refresh the list
       clearForm() // Clear the form
-      console.log('Employee updated successfully')
+      showToast('Employee updated successfully', 'success')
     } catch (err) {
-      showToast('Failed to update employee. Please try again.', 'error')
+      const msg = err instanceof Error ? err.message : 'Failed to update employee'
+      showToast(msg, 'error')
       console.error('Error updating employee:', err)
     }
   }
@@ -225,17 +277,18 @@ const Employees: React.FC = () => {
 
     const action = employee.isActive ? 'deactivate' : 'activate'
     const actionText = employee.isActive ? 'deactivated' : 'activated'
-    
-    if (!confirm(`Are you sure you want to ${action} this employee?`)) {
-      return
-    }
+    setDeactivateModal({ open: true, employeeId: selectedEmployee, action, actionText })
+  }
 
+  const confirmDeactivate = async () => {
+    const { employeeId, action, actionText } = deactivateModal
+    setDeactivateModal(m => ({ ...m, open: false }))
+    if (!employeeId) return
     try {
-      await ApiClient.put(`/employees/${selectedEmployee}/${action}`, null)
-
-      await loadEmployees() // Refresh the list
-      clearForm() // Clear the form
-      console.log(`Employee ${actionText} successfully`)
+      await ApiClient.put(`/employees/${employeeId}/${action}`, null)
+      await loadEmployees()
+      clearForm()
+      showToast(`Employee ${actionText} successfully`, 'success')
     } catch (err) {
       showToast(`Failed to ${action} employee. Please try again.`, 'error')
       console.error(`Error ${action}ing employee:`, err)
@@ -244,40 +297,41 @@ const Employees: React.FC = () => {
 
   // Reset employee PIN
   const resetPin = () => {
-    console.log('resetPin called, selectedEmployee:', selectedEmployee)
     if (!selectedEmployee) {
       showToast('Please select an employee to reset PIN', 'warning')
       return
     }
 
-    console.log('Setting up PIN reset modal')
     setIsResettingPin(true)
     setKbTarget('pin')
-    setKbType('numeric')
+    setKbType('decimal')
     setKbTitle('Enter New PIN (4-6 digits)')
     setKbMasked(true)
     setKbOpen(true)
   }
 
-  // Filter employees based on search
+  // Filter employees based on search and showInactive toggle
   const filteredEmployees = React.useMemo(() => {
-    if (!form.search.trim()) return employees
+    let list = showInactive ? employees : employees.filter(e => e.isActive)
+    if (!form.search.trim()) return list
     const search = form.search.toLowerCase()
-    return employees.filter(emp => 
+    return list.filter(emp =>
       emp.name.toLowerCase().includes(search) ||
       emp.employeeId.toLowerCase().includes(search) ||
       emp.role.toLowerCase().includes(search)
     )
-  }, [employees, form.search])
+  }, [employees, form.search, showInactive])
 
-  // Role meta: icon + colors for badges and list
+  // Role meta: icon + colors for individual role chips
   const roleMeta = (role: string) => {
     switch (role) {
-      case 'Manager':  return { Icon: Shield,       bg: 'bg-amber-100',   text: 'text-amber-700',  border: 'border-amber-200'  }
-      case 'Inventory': return { Icon: Package,     bg: 'bg-blue-100',    text: 'text-blue-700',   border: 'border-blue-200'   }
-      default:          return { Icon: ShoppingCart, bg: 'bg-slate-100',  text: 'text-slate-600',  border: 'border-slate-200'  }
+      case 'Manager':  return { Icon: Shield,       bg: 'bg-amber-100',  text: 'text-amber-700', border: 'border-amber-200'  }
+      case 'Inventory': return { Icon: Package,     bg: 'bg-blue-100',   text: 'text-blue-700',  border: 'border-blue-200'   }
+      default:          return { Icon: ShoppingCart, bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200'  }
     }
   }
+
+  const parseRoles = (roleStr: string) => roleStr.split(',').map(r => r.trim()).filter(Boolean)
 
   const inputCls = 'w-full h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
 
@@ -358,8 +412,6 @@ const Employees: React.FC = () => {
                 ) : (
                   <ul className="divide-y divide-slate-50">
                     {filteredEmployees.map((employee) => {
-                      const meta = roleMeta(employee.role)
-                      const RoleIcon = meta.Icon
                       const isSelected = selectedEmployee === employee.id
                       const initials = employee.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
                       return (
@@ -385,11 +437,19 @@ const Employees: React.FC = () => {
                             </div>
                             <div className="text-xs text-slate-500">ID: {employee.employeeId}</div>
                           </div>
-                          {/* Role badge */}
-                          <span className={`flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${meta.bg} ${meta.text} ${meta.border}`}>
-                            <RoleIcon className="w-2.5 h-2.5" />
-                            {employee.role}
-                          </span>
+                          {/* Role badges (supports multiple) */}
+                          <div className="flex-shrink-0 flex flex-col gap-0.5 items-end">
+                            {parseRoles(employee.role).map(r => {
+                              const m = roleMeta(r)
+                              const RIcon = m.Icon
+                              return (
+                                <span key={r} className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${m.bg} ${m.text} ${m.border}`}>
+                                  <RIcon className="w-2.5 h-2.5" />
+                                  {r}
+                                </span>
+                              )
+                            })}
+                          </div>
                         </li>
                       )
                     })}
@@ -414,9 +474,9 @@ const Employees: React.FC = () => {
                   </div>
                 </div>
 
-                <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Name */}
-                  <div className="col-span-full">
+                  <div>
                     <FieldLabel>Full Name</FieldLabel>
                     <HybridInput
                       className={inputCls}
@@ -424,6 +484,19 @@ const Employees: React.FC = () => {
                       value={form.name}
                       onChange={(value) => setForm(prev => ({ ...prev, name: value }))}
                       onTouchKeyboard={() => openKb('name', 'qwerty', 'Employee Name')}
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <FieldLabel>Phone Number <span className="font-normal text-slate-400">(optional)</span></FieldLabel>
+                    <HybridInput
+                      type="text"
+                      className={inputCls}
+                      placeholder="e.g. 09171234567"
+                      value={form.phone}
+                      onChange={(value) => setForm(prev => ({ ...prev, phone: value }))}
+                      onTouchKeyboard={() => openKb('phone', 'decimal', 'Phone Number')}
                     />
                   </div>
 
@@ -436,7 +509,7 @@ const Employees: React.FC = () => {
                       placeholder="e.g. 0004"
                       value={form.employeeId}
                       onChange={(value) => setForm(prev => ({ ...prev, employeeId: value }))}
-                      onTouchKeyboard={() => openKb('employeeId', 'numeric', 'Employee ID')}
+                      onTouchKeyboard={() => openKb('employeeId', 'decimal', 'Employee ID')}
                     />
                   </div>
 
@@ -449,25 +522,65 @@ const Employees: React.FC = () => {
                       placeholder="••••"
                       value={form.pin ? '••••' : ''}
                       onChange={(value) => setForm(prev => ({ ...prev, pin: value }))}
-                      onTouchKeyboard={() => { setForm(prev => ({ ...prev, pin: '' })); openKb('pin', 'numeric', 'Employee PIN', true) }}
+                      onTouchKeyboard={() => { setForm(prev => ({ ...prev, pin: '' })); openKb('pin', 'decimal', 'Employee PIN', true) }}
                     />
                   </div>
 
                   {/* Role */}
                   <div>
-                    <FieldLabel>Role</FieldLabel>
-                    <div className="relative">
-                      <select
-                        className={`${inputCls} appearance-none pr-8`}
-                        value={selectedRole}
-                        onChange={(e) => setSelectedRole(e.target.value)}
-                      >
-                        <option value="Cashier">Cashier</option>
-                        <option value="Inventory">Inventory</option>
-                        <option value="Manager">Manager</option>
-                      </select>
-                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    <FieldLabel>Role(s)</FieldLabel>
+                    <div className="flex flex-row gap-4 pt-0.5">
+                      {(['Cashier', 'Inventory', 'Manager'] as const).map((role) => {
+                        const checked = selectedRoles.includes(role)
+                        return (
+                          <label key={role} className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setSelectedRoles(prev =>
+                                  checked ? prev.filter(r => r !== role) : [...prev, role]
+                                )
+                              }}
+                              className="w-4 h-4 rounded border-slate-300 text-emerald-600 accent-emerald-600"
+                            />
+                            <span className="text-sm text-slate-700">{role}</span>
+                          </label>
+                        )
+                      })}
                     </div>
+                  </div>
+
+                  {/* Employment Type */}
+                  <div>
+                    <FieldLabel>Employment Type <span className="font-normal text-slate-400">(optional)</span></FieldLabel>
+                    <div className="flex flex-row gap-2 pt-0.5">
+                      {(['Full-time', 'Part-time', 'Contractual'] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setEmploymentType(prev => prev === type ? '' : type)}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                            employmentType === type
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Hire Date */}
+                  <div>
+                    <FieldLabel>Hire Date <span className="font-normal text-slate-400">(optional)</span></FieldLabel>
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={form.hireDate}
+                      onChange={(e) => setForm(prev => ({ ...prev, hireDate: e.target.value }))}
+                    />
                   </div>
 
                   {/* Action buttons */}
@@ -475,15 +588,17 @@ const Employees: React.FC = () => {
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={addEmployee}
+                        disabled={isEditing}
                       >
                         <Plus className="w-3.5 h-3.5" />Add
                       </Button>
                       <Button
                         size="sm"
-                        className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,24%)] text-white text-xs gap-1.5"
+                        className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,24%)] text-white text-xs gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={saveEmployee}
+                        disabled={!isEditing}
                       >
                         <Save className="w-3.5 h-3.5" />Save
                       </Button>
@@ -520,12 +635,45 @@ const Employees: React.FC = () => {
                       </Button>
                     </div>
                   </div>
-                </form>
+                </div>
               </div>
             </div>
 
           </div>
         </main>
+
+        {/* Deactivate/Activate confirmation modal */}
+        {deactivateModal.open && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl shadow-2xl w-80 p-5">
+              <div className="flex items-start gap-3 mb-4">
+                <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${deactivateModal.action === 'deactivate' ? 'bg-red-100' : 'bg-emerald-100'}`}>
+                  {deactivateModal.action === 'deactivate'
+                    ? <UserX className={`w-5 h-5 text-red-600`} />
+                    : <UserCheck className={`w-5 h-5 text-emerald-600`} />}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 capitalize">{deactivateModal.action} Employee</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Are you sure you want to {deactivateModal.action} {employees.find(e => e.id === deactivateModal.employeeId)?.name ?? 'this employee'}?
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => setDeactivateModal(m => ({ ...m, open: false }))}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className={`text-xs text-white ${deactivateModal.action === 'deactivate' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                  onClick={confirmDeactivate}
+                >
+                  {deactivateModal.action === 'deactivate' ? 'Deactivate' : 'Activate'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <ModalKeyboard
           open={kbOpen}
