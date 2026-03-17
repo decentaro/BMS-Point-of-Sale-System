@@ -87,7 +87,7 @@ const Reports: React.FC = () => {
   // Load all summaries
   const loadTodaySummary = async () => {
     try {
-      const data = await ApiClient.getJson('/sales/today')
+      const data = await ApiClient.getJson<SalesSummary>('/sales/today')
       setTodaySummary({
         period: 'Today',
         totalSales: data.totalSales,
@@ -102,7 +102,7 @@ const Reports: React.FC = () => {
 
   const loadWeekSummary = async () => {
     try {
-      const data = await ApiClient.getJson('/sales/this-week')
+      const data = await ApiClient.getJson<SalesSummary>('/sales/this-week')
       setWeekSummary(data)
     } catch (err) {
       console.error('Error loading week summary:', err)
@@ -111,7 +111,7 @@ const Reports: React.FC = () => {
 
   const loadMonthSummary = async () => {
     try {
-      const data = await ApiClient.getJson('/sales/this-month')
+      const data = await ApiClient.getJson<SalesSummary>('/sales/this-month')
       setMonthSummary(data)
     } catch (err) {
       console.error('Error loading month summary:', err)
@@ -120,7 +120,7 @@ const Reports: React.FC = () => {
 
   const loadTopProducts = async () => {
     try {
-      const data = await ApiClient.getJson(`/sales/top-products?days=${topProductsDays}`)
+      const data = await ApiClient.getJson<TopProduct[]>(`/sales/top-products?days=${topProductsDays}`)
       setTopProducts(data)
     } catch (err) {
       console.error('Error loading top products:', err)
@@ -129,7 +129,7 @@ const Reports: React.FC = () => {
 
   const loadPaymentBreakdown = async () => {
     try {
-      const data = await ApiClient.getJson('/sales/payment-breakdown?period=month')
+      const data = await ApiClient.getJson<PaymentBreakdown>('/sales/payment-breakdown?period=month')
       setPaymentBreakdown(data)
     } catch (err) {
       console.error('Error loading payment breakdown:', err)
@@ -138,7 +138,7 @@ const Reports: React.FC = () => {
 
   const loadTaxSummary = async () => {
     try {
-      const data = await ApiClient.getJson('/sales/tax-summary?period=month')
+      const data = await ApiClient.getJson<TaxSummary>('/sales/tax-summary?period=month')
       setTaxSummary(data)
     } catch (err) {
       console.error('Error loading tax summary:', err)
@@ -147,7 +147,7 @@ const Reports: React.FC = () => {
 
   const loadEmployeePerformance = async () => {
     try {
-      const data = await ApiClient.getJson('/sales/employee-performance?period=month')
+      const data = await ApiClient.getJson<EmployeePerformance[]>('/sales/employee-performance?period=month')
       setEmployeePerformance(data)
     } catch (err) {
       console.error('Error loading employee performance:', err)

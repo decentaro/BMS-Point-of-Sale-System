@@ -20,6 +20,6 @@
       "@/*": ["./src/frontend/*"]
     }
   },
-  "include": ["src/frontend"],
+  "include": ["src/frontend", "src/types"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

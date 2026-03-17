@@ -1,4 +1,3 @@
-import React from 'react'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
 
 interface DateDisplayProps {

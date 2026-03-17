@@ -93,12 +93,3 @@ export function updateApiConfig(newConfig: Partial<ApiConfig>): void {
 // For backwards compatibility, provide synchronous default
 export const API_BASE_URL = 'http://localhost:5002/api' // Default fallback
 
-// Type for window.electronAPI
-declare global {
-  interface Window {
-    electronAPI?: {
-      getApiConfig: () => Promise<ApiConfig>
-      setApiConfig: (config: ApiConfig) => Promise<void>
-    }
-  }
-}

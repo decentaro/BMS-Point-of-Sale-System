@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search, Printer, ChevronDown, ChevronLeft, ChevronRight, Clock, Tag,
+  Search, Printer, ChevronLeft, ChevronRight, Clock,
   Receipt, Banknote, CreditCard, RotateCcw, TrendingUp, ShoppingBag, AlertTriangle, X
 } from 'lucide-react'
 import { Button } from './ui/button'
@@ -16,7 +16,7 @@ import { SectionLoader } from './ui/LoadingSpinner'
 import { SystemSettings } from '../types/SystemSettings'
 import ApiClient from '../utils/ApiClient'
 import DateDisplay from './DateDisplay'
-import { formatDateForFile, formatDateSync } from '../utils/dateFormat'
+import { formatDateSync } from '../utils/dateFormat'
 import { generateTextReceipt } from '../utils/receiptFormatter'
 import { formatCurrency } from '../utils/formatCurrency'
 import { useToast } from '../contexts/ToastContext'

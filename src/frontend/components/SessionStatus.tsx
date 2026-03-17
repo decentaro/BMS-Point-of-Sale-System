@@ -12,7 +12,7 @@ const SessionStatus: React.FC<SessionStatusProps> = ({ showLogout = false }) => 
   const navigate = useNavigate()
   const [timeLeft, setTimeLeft] = useState(0)
   const [showWarning, setShowWarning] = useState(false)
-  const [warningShown, setWarningShown] = useState(false)
+  const [, setWarningShown] = useState(false)
   const [session, setSession] = useState(SessionManager.getCurrentSession())
   const [currentTime, setCurrentTime] = useState(new Date())
 

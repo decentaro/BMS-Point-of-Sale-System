@@ -70,7 +70,7 @@ const InventoryManagement: React.FC = () => {
   const [expiringBatches, setExpiringBatches] = useState<ProductBatch[]>([])
   
   // Form States
-  const [selectedProduct, setSelectedProduct] = useState('')
+  const [_selectedProduct, setSelectedProduct] = useState('')
   const [selectedProductObj, setSelectedProductObj] = useState<Product | null>(null)
   const [productSearch, setProductSearch] = useState('')
   const [showProductDropdown, setShowProductDropdown] = useState(false)
@@ -142,7 +142,7 @@ const InventoryManagement: React.FC = () => {
 
   const loadProducts = async () => {
     try {
-      const data = await ApiClient.getJson('/products')
+      const data = await ApiClient.getJson<Product[]>('/products')
       setProducts(data)
     } catch (error) {
       console.error('Failed to load products:', error)
@@ -151,7 +151,7 @@ const InventoryManagement: React.FC = () => {
 
   const loadAdjustments = async () => {
     try {
-      const data = await ApiClient.getJson('/stockadjustments')
+      const data = await ApiClient.getJson<StockAdjustment[]>('/stockadjustments')
       setAdjustments(data.slice(0, 50))
     } catch (error) {
       console.error('Failed to load adjustments:', error)
@@ -160,7 +160,7 @@ const InventoryManagement: React.FC = () => {
 
   const loadPendingAdjustments = async () => {
     try {
-      const data = await ApiClient.getJson('/stockadjustments/pending-approval')
+      const data = await ApiClient.getJson<StockAdjustment[]>('/stockadjustments/pending-approval')
       setPendingAdjustments(data)
     } catch (error) {
       console.error('Failed to load pending adjustments:', error)

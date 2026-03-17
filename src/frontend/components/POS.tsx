@@ -88,13 +88,13 @@ const POS: React.FC = () => {
 
   // Manager approval state
   const [pendingDiscountPercent, setPendingDiscountPercent] = React.useState<number>(0)
-  const [showManagerPinPrompt, setShowManagerPinPrompt] = React.useState<boolean>(false)
+  const [_showManagerPinPrompt, setShowManagerPinPrompt] = React.useState<boolean>(false)
 
   // Load products from API
   const loadProducts = async () => {
     try {
       setLoading(true)
-      const data = await ApiClient.getJson('/products')
+      const data = await ApiClient.getJson<Product[]>('/products')
       setProducts(data.filter((p: Product) => p.isActive))
     } catch (err) {
       showToast('Failed to load products. Please refresh.', 'error')
@@ -107,7 +107,7 @@ const POS: React.FC = () => {
   // Load tax settings from API
   const loadTaxSettings = async () => {
     try {
-      const data = await ApiClient.getJson('/tax-settings')
+      const data = await ApiClient.getJson<any>('/tax-settings')
       setTaxSettings(data)
     } catch (error) {
       // Tax settings might not exist - use defaults
@@ -126,7 +126,7 @@ const POS: React.FC = () => {
   // Load system settings
   const loadSystemSettings = async () => {
     try {
-      const settings = await ApiClient.getJson('/system-settings')
+      const settings = await ApiClient.getJson<SystemSettings>('/system-settings')
       setSystemSettings(settings)
     } catch (err) {
       console.error('Error loading system settings:', err)
@@ -275,7 +275,7 @@ const POS: React.FC = () => {
     if (!barcode.trim()) return
 
     try {
-      const product = await ApiClient.getJson(`/products/barcode/${encodeURIComponent(barcode)}`)
+      const product = await ApiClient.getJson<Product>(`/products/barcode/${encodeURIComponent(barcode)}`)
       addToCart(product)
     } catch (err) {
       console.error('Error searching by barcode:', err)
@@ -387,7 +387,7 @@ const POS: React.FC = () => {
         }))
       }
 
-      const sale = await ApiClient.postJson('/sales', saleData)
+      const sale = await ApiClient.postJson<{ transactionId: string; saleDate: string }>('/sales', saleData)
 
       // Extend session for this business action (completing sale)
       SessionManager.extendForBusinessAction('Sale completed')

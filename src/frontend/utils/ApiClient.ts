@@ -132,7 +132,7 @@ class ApiClient {
     // Make the request with retry logic
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`
     
-    let lastError: ApiError
+    let lastError!: ApiError
     
     for (let attempt = 1; attempt <= retryConfig.maxRetries + 1; attempt++) {
       try {

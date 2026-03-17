@@ -98,7 +98,6 @@ const Returns: React.FC = () => {
   
   // Return processing state
   const [returnItems, setReturnItems] = React.useState<ReturnItem[]>([])
-  const [returnReason, setReturnReason] = React.useState<string>('')
   const [managerPin, setManagerPin] = React.useState<string>('')
   const [showManagerPinModal, setShowManagerPinModal] = React.useState<boolean>(false)
   const [processingReturn, setProcessingReturn] = React.useState<boolean>(false)
@@ -140,6 +139,15 @@ const Returns: React.FC = () => {
     setKbOpen(false)
   }
 
+  const updateReturnQuantity = (saleItemId: number, value: string) => {
+    const quantity = parseInt(value) || 0
+    setReturnItems(prev => prev.map(ri =>
+      ri.saleItemId === saleItemId
+        ? { ...ri, returnQuantity: Math.min(quantity, ri.originalQuantity), lineTotal: Math.min(quantity, ri.originalQuantity) * ri.unitPrice }
+        : ri
+    ))
+  }
+
   // Load system settings
   const loadSystemSettings = async () => {
     try {
@@ -168,7 +176,7 @@ const Returns: React.FC = () => {
     try {
       setSearchLoading(true)
       
-      const allSales = await ApiClient.getJson('/sales')
+      const allSales = await ApiClient.getJson<Sale[]>('/sales')
       
       // Search by full transaction ID or last 8 digits
       const searchTerm = searchTransactionId.trim()
@@ -296,6 +304,11 @@ const Returns: React.FC = () => {
         return
       }
 
+      if (!originalSale) {
+        showToast('No sale selected for return.', 'error')
+        return
+      }
+
       // Prepare return request
       const returnRequest = {
         originalSaleId: originalSale.id,
@@ -312,7 +325,7 @@ const Returns: React.FC = () => {
       }
 
       // Call API to process return
-      const returnRecord = await ApiClient.postJson('/returns', returnRequest)
+      const returnRecord = await ApiClient.postJson<{ returnId: string; totalRefundAmount: number }>('/returns', returnRequest)
 
       showToast(`Return processed successfully. ID: ${returnRecord.returnId} | Refund: ${formatCurrency(returnTotal)}`, 'success')
 
@@ -542,7 +555,7 @@ const Returns: React.FC = () => {
                                     <HybridInput
                                       type="decimal"
                                       className="w-16 px-2 py-1.5 text-sm text-center border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                      value={returnItem.returnQuantity}
+                                      value={returnItem.returnQuantity.toString()}
                                       onChange={(value) => updateReturnQuantity(item.id, value)}
                                       onTouchKeyboard={() => openKb('returnQuantity', 'decimal', `Return Quantity (Max: ${remainingQty})`, item.id)}
                                     />

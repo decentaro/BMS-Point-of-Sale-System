@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useKeyboardSound } from '../utils/useKeyboardSound'
 
 export type KeyboardType = 'numeric' | 'qwerty' | 'decimal'
@@ -44,21 +44,6 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
   const { playKeySound } = useKeyboardSound()
 
   // IMPORTANT: All hooks must come before any conditional returns
-  const qwertyRows = useMemo(
-    () => [
-      ['1','2','3','4','5','6','7','8','9','0'],
-      ['q','w','e','r','t','y','u','i','o','p'],
-      ['a','s','d','f','g','h','j','k','l'],
-      ['z','x','c','v','b','n','m'],
-    ],
-    []
-  )
-
-  const symbolsRow = useMemo(
-    () => [',', '.', '?', '!', ';', ':', "'", '"', '-', '_', '(', ')', '@', '#', '$', '%', '&', '*', '+', '='],
-    []
-  )
-
   useEffect(() => {
     if (open) {
       setValue(initialValue)
@@ -89,10 +74,6 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
   const backspace = () => {
     playKeySound()
     setValue((v) => v.slice(0, -1))
-  }
-  const clear = () => {
-    playKeySound()
-    setValue('')
   }
   const submit = () => onSubmit(value)
   const toggleCapsLock = () => {
@@ -234,7 +215,7 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
                 playKeySound()
                 setCurrentMode('qwerty')
               }}>ABC</KeyButton>
-              <KeyButton className="h-12 flex-1" onClick={() => push(' ')}></KeyButton>
+              <KeyButton className="h-12 flex-1" onClick={() => push(' ')}>{' '}</KeyButton>
               <KeyButton variant="special" className="h-12 w-20 text-sm" onClick={() => {
                 playKeySound()
                 setCurrentMode('qwerty')
@@ -340,7 +321,7 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
                 playKeySound()
                 setCurrentMode('numeric')
               }}>.?123</KeyButton>
-              <KeyButton className="h-12 flex-1" onClick={() => push(' ')}></KeyButton>
+              <KeyButton className="h-12 flex-1" onClick={() => push(' ')}>{' '}</KeyButton>
               <KeyButton variant="special" className="h-12 w-20 text-sm" onClick={() => {
                 playKeySound()
                 setCurrentMode('numeric')

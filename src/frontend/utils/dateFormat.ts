@@ -1,4 +1,3 @@
-import { getApiBaseUrl } from '../config/runtime-api'
 import ApiClient from './ApiClient'
 
 export type DateFormatType = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD'
@@ -113,7 +112,6 @@ export async function formatDateTime(date: Date | string): Promise<string> {
     return 'Invalid Date'
   }
   
-  const format = await dateFormatManager.getDateFormat()
   const datePart = await formatDate(dateObj)
   const timePart = dateObj.toLocaleTimeString('en-US', {
     hour: 'numeric',

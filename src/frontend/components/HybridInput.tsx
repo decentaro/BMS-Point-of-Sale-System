@@ -65,7 +65,7 @@ const HybridInput: React.FC<HybridInputProps> = ({
   }
 
   // Handle click/touch - opens modal keyboard but allows focus
-  const handleClick = (e: React.MouseEvent<HTMLInputElement>) => {
+  const handleClick = (_e: React.MouseEvent<HTMLInputElement>) => {
     // Always open the modal keyboard
     onTouchKeyboard()
   }
@@ -78,14 +78,14 @@ const HybridInput: React.FC<HybridInputProps> = ({
   }
 
   // Handle blur events
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleBlur = (_e: React.FocusEvent<HTMLInputElement>) => {
     if (onBlur) {
       onBlur()
     }
   }
 
   // Ensure input can always be focused for keyboard typing
-  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleFocus = (_e: React.FocusEvent<HTMLInputElement>) => {
     // Input is now focused and ready for keyboard typing
   }
 

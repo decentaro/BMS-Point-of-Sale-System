@@ -52,7 +52,7 @@ export interface ElectronAPI {
   }>
 
   // API configuration
-  getApiConfig: () => Promise<{ baseUrl: string }>
+  getApiConfig: () => Promise<{ baseUrl: string; timeout?: number }>
   setApiConfig: (config: { baseUrl: string }) => Promise<void>
 
   // JWT token management
@@ -62,6 +62,11 @@ export interface ElectronAPI {
   // Utility
   setScale: (scale: number) => boolean
   debug: () => string
+}
+
+// Electron extends the browser File API with a `path` property
+export interface ElectronFile extends File {
+  path: string
 }
 
 declare global {

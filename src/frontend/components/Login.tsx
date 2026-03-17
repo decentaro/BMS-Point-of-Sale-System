@@ -86,7 +86,7 @@ const Login: React.FC = () => {
 
       let result
       if (window.electronAPI?.validateLogin) {
-        result = await window.electronAPI.validateLogin(employeeId, pin, null)
+        result = await window.electronAPI.validateLogin(employeeId, pin, undefined)
       } else {
         result = await ApiClient.postJson('/auth/login', { employeeId, pin }, false)
       }

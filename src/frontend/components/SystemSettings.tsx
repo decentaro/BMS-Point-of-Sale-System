@@ -126,7 +126,7 @@ const SystemSettings: React.FC = () => {
 
     try {
       setSaving(true)
-      const updatedSettings = await ApiClient.postJson('/system-settings', settings)
+      const updatedSettings = await ApiClient.postJson<SystemSettings>('/system-settings', settings)
       setSettings(updatedSettings)
       
       // Refresh session timeout immediately if auto logout setting changed
@@ -285,8 +285,8 @@ const SystemSettings: React.FC = () => {
                       <HybridInput
                         type="decimal"
                         className={inputCls}
-                        value={settings.autoLogoutMinutes}
-                        onChange={(value) => setSettings({ ...settings, autoLogoutMinutes: value })}
+                        value={settings.autoLogoutMinutes.toString()}
+                        onChange={(value) => setSettings({ ...settings, autoLogoutMinutes: parseInt(value) || 0 })}
                         onTouchKeyboard={() => openKb('autoLogoutMinutes', 'decimal', 'Auto Logout Minutes')}
                       />
                       <p className="text-xs text-slate-500">Minimum 5 minutes for system stability</p>
@@ -428,8 +428,8 @@ const SystemSettings: React.FC = () => {
                         <HybridInput
                           type="decimal"
                           className={inputCls}
-                          value={settings.receiptCopies}
-                          onChange={(value) => setSettings({ ...settings, receiptCopies: value })}
+                          value={settings.receiptCopies.toString()}
+                          onChange={(value) => setSettings({ ...settings, receiptCopies: parseInt(value) || 0 })}
                           onTouchKeyboard={() => openKb('receiptCopies', 'decimal', 'Number of Receipt Copies')}
                         />
                       </div>
@@ -589,8 +589,8 @@ const SystemSettings: React.FC = () => {
                             <HybridInput
                               type="decimal"
                               className={inputCls}
-                              value={settings.returnTimeLimitDays}
-                              onChange={(value) => setSettings({ ...settings, returnTimeLimitDays: value })}
+                              value={settings.returnTimeLimitDays.toString()}
+                              onChange={(value) => setSettings({ ...settings, returnTimeLimitDays: parseInt(value) || 0 })}
                               onTouchKeyboard={() => openKb('returnTimeLimitDays', 'decimal', 'Return Time Limit (Days)')}
                             />
                             <p className="text-xs text-slate-500 mt-1">Days customer has to return items</p>
@@ -600,8 +600,8 @@ const SystemSettings: React.FC = () => {
                             <HybridInput
                               type="decimal"
                               className={inputCls}
-                              value={settings.returnManagerApprovalAmount}
-                              onChange={(value) => setSettings({ ...settings, returnManagerApprovalAmount: value })}
+                              value={settings.returnManagerApprovalAmount.toString()}
+                              onChange={(value) => setSettings({ ...settings, returnManagerApprovalAmount: parseInt(value) || 0 })}
                               onTouchKeyboard={() => openKb('returnManagerApprovalAmount', 'decimal', 'Manager Approval Amount')}
                             />
                             <p className="text-xs text-slate-500 mt-1">Returns above this require manager PIN</p>

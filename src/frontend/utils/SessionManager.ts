@@ -1,5 +1,4 @@
 
-import { API_BASE_URL } from '../config/api'
 import ApiClient from './ApiClient'
 
 interface UserSession {
@@ -24,9 +23,7 @@ class SessionManager {
   private static jwtToken: string | null = null
 
   private static activityTimer: NodeJS.Timeout | null = null
-  private static lastActivityTime: number = Date.now()
   private static cachedTimeout: number | null = null
-  private static warningShown: boolean = false
 
   /**
    * Store the JWT token received from the backend after login
@@ -94,7 +91,6 @@ class SessionManager {
       // Reset timer from now (user just changed timeout settings)
       session.lastActivity = now
       session.expiresAt = now + newTimeout
-      this.lastActivityTime = now
       sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session))
 
       // Restart monitoring with new interval
@@ -132,8 +128,6 @@ class SessionManager {
     // Store session and update activity time
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session))
     sessionStorage.setItem(this.SESSION_TOKEN_KEY, sessionToken)
-    this.lastActivityTime = now
-    this.warningShown = false // Reset warning flag for new session
 
     // Start fresh activity monitoring
     this.startActivityMonitoring()
@@ -184,9 +178,7 @@ class SessionManager {
     const timeout = await this.getSessionTimeout()
     session.lastActivity = now
     session.expiresAt = now + timeout
-    this.lastActivityTime = now
-    this.warningShown = false // Reset warning when session is extended
-    
+
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session))
     return true
   }
@@ -195,7 +187,7 @@ class SessionManager {
    * Extend session for business actions (completing sales, saving data, etc.)
    * Use this for important business operations that should extend the session
    */
-  static async extendForBusinessAction(action: string): Promise<boolean> {
+  static async extendForBusinessAction(_action: string): Promise<boolean> {
     const session = this.getCurrentSession()
     if (!session) return false
 
@@ -203,8 +195,6 @@ class SessionManager {
     const timeout = await this.getSessionTimeout()
     session.lastActivity = now
     session.expiresAt = now + timeout
-    this.lastActivityTime = now
-    this.warningShown = false // Reset warning when session is extended
 
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(session))
     return true
@@ -318,9 +308,8 @@ class SessionManager {
    * Get warning threshold - simplified for 5+ minute minimum
    */
   static async getWarningThreshold(): Promise<number> {
-    const totalTimeout = await this.getSessionTimeout()
-    const totalMinutes = totalTimeout / (60 * 1000)
-    
+    await this.getSessionTimeout()
+
     // Since minimum is 5 minutes, use consistent 5-minute warning
     return 5 * 60 * 1000 // Always warn 5 minutes before expiry
   }
@@ -351,9 +340,7 @@ class SessionManager {
       
       // Check for inactivity
       const now = Date.now()
-      const timeSinceActivity = now - this.lastActivityTime
       const sessionTimeLeft = session.expiresAt - now
-      const warningThreshold = await this.getWarningThreshold()
       
       // SessionStatus component handles warnings - don't show here
       // if (sessionTimeLeft <= warningThreshold && !this.warningShown) {
@@ -384,19 +371,11 @@ class SessionManager {
    * Update last activity time (for API calls)
    */
   static async updateActivity(): Promise<void> {
-    this.lastActivityTime = Date.now()
     // Note: Sessions now only extend when user explicitly chooses via warning popup
   }
 
   // Removed automatic activity tracking for fixed-duration sessions
   // Sessions now only extend when user explicitly chooses via warning popup
-
-  private static async showExpiryWarning(): Promise<void> {
-    const timeLeft = this.getTimeUntilExpiry()
-    if (timeLeft > 0) {
-      window.dispatchEvent(new CustomEvent('bms:session-expiry-warning', { detail: { timeLeft } }))
-    }
-  }
 
   private static handleSessionExpiry(): void {
     this.clearSession()

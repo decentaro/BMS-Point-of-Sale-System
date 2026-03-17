@@ -8,7 +8,8 @@ import SessionManager from '../utils/SessionManager'
 import HardwareStatus from './HardwareStatus'
 import HybridInput from './HybridInput'
 import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
-import { AdminSettings, ApiResponse, BackupCapabilities, LocalBackupInfo } from '../types/AdminSettings'
+import { AdminSettings, ApiResponse, BackupCapabilities } from '../types/AdminSettings'
+import { ElectronFile } from '../../types/electron'
 import ApiClient from '../utils/ApiClient'
 import { useToast } from '../contexts/ToastContext'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
@@ -368,13 +369,13 @@ const AdminPanel: React.FC = () => {
       const formData = new FormData()
       
       // Handle both regular File objects and our mock file objects with paths
-      if (restoreFile.path) {
+      if ((restoreFile as ElectronFile).path) {
         // This is a file selected through Electron dialog
         // We need to read the file and create a proper File object
         if (window.electronAPI?.readFile) {
           try {
-            const fileBuffer = await window.electronAPI.readFile(restoreFile.path)
-            const blob = new Blob([fileBuffer])
+            const fileBuffer = await window.electronAPI.readFile((restoreFile as ElectronFile).path)
+            const blob = new Blob([new Uint8Array(fileBuffer as unknown as ArrayBuffer)])
             const file = new File([blob], restoreFile.name, { type: 'application/octet-stream' })
             formData.append('backupFile', file)
           } catch (err) {
@@ -1051,7 +1052,7 @@ const AdminPanel: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => openKb('clearManagerPin', 'numpad', 'Manager PIN')}
+                      onClick={() => openKb('clearManagerPin', 'numeric', 'Manager PIN')}
                       className="flex-shrink-0"
                     >
                       <Lock className="w-3.5 h-3.5" />

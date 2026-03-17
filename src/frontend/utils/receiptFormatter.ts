@@ -34,11 +34,6 @@ export const generateTextReceipt = (saleData: any, settings: SystemSettings) => 
     return centeredText + '\n'
   }
   
-  // Remove ESC/POS commands - just use manual centering for everything
-  const escposCenterText = (text: string) => {
-    return centerText(text)
-  }
-  
   // Helper function for two-column layout - SMART WRAPPING like preview template
   const twoColumn = (left: string, right: string) => {
     const rightStr = right.toString()
@@ -89,8 +84,6 @@ export const generateTextReceipt = (saleData: any, settings: SystemSettings) => 
   const currentTime = saleData.saleDate ?
     formatTime(saleData.saleDate) :
     formatTime(new Date())
-
-  let receipt = ''
 
   // Switch based on receipt template layout (matching SharedReceiptRenderer)
   switch (settings.receiptTemplateLayout) {
@@ -194,7 +187,7 @@ const generateCompactTextReceipt = (saleData: any, settings: SystemSettings, pap
 }
 
 // Standard Template - EXACTLY matches SharedReceiptRenderer standard line by line
-const generateStandardTextReceipt = (saleData: any, settings: SystemSettings, paperWidth: number, centerText: Function, twoColumn: Function, currentDate: string, currentTime: string, divider: string, dashedLine: string) => {
+const generateStandardTextReceipt = (saleData: any, settings: SystemSettings, paperWidth: number, centerText: Function, twoColumn: Function, currentDate: string, currentTime: string, _divider: string, dashedLine: string) => {
   let receipt = ''
   
   // Line 169-178: Business Logo - Raw placeholder for main.js to replace
