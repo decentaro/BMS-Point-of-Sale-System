@@ -727,7 +727,7 @@ const Inventory: React.FC = () => {
                 </Button>
                 <Button size="sm" onClick={handleSave} disabled={!isEditing || selectedProduct === null}
                   className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,24%)] text-white gap-1 text-xs">
-                  <Save className="w-3.5 h-3.5" />{isEditing ? 'Save Changes' : 'Save'}
+                  <Save className="w-3.5 h-3.5" />Save
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleDelete} disabled={selectedProduct === null}
                   className="border-red-300 text-red-600 hover:bg-red-50 gap-1 text-xs">
