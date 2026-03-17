@@ -331,6 +331,19 @@ ipcMain.handle('show-open-dialog', async (event, options) => {
 
 ipcMain.handle('read-file', async (event, filePath) => {
     try {
+        // Only allow backup file types — prevents reading arbitrary system files
+        const ALLOWED_EXTENSIONS = ['.backup', '.sql', '.gz', '.dump', '.bak'];
+        const ext = path.extname(filePath).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.includes(ext)) {
+            throw new Error('File type not permitted. Only backup files (.backup, .sql, .gz, .dump, .bak) can be read.');
+        }
+
+        // Ensure the path resolves to a regular file (not a symlink to /etc/shadow, a device node, etc.)
+        const stat = await fs.promises.stat(filePath);
+        if (!stat.isFile()) {
+            throw new Error('Path is not a regular file.');
+        }
+
         const data = await fs.promises.readFile(filePath);
         return data;
     } catch (error) {
