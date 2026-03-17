@@ -15,9 +15,28 @@ import UserActivity from './components/UserActivity'
 import InventoryManagement from './components/InventoryManagement'
 import InventoryDashboard from './components/InventoryDashboard'
 import AdminPanel from './components/AdminPanel'
+import SessionGuard from './components/SessionGuard'
 import { SettingsProvider } from './contexts/SettingsContext'
 import { ToastProvider } from './contexts/ToastContext'
 import ToastContainer from './components/ui/ToastContainer'
+
+// Router-level auth guard — catches any route that loses its component-level SessionGuard.
+// Components still carry their own guards for role enforcement; this is a safety net.
+function ProtectedRoute({
+  element,
+  requiredRole,
+  requiredPermission,
+}: {
+  element: React.ReactElement
+  requiredRole?: string
+  requiredPermission?: string
+}) {
+  return (
+    <SessionGuard requiredRole={requiredRole} requiredPermission={requiredPermission}>
+      {element}
+    </SessionGuard>
+  )
+}
 
 // Design canvas dimensions — all components are authored at this size.
 const DESIGN_W = 1024
@@ -77,20 +96,20 @@ function App() {
               <Routes>
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/inventory" element={<Inventory />} />
-                <Route path="/pos" element={<POS />} />
-                <Route path="/manager" element={<Manager />} />
-                <Route path="/employees" element={<Employees />} />
-                <Route path="/tax-settings" element={<TaxSettings />} />
-                <Route path="/system-settings" element={<SystemSettings />} />
-                <Route path="/sales-history" element={<SalesHistory />} />
-                <Route path="/returns" element={<Returns />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/user-activity" element={<UserActivity />} />
-                <Route path="/inventory-management" element={<InventoryManagement />} />
-                <Route path="/inventory-dashboard" element={<InventoryDashboard />} />
-                <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
+                <Route path="/inventory" element={<ProtectedRoute element={<Inventory />} requiredPermission="inventory.view" />} />
+                <Route path="/pos" element={<ProtectedRoute element={<POS />} />} />
+                <Route path="/manager" element={<ProtectedRoute element={<Manager />} requiredRole="Manager" />} />
+                <Route path="/employees" element={<ProtectedRoute element={<Employees />} requiredRole="Manager" />} />
+                <Route path="/tax-settings" element={<ProtectedRoute element={<TaxSettings />} requiredRole="Manager" />} />
+                <Route path="/system-settings" element={<ProtectedRoute element={<SystemSettings />} requiredRole="Manager" />} />
+                <Route path="/sales-history" element={<ProtectedRoute element={<SalesHistory />} />} />
+                <Route path="/returns" element={<ProtectedRoute element={<Returns />} />} />
+                <Route path="/reports" element={<ProtectedRoute element={<Reports />} requiredRole="Manager" />} />
+                <Route path="/user-activity" element={<ProtectedRoute element={<UserActivity />} requiredRole="Manager" />} />
+                <Route path="/inventory-management" element={<ProtectedRoute element={<InventoryManagement />} requiredRole="Manager" />} />
+                <Route path="/inventory-dashboard" element={<ProtectedRoute element={<InventoryDashboard />} requiredRole="Inventory" />} />
+                <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} requiredPermission="admin.view" />} />
               </Routes>
             </div>
           </div>
