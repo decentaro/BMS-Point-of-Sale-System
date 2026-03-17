@@ -1,5 +1,5 @@
 import React from 'react'
-import { useFormattedDate } from '../hooks/useDateFormat'
+import { formatDateSync, formatTime } from '../utils/dateFormat'
 
 interface DateDisplayProps {
   date: Date | string | null
@@ -9,28 +9,19 @@ interface DateDisplayProps {
 }
 
 /**
- * Component that displays dates formatted according to user's system settings
- * 
- * Usage:
- * <DateDisplay date={sale.saleDate} />
- * <DateDisplay date={product.createdDate} includeTime />
- * <DateDisplay date={null} fallback="No date" />
+ * Component that displays dates formatted according to user's system settings.
+ * Uses synchronous formatters so dates render immediately with no loading flash.
  */
 export function DateDisplay({ date, includeTime = false, className = '', fallback = '—' }: DateDisplayProps) {
-  const { formattedDate, formattedDateTime, isLoading } = useFormattedDate(date)
-  
   if (!date) {
     return <span className={className}>{fallback}</span>
   }
-  
-  if (isLoading) {
-    return <span className={className}>Loading...</span>
-  }
-  
-  const displayText = includeTime ? formattedDateTime : formattedDate
-  
+
+  const datePart = formatDateSync(date)
+  const displayText = includeTime ? `${datePart}, ${formatTime(date)}` : datePart
+
   return (
-    <span className={className} title={includeTime ? formattedDateTime : undefined}>
+    <span className={className}>
       {displayText}
     </span>
   )

@@ -13,6 +13,7 @@ class DateFormatManager {
   private cachedFormat: DateFormatType | null = null
   private lastFetchTime = 0
   private readonly CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+  private inflightFetch: Promise<DateFormatType> | null = null
 
   private constructor() {}
 
@@ -35,23 +36,30 @@ class DateFormatManager {
 
   async getDateFormat(): Promise<DateFormatType> {
     const now = Date.now()
-    
+
     // Return cached format if still valid
     if (this.cachedFormat && (now - this.lastFetchTime) < this.CACHE_DURATION) {
       return this.cachedFormat
     }
-    
-    // Fetch fresh format
-    this.cachedFormat = await this.fetchDateFormat()
-    this.lastFetchTime = now
-    
-    return this.cachedFormat
+
+    // Deduplicate concurrent fetches — all callers share the same in-flight request
+    if (!this.inflightFetch) {
+      this.inflightFetch = this.fetchDateFormat().then(format => {
+        this.cachedFormat = format
+        this.lastFetchTime = Date.now()
+        this.inflightFetch = null
+        return format
+      })
+    }
+
+    return this.inflightFetch
   }
 
   // Clear cache when settings are updated
   clearCache(): void {
     this.cachedFormat = null
     this.lastFetchTime = 0
+    this.inflightFetch = null
   }
 }
 
