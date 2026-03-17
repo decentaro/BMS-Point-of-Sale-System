@@ -14,7 +14,7 @@ const CashierInventoryDashboard: React.FC = () => {
   const { businessSettings, loading } = useBusinessSettings()
 
   return (
-    <SessionGuard requiredRole="Cashier">
+    <SessionGuard requiredRoles={['Cashier', 'Inventory']}>
       <div className="w-full h-full flex flex-col bg-slate-50">
         <header className="h-14 px-4 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0">
           <Button

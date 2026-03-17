@@ -201,6 +201,12 @@ const electronAPI = {
     getApiConfig: () => ipcRenderer.invoke('get-api-config'),
     setApiConfig: (config) => ipcRenderer.invoke('set-api-config', config),
     
+    // Setup wizard
+    checkSetup: () => ipcRenderer.invoke('check-setup'),
+    saveEnv: (credentials) => ipcRenderer.invoke('save-env', credentials),
+    testDbConnection: (host, port, user, password, database) => ipcRenderer.invoke('test-db-connection', { host, port, user, password, database }),
+    relaunchApp: () => ipcRenderer.invoke('relaunch-app'),
+
     // Store JWT token for authenticated requests
     setAuthToken: (token) => { authToken = token; },
 

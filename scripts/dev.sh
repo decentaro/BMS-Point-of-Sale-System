@@ -46,22 +46,26 @@ fuser -k 3001/tcp 2>/dev/null || true
 echo "Waiting for processes to terminate..."
 sleep 3
 
-# Start Backend API in background
-echo "Starting .NET Backend API..."
-cd BMS_POS_API
+# Only start the backend if DB credentials are present.
+# If they're missing the setup wizard will collect them; after wizard
+# completes the user restarts dev.sh to bring the API up with the new .env.
+if [ -n "$BMS_DB_PASSWORD" ] && [ "$BMS_DB_PASSWORD" != "your_secure_password" ]; then
+    echo "Starting .NET Backend API..."
+    cd BMS_POS_API
+    dotnet run --urls="http://localhost:5002" &
+    BACKEND_PID=$!
+    cd ..
 
-echo "Building..."
-dotnet run --urls="http://localhost:5002" &
-BACKEND_PID=$!
-cd ..
-
-# Wait for backend to start and be ready
-echo "Waiting for backend to be ready..."
-while ! curl -s http://127.0.0.1:5002/api/tax-settings > /dev/null; do
-    sleep 1
-    echo -n "."
-done
-echo " Backend is ready!"
+    echo "Waiting for backend to be ready..."
+    while ! curl -s http://127.0.0.1:5002/api/tax-settings > /dev/null; do
+        sleep 1
+        echo -n "."
+    done
+    echo " Backend is ready!"
+else
+    echo "No DB credentials found — skipping API startup. Setup wizard will run in the app."
+    BACKEND_PID=""
+fi
 
 # Start Vite dev server in background
 echo "Starting Vite Dev Server..."

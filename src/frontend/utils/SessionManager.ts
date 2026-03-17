@@ -234,7 +234,7 @@ class SessionManager {
     if (hasCashier && hasInventory) return '/cashier-inventory'
     if (hasCashier)   return '/cashier-dashboard'
     if (hasInventory) return '/inventory-dashboard'
-    return '/manager'
+    return '/login'
   }
 
   /**

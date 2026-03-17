@@ -55,6 +55,18 @@ export interface ElectronAPI {
   getApiConfig: () => Promise<{ baseUrl: string; timeout?: number }>
   setApiConfig: (config: { baseUrl: string }) => Promise<void>
 
+  // Setup wizard
+  checkSetup: () => Promise<{ configured: boolean; reason?: string }>
+  saveEnv: (credentials: {
+    dbUser: string
+    dbPassword: string
+    dbHost: string
+    dbPort?: string
+    dbName?: string
+  }) => Promise<{ success: boolean; error?: string }>
+  testDbConnection: (host: string, port?: string, user?: string, password?: string, database?: string) => Promise<{ reachable: boolean; error?: string }>
+  relaunchApp: () => Promise<void>
+
   // JWT token management
   setAuthToken: (token: string) => void
   clearAuthToken: () => void

@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import SetupWizard from './components/SetupWizard'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import Inventory from './components/Inventory'
@@ -27,14 +28,16 @@ import ToastContainer from './components/ui/ToastContainer'
 function ProtectedRoute({
   element,
   requiredRole,
+  requiredRoles,
   requiredPermission,
 }: {
   element: React.ReactElement
   requiredRole?: string
+  requiredRoles?: string[]
   requiredPermission?: string
 }) {
   return (
-    <SessionGuard requiredRole={requiredRole} requiredPermission={requiredPermission}>
+    <SessionGuard requiredRole={requiredRole} requiredRoles={requiredRoles} requiredPermission={requiredPermission}>
       {element}
     </SessionGuard>
   )
@@ -45,6 +48,23 @@ const DESIGN_W = 1024
 const DESIGN_H = 640
 
 function App() {
+  const [setupChecked, setSetupChecked] = useState(false)
+  const [needsSetup, setNeedsSetup] = useState(false)
+
+  // Check if Supabase credentials are configured before showing the app.
+  // Only runs in Electron (window.electronAPI exists); in a plain browser it
+  // skips setup and goes straight to the normal app.
+  useEffect(() => {
+    const check = async () => {
+      if (window.electronAPI?.checkSetup) {
+        const result = await window.electronAPI.checkSetup()
+        setNeedsSetup(!result.configured)
+      }
+      setSetupChecked(true)
+    }
+    check()
+  }, [])
+
   useEffect(() => {
     const applyCursor = () => {
       const show = localStorage.getItem('bms-show-cursor') !== 'false'
@@ -81,6 +101,18 @@ function App() {
     return () => window.removeEventListener('resize', updateScale)
   }, [])
 
+  // Don't render anything until the setup check completes (avoids flash)
+  if (!setupChecked) return null
+
+  // Show setup wizard if credentials are not configured
+  if (needsSetup) return (
+    <div className="app-viewport">
+      <div className="app-root">
+        <SetupWizard />
+      </div>
+    </div>
+  )
+
   return (
     <SettingsProvider>
       <ToastProvider>
@@ -112,7 +144,7 @@ function App() {
                 <Route path="/inventory-management" element={<ProtectedRoute element={<InventoryManagement />} requiredPermission="inventory.adjust" />} />
                 <Route path="/inventory-dashboard" element={<ProtectedRoute element={<InventoryDashboard />} requiredRole="Inventory" />} />
                 <Route path="/cashier-dashboard" element={<ProtectedRoute element={<CashierDashboard />} requiredRole="Cashier" />} />
-                <Route path="/cashier-inventory" element={<ProtectedRoute element={<CashierInventoryDashboard />} requiredRole="Cashier" />} />
+                <Route path="/cashier-inventory" element={<ProtectedRoute element={<CashierInventoryDashboard />} requiredRoles={['Cashier', 'Inventory']} />} />
                 <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} requiredPermission="admin.view" />} />
               </Routes>
             </div>

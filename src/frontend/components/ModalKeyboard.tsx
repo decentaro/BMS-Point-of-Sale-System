@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useKeyboardSound } from '../utils/useKeyboardSound'
 
 export type KeyboardType = 'numeric' | 'qwerty' | 'decimal'
@@ -41,14 +41,17 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
   const [capsLock, setCapsLock] = useState(false)
   const [symbolMode, setSymbolMode] = useState(false)
   const backdropRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const cursorRef = useRef<number>(initialValue.length)
   const { playKeySound } = useKeyboardSound()
 
   // IMPORTANT: All hooks must come before any conditional returns
   useEffect(() => {
     if (open) {
       setValue(initialValue)
-      setCurrentMode(type) // Reset to original type when opening
-      setCapsLock(false) // Reset caps lock when opening
+      cursorRef.current = initialValue.length
+      setCurrentMode(type)
+      setCapsLock(false)
     }
   }, [open, initialValue, type])
 
@@ -61,19 +64,34 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // After each value update, restore cursor position in the input
+  useLayoutEffect(() => {
+    if (!open || !inputRef.current || masked) return
+    const pos = cursorRef.current
+    inputRef.current.setSelectionRange(pos, pos)
+  }, [open, value, masked])
+
   // Now safe to return early - all hooks called
   if (!open) return null
 
+  const syncCursor = () => {
+    if (inputRef.current) cursorRef.current = inputRef.current.selectionStart ?? value.length
+  }
+
   const push = (ch: string) => {
     playKeySound()
-    // Only apply caps lock to letters, not numbers or symbols
     const isLetter = /^[a-zA-Z]$/.test(ch)
     const finalChar = isLetter && capsLock ? ch.toUpperCase() : ch
-    setValue((v) => (v + finalChar))
+    const pos = cursorRef.current
+    setValue(v => v.slice(0, pos) + finalChar + v.slice(pos))
+    cursorRef.current = pos + finalChar.length
   }
   const backspace = () => {
     playKeySound()
-    setValue((v) => v.slice(0, -1))
+    const pos = cursorRef.current
+    if (pos === 0) return
+    setValue(v => v.slice(0, pos - 1) + v.slice(pos))
+    cursorRef.current = pos - 1
   }
   const submit = () => onSubmit(value)
   const toggleCapsLock = () => {
@@ -92,7 +110,16 @@ export const ModalKeyboard: React.FC<ModalKeyboardProps> = ({ open, type, title,
           <button type="button" className="w-6 h-6 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm flex items-center justify-center" onClick={onClose}>×</button>
         </div>
         <div className="mb-4 px-2">
-          <input className="w-full h-12 px-4 text-lg bg-white border-0 rounded-xl shadow-inner text-center" value={masked ? '•'.repeat(value.length) : value} readOnly />
+          <input
+            ref={inputRef}
+            className="w-full h-12 px-4 text-lg bg-white border-0 rounded-xl shadow-inner text-center"
+            value={masked ? '•'.repeat(value.length) : value}
+            readOnly={masked}
+            onChange={e => { if (!masked) { const pos = e.target.selectionStart ?? e.target.value.length; setValue(e.target.value); cursorRef.current = pos } }}
+            onClick={e => { cursorRef.current = (e.target as HTMLInputElement).selectionStart ?? value.length }}
+            onKeyUp={e => { cursorRef.current = (e.target as HTMLInputElement).selectionStart ?? value.length }}
+            onFocus={e => { cursorRef.current = (e.target as HTMLInputElement).selectionStart ?? value.length }}
+          />
         </div>
         {currentMode === 'decimal' ? (
           <div className="px-3 space-y-3">

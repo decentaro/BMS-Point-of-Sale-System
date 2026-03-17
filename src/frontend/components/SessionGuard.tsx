@@ -6,12 +6,14 @@ interface SessionGuardProps {
   children: React.ReactNode
   requiredPermission?: string
   requiredRole?: string
+  requiredRoles?: string[]   // ALL listed roles must be present (AND logic)
 }
 
-const SessionGuard: React.FC<SessionGuardProps> = ({ 
-  children, 
-  requiredPermission, 
-  requiredRole 
+const SessionGuard: React.FC<SessionGuardProps> = ({
+  children,
+  requiredPermission,
+  requiredRole,
+  requiredRoles,
 }) => {
   const navigate = useNavigate()
   const [isChecking, setIsChecking] = useState(true)
@@ -33,8 +35,14 @@ const SessionGuard: React.FC<SessionGuardProps> = ({
           return
         }
 
-        // Check role requirement (supports multi-role — any matching role satisfies the guard)
+        // Single role check (any matching role satisfies the guard)
         if (requiredRole && !SessionManager.hasRole(requiredRole)) {
+          navigate(SessionManager.getDashboardRoute())
+          return
+        }
+
+        // Multi-role AND check (ALL listed roles must be present)
+        if (requiredRoles && !requiredRoles.every(r => SessionManager.hasRole(r))) {
           navigate(SessionManager.getDashboardRoute())
           return
         }
@@ -55,7 +63,7 @@ const SessionGuard: React.FC<SessionGuardProps> = ({
     }
 
     checkSession()
-  }, [navigate, requiredPermission, requiredRole])
+  }, [navigate, requiredPermission, requiredRole, requiredRoles])
 
   if (isChecking) {
     return (
