@@ -839,7 +839,7 @@ const POS: React.FC = () => {
       {/* ── Payment Modal ── */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowPaymentModal(false)} />
+          <div className="absolute inset-0 bg-black/50" />
           <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
 
             {/* Modal header — navy */}
