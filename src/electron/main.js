@@ -370,140 +370,67 @@ app.whenReady().then(async () => {
 
 // Hardware status checking handlers
 ipcMain.handle('check-barcode-scanner', async () => {
-    // Check if barcode scanner is active by detecting USB HID devices
     try {
-        const { execSync } = require('child_process');
-        const devices = execSync('lsusb 2>/dev/null || echo "no-devices"', { encoding: 'utf8' });
-        
-        // Look for common barcode scanner identifiers
-        const hasBarcodeScanner = devices.toLowerCase().includes('scanner') || 
-                                 devices.toLowerCase().includes('honeywell') ||
-                                 devices.toLowerCase().includes('symbol') ||
-                                 devices.toLowerCase().includes('datalogic') ||
-                                 devices.toLowerCase().includes('hid');
+        if (process.platform === 'linux') {
+            const { execFileSync } = require('child_process');
+            const output = execFileSync('lsusb', [], {
+                encoding: 'utf8', timeout: 3000,
+                stdio: ['pipe', 'pipe', 'ignore']
+            });
+            for (const line of output.split('\n')) {
+                if (!line.trim()) continue;
+                const lower = line.toLowerCase();
+                const vidMatch = line.match(/ID ([0-9a-f]{4}):/i);
+                if (vidMatch && SCANNER_VENDOR_IDS.has(vidMatch[1].toLowerCase())) {
+                    return { active: true, lastScan: new Date().toLocaleTimeString(), description: `Scanner: ${line.trim()}` };
+                }
+                if (SCANNER_NAME_KEYWORDS.some(kw => lower.includes(kw))) {
+                    return { active: true, lastScan: new Date().toLocaleTimeString(), description: `Scanner: ${line.trim()}` };
+                }
+            }
+            return { active: false, lastScan: null, description: 'No barcode scanner detected' };
+        }
 
-        return {
-            active: hasBarcodeScanner,
-            lastScan: hasBarcodeScanner ? new Date().toLocaleTimeString() : null,
-            description: hasBarcodeScanner ? 'USB HID Scanner detected' : 'No scanner detected'
-        };
+        if (process.platform === 'win32') {
+            const { execFileSync } = require('child_process');
+            const out = execFileSync('powershell', [
+                '-NoProfile', '-NonInteractive', '-Command',
+                `Get-WmiObject Win32_PnPEntity | Where-Object {$_.DeviceID -like 'USB*'} | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress`
+            ], { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+            const devices = [].concat(out ? JSON.parse(out) : []);
+            for (const name of devices) {
+                if (SCANNER_NAME_KEYWORDS.some(kw => (name || '').toLowerCase().includes(kw))) {
+                    return { active: true, lastScan: new Date().toLocaleTimeString(), description: `Scanner: ${name}` };
+                }
+            }
+            return { active: false, lastScan: null, description: 'No barcode scanner detected' };
+        }
+
+        return { active: false, lastScan: null, description: 'Scanner detection not supported on this platform' };
     } catch (error) {
-        // Don't assume working - return actual status
-        return {
-            active: false,
-            lastScan: null,
-            description: 'Scanner detection failed - check USB connection'
-        };
+        return { active: false, lastScan: null, description: 'Scanner detection failed - check USB connection' };
     }
 });
 
 ipcMain.handle('check-printer', async () => {
-    // Check for thermal printer connection - STRICT detection only
     try {
-        const fs = require('fs');
-        const { execSync } = require('child_process');
-
-        // Check system printers using lpstat
-        let availablePrinter = null;
-        let printerStatus = 'disconnected';
-
-        try {
-            // Get list of all printers
-            const printers = execSync('lpstat -p 2>/dev/null || echo "no-printers"', { encoding: 'utf8' });
-
-            // Check if there are any non-disabled printers
-            if (!printers.includes('no-printers') && printers.includes('printer')) {
-                // Try to find an active printer
-                const printerLines = printers.split('\n').filter(line => line.includes('printer'));
-                for (const line of printerLines) {
-                    if (!line.includes('disabled')) {
-                        const match = line.match(/printer (.+?) (is|idle)/);
-                        if (match) {
-                            availablePrinter = sanitizePrinterName(match[1].trim());
-                            printerStatus = availablePrinter ? 'found' : 'disconnected';
-                            if (availablePrinter) break;
-                        }
-                    }
-                }
-            }
-        } catch (lpstatError) {
-            // lpstat failed, no printer system
+        const printer = findPrinterDevice();
+        if (!printer) {
+            return {
+                connected: false,
+                model: null,
+                port: null,
+                description: 'No thermal printer detected — check USB connection and printer power'
+            };
         }
-
-        // STRICT TEST: Only mark as connected if we can actually communicate with the printer
-        let actuallyConnected = false;
-        let communicationDetails = '';
-
-        if (availablePrinter && printerStatus === 'found') {
-            try {
-                // Try to get printer status - this requires actual communication
-                const statusCheck = execSync(`lpstat -p "${availablePrinter}" 2>/dev/null`, {
-                    encoding: 'utf8',
-                    timeout: 3000
-                });
-
-                // Verify the printer is idle/ready (not disabled or in error)
-                if (statusCheck.includes('idle') || statusCheck.includes('printing')) {
-                    // Critical check: verify the USB device is actually connected
-                    // Get the printer's device URI
-                    try {
-                        const deviceUri = execSync(`lpstat -v 2>/dev/null | grep "${availablePrinter}"`, {
-                            encoding: 'utf8',
-                            timeout: 2000
-                        });
-
-                        // If it's a USB printer, verify USB device exists
-                        if (deviceUri.includes('usb://')) {
-                            const usbDevices = execSync('lsusb 2>/dev/null || echo "no-usb"', { encoding: 'utf8' });
-
-                            // Check for actual printer/POS/thermal USB devices
-                            const hasUSBPrinter = usbDevices.toLowerCase().includes('printer') ||
-                                                usbDevices.toLowerCase().includes('pos-80') ||
-                                                usbDevices.toLowerCase().includes('thermal') ||
-                                                usbDevices.toLowerCase().includes('escpos');
-
-                            if (!hasUSBPrinter) {
-                                actuallyConnected = false;
-                                communicationDetails = `Printer "${availablePrinter}" configured but USB device not connected`;
-                            } else {
-                                actuallyConnected = true;
-                                communicationDetails = `Printer "${availablePrinter}" connected and ready`;
-                            }
-                        } else {
-                            // Non-USB printer (network, etc.) - assume connected if lpstat says idle
-                            actuallyConnected = true;
-                            communicationDetails = `Printer "${availablePrinter}" is responding`;
-                        }
-                    } catch (deviceCheckError) {
-                        actuallyConnected = false;
-                        communicationDetails = 'Could not verify printer connection';
-                    }
-                } else {
-                    communicationDetails = 'Printer found but not ready (may be disabled or in error state)';
-                }
-            } catch (testError) {
-                // Communication failed
-                communicationDetails = `Printer "${availablePrinter}" found but not responding`;
-            }
-        }
-
-        const result = {
-            connected: actuallyConnected,
-            model: actuallyConnected ? availablePrinter : null,
-            port: actuallyConnected ? 'System Printer' : null,
-            description: actuallyConnected
-                ? `Thermal printer ready (${availablePrinter})`
-                : (availablePrinter ? communicationDetails : 'No thermal printer detected - check USB connection and printer power')
-        };
-
-        console.log('🖨️ Printer check result:', result);
-        return result;
-    } catch (error) {
         return {
-            connected: false,
-            model: null,
-            description: 'Printer detection failed - no printer system available'
+            connected: true,
+            model: printer.name,
+            port: printer.device,
+            description: `Thermal printer ready (${printer.name})`
         };
+    } catch (error) {
+        return { connected: false, model: null, description: 'Printer detection failed' };
     }
 });
 
@@ -531,117 +458,31 @@ ipcMain.handle('check-database', async () => {
 });
 
 ipcMain.handle('open-cash-drawer', async () => {
-    // Open cash drawer command (requires thermal printer)
     try {
-        const fs = require('fs');
-        const { execSync } = require('child_process');
-        
-        // Get available printers and find the best one for cash drawer
-        let availablePrinter = null;
-        try {
-            const printers = execSync('lpstat -p 2>/dev/null || echo "no-printers"', { encoding: 'utf8' });
-            if (printers.includes('no-printers') || printers.includes('No destinations added')) {
-                return { success: false, message: 'No printers found - cash drawer requires printer connection' };
-            }
-            
-            // Try to get default printer first
-            try {
-                const defaultPrinter = execSync('lpstat -d 2>/dev/null', { encoding: 'utf8' });
-                const match = defaultPrinter.match(/system default destination: (.+)/);
-                if (match) {
-                    availablePrinter = sanitizePrinterName(match[1].trim());
-                }
-            } catch {}
-            
-            // If no default, find first available printer
-            if (!availablePrinter) {
-                const printerLines = printers.split('\n').filter(line => line.includes('printer'));
-                for (const line of printerLines) {
-                    const match = line.match(/printer (.+?) is/);
-                    if (match && !line.includes('disabled')) {
-                        availablePrinter = match[1];
-                        break;
-                    }
-                }
-            }
-            
-            if (!availablePrinter) {
-                return { success: false, message: 'No active printers found for cash drawer' };
-            }
-        } catch (error) {
-            return { success: false, message: 'Error checking printer status: ' + error.message };
+        const printer = findPrinterDevice();
+        if (!printer) {
+            return { success: false, message: 'No printer found — cash drawer requires a connected printer' };
         }
-        
-        // Multiple ESC/POS cash drawer kick commands for different printer models
+
+        // ESC/POS cash drawer kick commands — try multiple for cross-model compatibility
         const drawerCommands = [
-            Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]), // Standard ESC/POS
+            Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]), // Standard ESC p 0
             Buffer.from([0x1B, 0x70, 0x00, 0x32, 0x32]), // Alternative timing
             Buffer.from([0x1B, 0x70, 0x01, 0x19, 0x19]), // Drawer 2
         ];
-        
-        // Try using lp command first (more reliable) - specify POS-80 printer
-        try {
-            for (const command of drawerCommands) {
-                try {
-                    // Create a temporary file with the drawer command
-                    const tempFile = require('os').tmpdir() + '/drawer_cmd_' + Date.now();
-                    fs.writeFileSync(tempFile, command);
-                    
-                    // Send the command file to the available printer
-                    execSync(`lp -d "${availablePrinter}" -o raw "${tempFile}"`, { timeout: 5000 });
-                    
-                    // Clean up temp file
-                    setTimeout(() => {
-                        try { fs.unlinkSync(tempFile); } catch {}
-                    }, 1000);
-                    
-                    return { success: true, message: `Cash drawer opened via ${availablePrinter} printer` };
-                } catch (lpError) {
-                    console.log('LP command failed:', lpError.message);
-                    continue; // Try next command
-                }
-            }
-        } catch (lpCommandError) {
-            console.log('LP command error:', lpCommandError.message);
-            // lp command failed, try direct device paths
-        }
-        
-        // Fallback: try common printer device paths
-        const printerPaths = ['/dev/usb/lp0', '/dev/usb/lp1', '/dev/lp0', '/dev/lp1', '/dev/ttyUSB0', '/dev/ttyACM0'];
-        
+
         for (const command of drawerCommands) {
-            for (const path of printerPaths) {
-                if (fs.existsSync(path)) {
-                    try {
-                        // Check if device is writable
-                        fs.accessSync(path, fs.constants.W_OK);
-                        fs.writeFileSync(path, command);
-                        return { success: true, message: `Cash drawer opened via ${path}` };
-                    } catch (writeError) {
-                        continue; // Try next path/command
-                    }
-                }
-            }
+            try {
+                sendRawToPrinter(printer, command);
+                return { success: true, message: `Cash drawer opened via ${printer.name}` };
+            } catch { continue; }
         }
-        
-        return { success: false, message: 'Could not communicate with printer to open cash drawer. Check printer connection and permissions.' };
+
+        return { success: false, message: 'Could not communicate with printer to open cash drawer' };
     } catch (error) {
         return { success: false, message: 'Failed to open cash drawer: ' + error.message };
     }
 });
-
-/**
- * Sanitize a printer name extracted from lpstat output before it is
- * interpolated into any shell command string.
- * Allows only alphanumeric characters, hyphens, underscores, and dots —
- * the characters CUPS uses in printer queue names.
- * Returns null if the name is empty after sanitization.
- */
-function sanitizePrinterName(name) {
-    if (!name) return null;
-    const sanitized = name.replace(/[^a-zA-Z0-9\-_.]/g, '');
-    return sanitized.length > 0 ? sanitized : null;
-}
 
 /**
  * Strip ESC/POS control characters from user-supplied text to prevent
@@ -657,137 +498,171 @@ function sanitizeForPrinter(text) {
     }).join('');
 }
 
+// Known USB Vendor IDs for barcode scanner manufacturers
+const SCANNER_VENDOR_IDS = new Set([
+    '05e0',  // Symbol Technologies / Zebra
+    '0a5f',  // Zebra Technologies
+    '0c2e',  // Metrologic / Honeywell
+    '0536',  // Hand Held Products / Honeywell
+    '05f9',  // PSC / Datalogic
+    '1eab',  // Newland AIDC
+    '0b4b',  // Code Corporation
+    '067e',  // Intermec Technologies
+    '1d5f',  // Unitec
+]);
+
+const SCANNER_NAME_KEYWORDS = [
+    'barcode', 'scanner', 'symbol', 'zebra', 'honeywell', 'metrologic',
+    'datalogic', 'newland', 'cognex', 'opticon', 'hand held', 'cipherlab',
+    'intermec', 'code corp', 'microscan', 'socket mobile', 'unitec', 'tera'
+];
+
+/**
+ * Find the first available thermal printer device.
+ * Linux/RPi: checks /dev/usb/lp* and /dev/lp* directly — zero config, no CUPS needed.
+ *            Plug in the printer and it's immediately found.
+ * Windows:   queries installed printers via PowerShell, preferring known thermal/POS models.
+ * Returns { device, name, platform } or null if nothing found.
+ */
+function findPrinterDevice() {
+    if (process.platform === 'linux') {
+        const candidates = [
+            '/dev/usb/lp0', '/dev/usb/lp1', '/dev/usb/lp2',
+            '/dev/lp0', '/dev/lp1',
+            '/dev/ttyUSB0', '/dev/ttyACM0'
+        ];
+        for (const devPath of candidates) {
+            try {
+                fs.accessSync(devPath, fs.constants.W_OK);
+                return { device: devPath, name: devPath, platform: 'linux' };
+            } catch {}
+        }
+        return null;
+    }
+
+    if (process.platform === 'win32') {
+        try {
+            const { execFileSync } = require('child_process');
+            const out = execFileSync('powershell', [
+                '-NoProfile', '-NonInteractive', '-Command',
+                `Get-Printer | Where-Object {$_.PrinterStatus -eq "Normal"} | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress`
+            ], { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+            if (!out) return null;
+            const printers = [].concat(JSON.parse(out));
+            if (!printers.length) return null;
+            const thermalRe = /thermal|pos|receipt|epson.*tm|star.*tsp|bixolon|citizen|tsp\d|tm-|srp-\d|sdp-\d/i;
+            const name = printers.find(n => thermalRe.test(n)) || printers[0];
+            return { device: name, name, platform: 'win32' };
+        } catch { return null; }
+    }
+
+    return null;
+}
+
+/**
+ * Send raw ESC/POS bytes to a printer.
+ * Linux/RPi: writes directly to the device file — no CUPS, no spooler, no queue.
+ * Windows:   uses PowerShell + Win32 spooler RAW datatype (bypasses GDI rendering).
+ */
+function sendRawToPrinter(printerInfo, data) {
+    const buf = Buffer.isBuffer(data) ? data : Buffer.from(data, 'binary');
+
+    if (printerInfo.platform === 'linux') {
+        fs.writeFileSync(printerInfo.device, buf);
+        return;
+    }
+
+    if (printerInfo.platform === 'win32') {
+        const tempFile = path.join(require('os').tmpdir(), `bms_print_${require('crypto').randomUUID()}.bin`);
+        try {
+            fs.writeFileSync(tempFile, buf);
+            // Win32 spooler raw print via PowerShell — RAW datatype bypasses all Windows rendering
+            const psScript = `
+$pn='${printerInfo.device.replace(/'/g, "''")}'; $fp='${tempFile.replace(/\\/g, '\\\\').replace(/'/g, "''")}'
+Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices;
+public class RawPrint {
+  [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Ansi)]
+  public class DOC { [MarshalAs(UnmanagedType.LPStr)] public string pDocName; [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile; [MarshalAs(UnmanagedType.LPStr)] public string pDataType; }
+  [DllImport("winspool.drv",CharSet=CharSet.Auto,SetLastError=true)] public static extern bool OpenPrinter(string n,out IntPtr h,IntPtr d);
+  [DllImport("winspool.drv",CharSet=CharSet.Auto,SetLastError=true)] public static extern bool ClosePrinter(IntPtr h);
+  [DllImport("winspool.drv",CharSet=CharSet.Auto,SetLastError=true)] public static extern int StartDocPrinter(IntPtr h,int l,[In,MarshalAs(UnmanagedType.LPStruct)] DOC d);
+  [DllImport("winspool.drv",CharSet=CharSet.Auto,SetLastError=true)] public static extern bool EndDocPrinter(IntPtr h);
+  [DllImport("winspool.drv",CharSet=CharSet.Auto,SetLastError=true)] public static extern bool StartPagePrinter(IntPtr h);
+  [DllImport("winspool.drv",CharSet=CharSet.Auto,SetLastError=true)] public static extern bool EndPagePrinter(IntPtr h);
+  [DllImport("winspool.drv",CharSet=CharSet.Auto,SetLastError=true)] public static extern bool WritePrinter(IntPtr h,IntPtr p,int c,out int w);
+}
+'@
+$b=[System.IO.File]::ReadAllBytes($fp); $hP=[IntPtr]::Zero
+[RawPrint]::OpenPrinter($pn,[ref]$hP,[IntPtr]::Zero)|Out-Null
+$d=New-Object RawPrint+DOC; $d.pDocName='BMS Receipt'; $d.pDataType='RAW'
+[RawPrint]::StartDocPrinter($hP,1,$d)|Out-Null; [RawPrint]::StartPagePrinter($hP)|Out-Null
+$ptr=[Runtime.InteropServices.Marshal]::AllocHGlobal($b.Length)
+[Runtime.InteropServices.Marshal]::Copy($b,0,$ptr,$b.Length); $w=0
+[RawPrint]::WritePrinter($hP,$ptr,$b.Length,[ref]$w)|Out-Null
+[Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
+[RawPrint]::EndPagePrinter($hP)|Out-Null; [RawPrint]::EndDocPrinter($hP)|Out-Null; [RawPrint]::ClosePrinter($hP)|Out-Null
+`;
+            require('child_process').execFileSync(
+                'powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript],
+                { timeout: 15000 }
+            );
+        } finally {
+            try { fs.unlinkSync(tempFile); } catch {}
+        }
+    }
+}
+
 // Receipt printing handler
 ipcMain.handle('print-receipt', async (event, receiptContent, logoPath = null) => {
     try {
-        const fs = require('fs');
-        const { execSync } = require('child_process');
+        const printer = findPrinterDevice();
+        if (!printer) {
+            return { success: false, message: 'No printer found for receipt printing' };
+        }
 
         // Note: receiptContent is generated by our own receiptFormatter and already
-        // contains intentional ESC/POS commands (barcode, alignment, etc.).
-        // We do NOT sanitize it here — only externally-sourced text (businessName)
-        // is sanitized below before being embedded in the stream.
-        
-        // Get available printer for receipt printing
-        let availablePrinter = null;
-        try {
-            const printers = execSync('lpstat -p 2>/dev/null || echo "no-printers"', { encoding: 'utf8' });
-            if (printers.includes('no-printers') || printers.includes('No destinations added')) {
-                return { success: false, message: 'No printers found for receipt printing' };
-            }
-            
-            // Try to get default printer first
-            try {
-                const defaultPrinter = execSync('lpstat -d 2>/dev/null', { encoding: 'utf8' });
-                const match = defaultPrinter.match(/system default destination: (.+)/);
-                if (match) {
-                    availablePrinter = sanitizePrinterName(match[1].trim());
-                }
-            } catch {}
-            
-            // If no default, find first available printer
-            if (!availablePrinter) {
-                const printerLines = printers.split('\n').filter(line => line.includes('printer'));
-                for (const line of printerLines) {
-                    const match = line.match(/printer (.+?) is/);
-                    if (match && !line.includes('disabled')) {
-                        availablePrinter = match[1];
-                        break;
-                    }
-                }
-            }
-            
-            if (!availablePrinter) {
-                return { success: false, message: 'No active printers found for receipt printing' };
-            }
-        } catch (error) {
-            return { success: false, message: 'Error checking printer status: ' + error.message };
-        }
-        
-        // Create a temporary text file for thermal printer
-        const tempFile = require('path').join(require('os').tmpdir(), `receipt-${Date.now()}.txt`);
-        
-        // Add thermal printer commands for proper paper feed and cutting
-        let thermalReceiptContent = receiptContent;
-        
+        // contains intentional ESC/POS commands. Only externally-sourced text
+        // (businessName) is sanitized before being embedded in the stream.
+
         // Fetch business name from tax settings
-        let businessName = 'Business Name'; // Fallback
+        let businessName = 'Business Name';
         try {
-            // Use built-in fetch (Node.js 18+) or node-fetch
             const fetch = globalThis.fetch || require('node-fetch');
             const response = await fetch(`${apiConfigManager.getConfig().baseUrl}/tax-settings`);
             if (response.ok) {
                 const taxSettings = await response.json();
                 businessName = sanitizeForPrinter(taxSettings.businessName || 'Business Name');
-                console.log('🔥 Using dynamic business name:', businessName);
             }
         } catch (error) {
-            console.log('Could not fetch business name from tax settings:', error.message);
+            console.log('Could not fetch business name:', error.message);
         }
-        
-        // Use dynamic business name from tax settings
-        const businessNameLogo = '\x1B\x61\x01' + // Center alignment
-                               '\x1B\x45\x01' + // Bold on
-                               businessName + '\n' + // Dynamic business name from tax settings
-                               '\x1B\x45\x00' + // Bold off
-                               '\x1B\x61\x00';  // Reset alignment
-        
-        thermalReceiptContent = thermalReceiptContent.replace(
-            /\[LOGO PLACEHOLDER\]/g,
-            businessNameLogo
-        );
-        
-        // Add comprehensive ESC/POS initialization for thermal printers
-        let initCommands = '';
-        initCommands += '\x1B\x40';      // ESC @ - Initialize printer
-        initCommands += '\x1B\x74\x00';  // ESC t 0 - Select character code table (CP437)
-        initCommands += '\x1B\x52\x00';  // ESC R 0 - Select international character set (USA)
-        initCommands += '\x1B\x61\x00';  // ESC a 0 - Set left alignment (default)
-        initCommands += '\x1B\x21\x00';  // ESC ! 0 - Reset print modes
-        
+
+        const businessNameLogo = '\x1B\x61\x01' +   // Center alignment
+                                 '\x1B\x45\x01' +   // Bold on
+                                 businessName + '\n' +
+                                 '\x1B\x45\x00' +   // Bold off
+                                 '\x1B\x61\x00';    // Reset alignment
+
+        let thermalReceiptContent = receiptContent.replace(/\[LOGO PLACEHOLDER\]/g, businessNameLogo);
+
+        // ESC/POS initialization sequence
+        const initCommands = '\x1B\x40'      // ESC @ - Initialize printer
+                           + '\x1B\x74\x00'  // ESC t 0 - CP437 character table
+                           + '\x1B\x52\x00'  // ESC R 0 - USA charset
+                           + '\x1B\x61\x00'  // ESC a 0 - Left align
+                           + '\x1B\x21\x00'; // ESC ! 0 - Reset print modes
+
         thermalReceiptContent = initCommands + thermalReceiptContent;
-        
-        // Add paper feed commands at the end
-        thermalReceiptContent += '\n\n\n\n';  // Extra line feeds
-        thermalReceiptContent += '\x1B\x64\x05';  // ESC d 5 - Feed 5 lines
-        thermalReceiptContent += '\x1D\x56\x41\x03';  // GS V A 3 - Partial cut (if supported)
-        
-        // Debug: Show final receipt content with escape sequences visible
-        console.log('🔥 FINAL RECEIPT CONTENT LENGTH:', thermalReceiptContent.length);
-        console.log('🔥 RECEIPT CONTENT (first 200 chars):');
-        console.log(thermalReceiptContent.substring(0, 200).split('').map(c => 
-            c.charCodeAt(0) < 32 ? `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}` : c
-        ).join(''));
-        console.log('🔥 END RECEIPT PREVIEW');
-        
-        // Write thermal receipt content
-        fs.writeFileSync(tempFile, thermalReceiptContent, 'utf8');
-        
-        try {
-            // Try printing to the available thermal printer
-            execSync(`lp -d "${availablePrinter}" -o raw "${tempFile}"`, { timeout: 10000 });
-            
-            // Clean up temp file
-            setTimeout(() => {
-                try { fs.unlinkSync(tempFile); } catch {}
-            }, 2000);
-            
-            return { success: true, message: `Receipt printed successfully to ${availablePrinter}` };
-        } catch (printError) {
-            // Fallback: try without raw mode (for non-thermal printers)
-            try {
-                execSync(`lp -d "${availablePrinter}" -o media=Custom.80x200mm "${tempFile}"`, { timeout: 10000 });
-                
-                setTimeout(() => {
-                    try { fs.unlinkSync(tempFile); } catch {}
-                }, 2000);
-                
-                return { success: true, message: `Receipt printed successfully to ${availablePrinter}` };
-            } catch (fallbackError) {
-                return { success: false, message: `Printing failed: ${printError.message}` };
-            }
-        }
-        
+
+        // Paper feed and partial cut
+        thermalReceiptContent += '\n\n\n\n';
+        thermalReceiptContent += '\x1B\x64\x05';       // ESC d 5 - Feed 5 lines
+        thermalReceiptContent += '\x1D\x56\x41\x03';   // GS V A 3 - Partial cut
+
+        sendRawToPrinter(printer, Buffer.from(thermalReceiptContent, 'binary'));
+        return { success: true, message: `Receipt printed to ${printer.name}` };
+
     } catch (error) {
         return { success: false, message: `Print error: ${error.message}` };
     }
