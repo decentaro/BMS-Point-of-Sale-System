@@ -18,7 +18,7 @@ import {
   AlertTriangle, RefreshCw, Download, CheckCircle2, XCircle,
   Shield, Lock, Activity, FileText, Database, ArchiveRestore,
   Save, Wifi, FolderOpen, ExternalLink, Trash2, Settings2,
-  ChevronRight, Info, Clock, HardDrive
+  ChevronRight, Info, Clock, HardDrive, X
 } from 'lucide-react'
 
 
@@ -63,6 +63,32 @@ const AdminPanel: React.FC = () => {
   const [clearConfirmPhrase, setClearConfirmPhrase] = React.useState<string>('')
   const [clearManagerPin, setClearManagerPin] = React.useState<string>('')
   const [clearLoading, setClearLoading] = React.useState<boolean>(false)
+
+  // Generic confirm modal state (used for backup/restore/update/db change confirmations)
+  const pendingConfirmAction = React.useRef<() => void>(() => {})
+  const [confirmModal, setConfirmModal] = React.useState<{
+    open: boolean
+    title: string
+    body: React.ReactNode
+    confirmLabel: string
+    variant: 'warning' | 'danger'
+  }>({ open: false, title: '', body: null, confirmLabel: 'Confirm', variant: 'warning' })
+
+  const openConfirmModal = (
+    title: string,
+    body: React.ReactNode,
+    confirmLabel: string,
+    variant: 'warning' | 'danger',
+    action: () => void
+  ) => {
+    pendingConfirmAction.current = action
+    setConfirmModal({ open: true, title, body, confirmLabel, variant })
+  }
+
+  const handleConfirmAction = () => {
+    setConfirmModal(m => ({ ...m, open: false }))
+    pendingConfirmAction.current()
+  }
 
   const openKb = (target: FormKeys, type: KeyboardType, title: string) => {
     setKbTarget(target)
@@ -158,8 +184,13 @@ const AdminPanel: React.FC = () => {
     }
   }
 
-  const installUpdate = async () => {
-    if (window.confirm('This will restart the application to install the update. Continue?')) {
+  const installUpdate = () => {
+    openConfirmModal(
+      'Install Update',
+      'This will restart the application to install the update.',
+      'Restart & Install',
+      'warning',
+      async () => {
       try {
         // TODO: Trigger actual update installation
         showToast('Update will be installed and application will restart', 'info')
@@ -167,7 +198,7 @@ const AdminPanel: React.FC = () => {
       } catch (err) {
         showToast('Failed to install update', 'error')
       }
-    }
+    })
   }
 
   const openLogFolder = async () => {
@@ -272,44 +303,56 @@ const AdminPanel: React.FC = () => {
     }
   }
 
-  const handleCreateBackup = async () => {
-    if (!window.confirm('Create a manual backup of your database? This may take a few minutes.')) {
-      return
-    }
-    
-    setBackupLoading(true)
-    try {
-      const result: ApiResponse<any> = await ApiClient.postJson('/AdminSettings/backup/create', {})
-      
-      if (result.success) {
-        await loadAdminSettings()
-        await loadBackupCapabilities()
-        showToast('Backup created. ID: ' + result.data.backupId + ' | Size: ' + result.data.sizeFormatted, 'success')
-      } else {
-        showToast('Backup failed: ' + result.message, 'error')
+  const handleCreateBackup = () => {
+    openConfirmModal(
+      'Create Backup',
+      'Create a manual backup of your database? This may take a few minutes.',
+      'Create Backup',
+      'warning',
+      async () => {
+        setBackupLoading(true)
+        try {
+          const result: ApiResponse<any> = await ApiClient.postJson('/AdminSettings/backup/create', {})
+          if (result.success) {
+            await loadAdminSettings()
+            await loadBackupCapabilities()
+            showToast('Backup created. ID: ' + result.data.backupId + ' | Size: ' + result.data.sizeFormatted, 'success')
+          } else {
+            showToast('Backup failed: ' + result.message, 'error')
+          }
+        } catch (error) {
+          console.error('Error creating database backup:', error)
+          showToast('Backup creation failed. Check your connection.', 'error')
+        } finally {
+          setBackupLoading(false)
+        }
       }
-    } catch (error) {
-      console.error('Error creating database backup:', error)
-      showToast('Backup creation failed. Check your connection.', 'error')
-    } finally {
-      setBackupLoading(false)
-    }
+    )
   }
 
-  const handleRestoreBackup = async () => {
+  const handleRestoreBackup = () => {
     if (!restoreFile) {
       showToast('Please select a backup file to restore', 'warning')
       return
     }
 
     const fileSize = restoreFile.size ? (restoreFile.size / 1024 / 1024).toFixed(1) : 'Unknown'
-    const confirmMessage = `Restore database from backup?\n\nFile: ${restoreFile.name}\nSize: ${fileSize} MB\n\nWARNING: This will overwrite your current database!\n\nContinue?`
-    
-    if (!window.confirm(confirmMessage)) {
-      return
-    }
-    
-    setBackupLoading(true)
+    const fileName = restoreFile.name
+
+    openConfirmModal(
+      'Restore Database',
+      <div className="space-y-3">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs space-y-1 text-red-800">
+          <p className="font-semibold text-red-700 uppercase tracking-wide text-[10px]">Warning — this will overwrite your current database</p>
+          <p><span className="font-medium">File:</span> {fileName}</p>
+          <p><span className="font-medium">Size:</span> {fileSize} MB</p>
+        </div>
+        <p className="text-sm text-slate-600">Make sure you have a recent backup before proceeding. This operation cannot be undone.</p>
+      </div>,
+      'Restore Database',
+      'danger',
+      async () => {
+        setBackupLoading(true)
     try {
       const formData = new FormData()
       
@@ -364,24 +407,28 @@ const AdminPanel: React.FC = () => {
     } finally {
       setBackupLoading(false)
     }
+      }
+    )
   }
 
-  const handleChangeDatabase = async () => {
-    const confirmed = window.confirm(
-      'Change database connection?\n\n' +
-      'WARNING: This will disconnect from your current database.\n' +
-      'Make sure you have a backup before proceeding.\n\n' +
-      'Continue?'
-    )
-    
-    if (confirmed) {
-      try {
-        // TODO: Open database configuration modal/wizard
-        showToast('Database connection change not available in this build', 'info')
-      } catch (err) {
-        showToast('Failed to change database connection', 'error')
+  const handleChangeDatabase = () => {
+    openConfirmModal(
+      'Change Database Connection',
+      <div className="space-y-2">
+        <p className="text-sm text-slate-700 font-medium">This will disconnect from your current database.</p>
+        <p className="text-sm text-slate-600">Make sure you have a recent backup before proceeding.</p>
+      </div>,
+      'Continue',
+      'warning',
+      () => {
+        try {
+          // TODO: Open database configuration modal/wizard
+          showToast('Database connection change not available in this build', 'info')
+        } catch (err) {
+          showToast('Failed to change database connection', 'error')
+        }
       }
-    }
+    )
   }
 
   const handleClearDatabase = () => {
@@ -1014,6 +1061,56 @@ const AdminPanel: React.FC = () => {
                     )}
                   </Button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Generic Confirm Modal */}
+        {confirmModal.open && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    confirmModal.variant === 'danger' ? 'bg-red-100' : 'bg-amber-100'
+                  }`}>
+                    <AlertTriangle className={`w-5 h-5 ${
+                      confirmModal.variant === 'danger' ? 'text-red-600' : 'text-amber-600'
+                    }`} />
+                  </div>
+                  <h2 className="text-base font-semibold text-slate-800">{confirmModal.title}</h2>
+                </div>
+                <button
+                  onClick={() => setConfirmModal(m => ({ ...m, open: false }))}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-6 py-4">
+                {typeof confirmModal.body === 'string'
+                  ? <p className="text-sm text-slate-600">{confirmModal.body}</p>
+                  : confirmModal.body}
+              </div>
+              <div className="flex gap-3 px-6 pb-5">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-slate-300 text-slate-600"
+                  onClick={() => setConfirmModal(m => ({ ...m, open: false }))}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className={`flex-1 text-white ${
+                    confirmModal.variant === 'danger'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-amber-500 hover:bg-amber-600'
+                  }`}
+                  onClick={handleConfirmAction}
+                >
+                  {confirmModal.confirmLabel}
+                </Button>
               </div>
             </div>
           </div>

@@ -81,6 +81,7 @@ const Inventory: React.FC = () => {
   const [upcImageUrl, setUpcImageUrl] = React.useState<string | null>(null)
   const [isSearching, setIsSearching] = React.useState<boolean>(false)
   const [viewingProduct, setViewingProduct] = React.useState<Product | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = React.useState<boolean>(false)
   
   // Barcode scanner detection
   const [scanBuffer, setScanBuffer] = React.useState<string>('')
@@ -360,19 +361,24 @@ const Inventory: React.FC = () => {
     }
   }
 
-  const handleDelete = async () => {
-    if (selectedProduct !== null && window.confirm('Are you sure you want to delete this product?')) {
-      try {
-        await ApiClient.delete(`/products/${selectedProduct}`)
-        
-        await loadProducts() // Reload products
-        clearForm()
-        setSelectedProduct(null)
-        setIsEditing(false)
-        } catch (err) {
-        showToast('Failed to delete product: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
-        console.error('Error deleting product:', err)
-      }
+  const handleDelete = () => {
+    if (selectedProduct !== null) {
+      setShowDeleteModal(true)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    setShowDeleteModal(false)
+    if (selectedProduct === null) return
+    try {
+      await ApiClient.delete(`/products/${selectedProduct}`)
+      await loadProducts()
+      clearForm()
+      setSelectedProduct(null)
+      setIsEditing(false)
+    } catch (err) {
+      showToast('Failed to delete product: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
+      console.error('Error deleting product:', err)
     }
   }
 
@@ -824,6 +830,49 @@ const Inventory: React.FC = () => {
                     Close
                   </Button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Product Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-800">Delete Product</h2>
+                    <p className="text-xs text-slate-500">This action cannot be undone</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-6 py-4">
+                <p className="text-sm text-slate-600">Are you sure you want to delete this product? It will be marked as inactive and hidden from the POS.</p>
+              </div>
+              <div className="flex gap-3 px-6 pb-5">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-slate-300 text-slate-600"
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                  onClick={handleConfirmDelete}
+                >
+                  <Trash2 className="w-4 h-4 mr-1.5" />Delete Product
+                </Button>
               </div>
             </div>
           </div>

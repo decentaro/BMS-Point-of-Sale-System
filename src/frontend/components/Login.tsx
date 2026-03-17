@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Delete } from 'lucide-react'
 import { useBusinessSettings } from '../contexts/SettingsContext'
 import SessionManager from '../utils/SessionManager'
@@ -12,6 +12,7 @@ type CurrentField = 'employeeId' | 'pin'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { businessSettings, loading } = useBusinessSettings()
   const { playKeySound } = useKeyboardSound()
   const { showToast } = useToast()
@@ -41,6 +42,13 @@ const Login: React.FC = () => {
       setStatusMessage('Enter your PIN')
     }
   }, [currentField])
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('reason') === 'expired') {
+      showToast('Your session has expired. Please log in again.', 'warning')
+    }
+  }, [])
 
   const backspace = () => {
     playKeySound()

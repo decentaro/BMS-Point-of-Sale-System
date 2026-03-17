@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search, Printer, ChevronDown, ChevronLeft, ChevronRight, Clock, Tag,
-  Receipt, Banknote, CreditCard, RotateCcw, TrendingUp, ShoppingBag
+  Receipt, Banknote, CreditCard, RotateCcw, TrendingUp, ShoppingBag, AlertTriangle, X
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -90,6 +90,10 @@ const SalesHistory: React.FC = () => {
   // Receipt preview state
   const [showReceiptPreview, setShowReceiptPreview] = React.useState<boolean>(false)
   const [selectedSale, setSelectedSale] = React.useState<Sale | null>(null)
+
+  // Reprint warning modal state
+  const [showReprintWarning, setShowReprintWarning] = React.useState<boolean>(false)
+  const [reprintWarningSale, setReprintWarningSale] = React.useState<Sale | null>(null)
   const [systemSettings, setSystemSettings] = React.useState<SystemSettings | null>(null)
   const [taxSettings, setTaxSettings] = React.useState<any>(null)
 
@@ -321,34 +325,22 @@ const SalesHistory: React.FC = () => {
       return
     }
 
-    // Show warning for returned transactions
+    // Show warning modal for returned transactions
     if (sale.hasReturns) {
-      const returnInfo = sale.returnInfo!
-      const returnMessage = returnInfo.isPartial
-        ? `CAUTION: This transaction has been PARTIALLY RETURNED\n\n` +
-          `Return ID: ${returnInfo.returnId}\n` +
-          `Return Date: ${formatDateSync(returnInfo.returnDate)}\n` +
-          `Items Returned: ${returnInfo.returnedItems} of ${returnInfo.totalItems}\n` +
-          `Refund Amount: ${formatCurrency(returnInfo.refundAmount)}\n\n` +
-          `This receipt is for reference only. Customer has already received partial refund.`
-        : `CAUTION: This transaction has been FULLY RETURNED\n\n` +
-          `Return ID: ${returnInfo.returnId}\n` +
-          `Return Date: ${formatDateSync(returnInfo.returnDate)}\n` +
-          `Refund Amount: ${formatCurrency(returnInfo.refundAmount)}\n\n` +
-          `This receipt is for reference only. Customer has already received full refund.`
-
-      const confirmReprint = confirm(
-        `${returnMessage}\n\n` +
-        `Do you still want to reprint this receipt?\n\n` +
-        `WARNING: Reprinting may lead to duplicate refund requests!`
-      )
-      
-      if (!confirmReprint) {
-        return
-      }
+      setReprintWarningSale(sale)
+      setShowReprintWarning(true)
+      return
     }
 
     setSelectedSale(sale)
+    setShowReceiptPreview(true)
+  }
+
+  const handleConfirmReprint = () => {
+    if (!reprintWarningSale) return
+    setShowReprintWarning(false)
+    setSelectedSale(reprintWarningSale)
+    setReprintWarningSale(null)
     setShowReceiptPreview(true)
   }
 
@@ -709,6 +701,82 @@ const SalesHistory: React.FC = () => {
           onSubmit={applyKb}
           onClose={() => setKbOpen(false)}
         />
+
+      {/* Reprint Warning Modal */}
+      {showReprintWarning && reprintWarningSale?.returnInfo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800">Reprint Warning</h2>
+                  <p className="text-xs text-slate-500">
+                    {reprintWarningSale.returnInfo.isPartial ? 'Partial return on record' : 'Full return on record'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowReprintWarning(false); setReprintWarningSale(null) }}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-4 space-y-3">
+              <div className={`rounded-lg p-4 text-sm space-y-1.5 ${
+                reprintWarningSale.returnInfo.isPartial
+                  ? 'bg-amber-50 border border-amber-200'
+                  : 'bg-red-50 border border-red-200'
+              }`}>
+                <p className={`font-semibold text-xs uppercase tracking-wide ${
+                  reprintWarningSale.returnInfo.isPartial ? 'text-amber-700' : 'text-red-700'
+                }`}>
+                  {reprintWarningSale.returnInfo.isPartial
+                    ? 'This transaction has been partially returned'
+                    : 'This transaction has been fully returned'}
+                </p>
+                <div className={`space-y-1 text-xs ${
+                  reprintWarningSale.returnInfo.isPartial ? 'text-amber-800' : 'text-red-800'
+                }`}>
+                  <p><span className="font-medium">Return ID:</span> {reprintWarningSale.returnInfo.returnId}</p>
+                  <p><span className="font-medium">Return Date:</span> {formatDateSync(reprintWarningSale.returnInfo.returnDate)}</p>
+                  {reprintWarningSale.returnInfo.isPartial && (
+                    <p><span className="font-medium">Items Returned:</span> {reprintWarningSale.returnInfo.returnedItems} of {reprintWarningSale.returnInfo.totalItems}</p>
+                  )}
+                  <p><span className="font-medium">Refund Amount:</span> {formatCurrency(reprintWarningSale.returnInfo.refundAmount)}</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                This receipt is for reference only. The customer has already received their refund. Reprinting may lead to duplicate refund requests.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 px-6 pb-5">
+              <Button
+                variant="outline"
+                className="flex-1 border-slate-300 text-slate-600"
+                onClick={() => { setShowReprintWarning(false); setReprintWarningSale(null) }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+                onClick={handleConfirmReprint}
+              >
+                <Printer className="w-4 h-4 mr-1.5" />
+                Reprint Anyway
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Receipt Preview Modal */}
       {selectedSale && systemSettings && taxSettings && (() => {

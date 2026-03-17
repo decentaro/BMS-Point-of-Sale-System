@@ -387,17 +387,13 @@ class SessionManager {
   private static async showExpiryWarning(): Promise<void> {
     const timeLeft = this.getTimeUntilExpiry()
     if (timeLeft > 0) {
-      const extend = confirm(`Your session will expire in ${timeLeft} minutes. Do you want to extend it?`)
-      if (extend) {
-        await this.extendSession()
-      }
+      window.dispatchEvent(new CustomEvent('bms:session-expiry-warning', { detail: { timeLeft } }))
     }
   }
 
   private static handleSessionExpiry(): void {
     this.clearSession()
-    alert('Your session has expired. Please log in again.')
-    window.location.href = '#/login'
+    window.location.href = '#/login?reason=expired'
   }
 }
 
