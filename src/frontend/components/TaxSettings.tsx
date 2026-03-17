@@ -75,13 +75,12 @@ const TaxSettings: React.FC = () => {
       const data = await ApiClient.getSettings<TaxSettings>('tax')
       setSettings(data)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load tax settings'
       // Check if it's missing tax settings (expected) vs actual error
       if (err instanceof Error && (err.message.includes('404') || err.message.includes('Tax settings not configured'))) {
         console.log('No tax settings found, using defaults - this is normal for new setup')
         // Don't show alert for missing tax settings - it's expected behavior
       } else {
-        showToast('Failed to load tax settings: ' + errorMessage, 'error')
+        showToast('Failed to load tax settings. Please refresh.', 'error')
         console.error('Error loading tax settings:', err)
       }
     } finally {
@@ -98,8 +97,7 @@ const TaxSettings: React.FC = () => {
       // Refresh business settings to update header display
       await refreshBusinessSettings()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save tax settings'
-      showToast('Failed to save tax settings: ' + errorMessage, 'error')
+      showToast('Failed to save tax settings. Please try again.', 'error')
       console.error('Error saving tax settings:', err)
     } finally {
       setSaving(false)

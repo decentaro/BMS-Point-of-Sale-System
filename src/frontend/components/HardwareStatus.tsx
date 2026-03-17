@@ -140,7 +140,7 @@ export default function HardwareStatus({ compact = false, showDetails = true }: 
       if (result.success) {
         showToast('Cash drawer opened successfully', 'success')
       } else {
-        showToast('Failed to open cash drawer: ' + result.message, 'error')
+        showToast('Failed to open cash drawer. Please try again.', 'error')
       }
     } catch (error) {
       console.error('Error opening cash drawer:', error)

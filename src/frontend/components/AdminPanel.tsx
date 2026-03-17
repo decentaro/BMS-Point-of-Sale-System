@@ -118,7 +118,7 @@ const AdminPanel: React.FC = () => {
         setAdminSettings(result.data)
       } else {
         console.error('Failed to load admin settings:', result.message)
-        showToast('Failed to load admin settings: ' + result.message, 'error')
+        showToast('Failed to load admin settings. Check your connection.', 'error')
       }
     } catch (error) {
       console.error('Error loading admin settings:', error)
@@ -210,13 +210,13 @@ const AdminPanel: React.FC = () => {
         if (window.electronAPI?.openPath) {
           const openResult = await window.electronAPI.openPath(result.data.folderPath)
           if (!openResult.success) {
-            showToast('Failed to open folder: ' + openResult.error, 'error')
+            showToast('Failed to open log folder.', 'error')
           }
         } else {
           showToast('Log folder: ' + result.data.folderPath + ' (' + result.data.fileCount + ' files)', 'info')
         }
       } else {
-        showToast('Failed to get log folder: ' + result.message, 'error')
+        showToast('Failed to get log folder.', 'error')
       }
     } catch (error) {
       console.error('Error opening log folder:', error)
@@ -248,13 +248,13 @@ const AdminPanel: React.FC = () => {
         if (window.electronAPI?.openPath) {
           const openResult = await window.electronAPI.openPath(result.data.filePath)
           if (!openResult.success) {
-            showToast('Failed to open file: ' + openResult.error, 'error')
+            showToast('Failed to open log file.', 'error')
           }
         } else {
           showToast('Latest log: ' + result.data.fileName, 'info')
         }
       } else {
-        showToast('Failed to get log file: ' + result.message, 'error')
+        showToast('Failed to get log file.', 'error')
       }
     } catch (error) {
       console.error('Error opening latest log file:', error)
@@ -273,7 +273,7 @@ const AdminPanel: React.FC = () => {
         setAdminSettings(result.data)
         showToast('Admin settings saved successfully', 'success')
       } else {
-        showToast('Failed to save admin settings: ' + result.message, 'error')
+        showToast('Failed to save admin settings.', 'error')
       }
     } catch (error) {
       console.error('Error saving admin settings:', error)
@@ -293,7 +293,7 @@ const AdminPanel: React.FC = () => {
         // Reload admin settings to update connection status
         await loadAdminSettings()
       } else {
-        showToast('Database connection failed: ' + result.message, 'error')
+        showToast('Database connection failed. Check your settings.', 'error')
       }
     } catch (error) {
       console.error('Error testing database connection:', error)
@@ -318,7 +318,7 @@ const AdminPanel: React.FC = () => {
             await loadBackupCapabilities()
             showToast('Backup created. ID: ' + result.data.backupId + ' | Size: ' + result.data.sizeFormatted, 'success')
           } else {
-            showToast('Backup failed: ' + result.message, 'error')
+            showToast('Backup failed. Please try again.', 'error')
           }
         } catch (error) {
           console.error('Error creating database backup:', error)
@@ -399,7 +399,7 @@ const AdminPanel: React.FC = () => {
         setRestoreFile(null)
         setNewConnectionString('')
       } else {
-        showToast('Restore failed: ' + result.message, 'error')
+        showToast('Restore failed. Check the backup file and try again.', 'error')
       }
     } catch (error) {
       console.error('Error restoring database:', error)
@@ -451,7 +451,7 @@ const AdminPanel: React.FC = () => {
         setShowClearModal(false)
         window.location.href = '/login'
       } else {
-        showToast('Failed to clear database: ' + result.message, 'error')
+        showToast('Failed to clear database. Please try again.', 'error')
       }
     } catch (error) {
       console.error('Error clearing database:', error)

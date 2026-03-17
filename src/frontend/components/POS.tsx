@@ -97,8 +97,7 @@ const POS: React.FC = () => {
       const data = await ApiClient.getJson('/products')
       setProducts(data.filter((p: Product) => p.isActive))
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load products'
-      showToast('Failed to load products: ' + errorMessage, 'error')
+      showToast('Failed to load products. Please refresh.', 'error')
       console.error('Error loading products:', err)
     } finally {
       setLoading(false)
@@ -433,7 +432,7 @@ const POS: React.FC = () => {
       await loadProducts()
 
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to process payment', 'error')
+      showToast('Payment failed. Please try again.', 'error')
       console.error('Payment error:', err)
     } finally {
       setIsProcessingPayment(false)

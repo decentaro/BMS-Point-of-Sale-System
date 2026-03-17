@@ -90,7 +90,7 @@ const Employees: React.FC = () => {
         setForm(prev => ({ ...prev, pin: val })) // Update form to show new PIN
         showToast('PIN reset successfully', 'success')
       } catch (err) {
-        showToast(err instanceof Error ? err.message : 'Failed to reset PIN', 'error')
+        showToast('Failed to reset PIN. Please try again.', 'error')
         console.error('Error resetting PIN:', err)
       }
       
@@ -171,7 +171,7 @@ const Employees: React.FC = () => {
       await loadEmployees() // Refresh the list
       clearForm() // Clear the form
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to create employee', 'error')
+      showToast('Failed to create employee. Please try again.', 'error')
       console.error('Error creating employee:', err)
     }
   }
@@ -205,7 +205,7 @@ const Employees: React.FC = () => {
       clearForm() // Clear the form
       console.log('Employee updated successfully')
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to update employee', 'error')
+      showToast('Failed to update employee. Please try again.', 'error')
       console.error('Error updating employee:', err)
     }
   }
@@ -237,7 +237,7 @@ const Employees: React.FC = () => {
       clearForm() // Clear the form
       console.log(`Employee ${actionText} successfully`)
     } catch (err) {
-      showToast(err instanceof Error ? err.message : `Failed to ${action} employee`, 'error')
+      showToast(`Failed to ${action} employee. Please try again.`, 'error')
       console.error(`Error ${action}ing employee:`, err)
     }
   }

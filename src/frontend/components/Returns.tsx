@@ -152,7 +152,7 @@ const Returns: React.FC = () => {
         showToast('Returns system is disabled. Enable it in System Settings.', 'warning')
       }
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to load system settings', 'error')
+      showToast('Failed to load settings. Please refresh.', 'error')
     } finally {
       setLoading(false)
     }
@@ -252,7 +252,7 @@ const Returns: React.FC = () => {
       setReturnItems(items)
       
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to search for transaction', 'error')
+      showToast('Transaction search failed. Please try again.', 'error')
     } finally {
       setSearchLoading(false)
     }
@@ -326,7 +326,7 @@ const Returns: React.FC = () => {
       setAlreadyReturnedQty({})
       
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to process return', 'error')
+      showToast('Failed to process return. Please try again.', 'error')
     } finally {
       setProcessingReturn(false)
     }
@@ -378,7 +378,7 @@ const Returns: React.FC = () => {
 
       const result = await window.electronAPI.printReceipt(receipt)
       if (!result.success) {
-        showToast('Print failed: ' + result.message, 'error')
+        showToast('Failed to print return receipt.', 'error')
       }
     } catch (error) {
       console.error('Error printing return receipt:', error)

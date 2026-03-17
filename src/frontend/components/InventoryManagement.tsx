@@ -231,7 +231,7 @@ const InventoryManagement: React.FC = () => {
         'StockAdjustment'
       )
     } catch (error: any) {
-      showToast('Failed to create adjustment: ' + (error.message || 'Unknown error'), 'error')
+      showToast('Failed to create adjustment. Please try again.', 'error')
     } finally {
       setLoading(false)
     }
@@ -245,7 +245,7 @@ const InventoryManagement: React.FC = () => {
       await loadPendingAdjustments()
       await loadAdjustments()
     } catch (error: any) {
-      showToast('Failed to approve adjustment: ' + (error.message || 'Unknown error'), 'error')
+      showToast('Failed to approve adjustment. Please try again.', 'error')
     }
   }
 
@@ -621,7 +621,7 @@ const InventoryManagement: React.FC = () => {
                             setProductSearch(''); setReason(''); setQuantityChange(''); setAdjustmentType(''); setNotes('')
                             setSelectedProductObj(null); setSelectedProduct(''); setShowProductDropdown(false)
                             await loadExpiringProducts(); await loadProducts()
-                          } catch (error: any) { showToast('Failed to add batch: ' + (error.message || 'Unknown error'), 'error') }
+                          } catch (error: any) { showToast('Failed to add batch. Please try again.', 'error') }
                         }}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
                       >
@@ -770,7 +770,7 @@ const InventoryManagement: React.FC = () => {
                             showToast('Stock adjusted based on physical count', 'success')
                             setProductSearch(''); setQuantityChange(''); setSelectedProductObj(null); setSelectedProduct('')
                             await loadProducts(); await loadAdjustments()
-                          } catch (error: any) { showToast('Failed to create adjustment: ' + (error.message || 'Unknown error'), 'error') }
+                          } catch (error: any) { showToast('Failed to create adjustment. Please try again.', 'error') }
                         }}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
                       >

@@ -130,7 +130,7 @@ const Inventory: React.FC = () => {
       })
       setProducts(data)
     } catch (err) {
-      showToast('Failed to load products: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
+      showToast('Failed to load products. Please refresh and try again.', 'error')
       console.error('Error loading products:', err)
     } finally {
       setLoading(false)
@@ -209,7 +209,7 @@ const Inventory: React.FC = () => {
       }
     } catch (err) {
       // Don't clear barcode field on error - user might want to manually add product with this barcode
-      showToast('Barcode search failed: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
+      showToast('Barcode search failed. Please try again.', 'error')
       console.error('Error searching by barcode:', err)
     } finally {
       setIsSearching(false)
@@ -285,7 +285,7 @@ const Inventory: React.FC = () => {
         showToast('Barcode "' + barcode + '" not found in UPC database', 'warning')
       }
     } catch (err) {
-      showToast('UPC database search failed: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
+      showToast('UPC lookup failed. Please try again.', 'error')
       console.error('Error searching UPC database:', err)
     }
   }
@@ -314,7 +314,7 @@ const Inventory: React.FC = () => {
       clearForm()
       showToast('Product added successfully', 'success')
     } catch (err) {
-      showToast('Failed to add product: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
+      showToast('Failed to add product. Check all fields and try again.', 'error')
       console.error('Error adding product:', err)
     }
   }
@@ -352,10 +352,11 @@ const Inventory: React.FC = () => {
         
         console.log('Save successful') // Debug
         
-        await loadProducts() // Reload products
+        await loadProducts()
         setIsEditing(false)
+        showToast('Product updated successfully', 'success')
         } catch (err) {
-        showToast('Failed to save product: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
+        showToast('Failed to save product. Check all fields and try again.', 'error')
         console.error('Error saving product:', err)
       }
     }
@@ -377,7 +378,7 @@ const Inventory: React.FC = () => {
       setSelectedProduct(null)
       setIsEditing(false)
     } catch (err) {
-      showToast('Failed to delete product: ' + (err instanceof Error ? err.message : 'Unknown error'), 'error')
+      showToast('Failed to delete product. Please try again.', 'error')
       console.error('Error deleting product:', err)
     }
   }

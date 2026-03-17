@@ -162,8 +162,7 @@ const SalesHistory: React.FC = () => {
 
       setSales(enhancedSales)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load sales'
-      showToast('Failed to load sales: ' + errorMessage, 'error')
+      showToast('Failed to load sales. Please refresh.', 'error')
       console.error('Error loading sales:', err)
     } finally {
       setLoading(false)
@@ -406,9 +405,9 @@ const SalesHistory: React.FC = () => {
       const result = await window.electronAPI.printReceipt(receiptText)
       
       if (result.success) {
-        showToast(result.message, 'success')
+        showToast('Receipt reprinted successfully.', 'success')
       } else {
-        showToast(result.message, 'error')
+        showToast('Failed to reprint receipt. Check printer connection.', 'error')
       }
     } catch (error) {
       console.error('Error reprinting receipt:', error)

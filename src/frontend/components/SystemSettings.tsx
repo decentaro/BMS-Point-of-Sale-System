@@ -113,8 +113,7 @@ const SystemSettings: React.FC = () => {
 
       setSettings(settingsData)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load settings'
-      showToast('Failed to load settings: ' + errorMessage, 'error')
+      showToast('Failed to load settings. Please refresh.', 'error')
       console.error('Error loading settings:', err)
     } finally {
       setLoading(false)
@@ -138,8 +137,7 @@ const SystemSettings: React.FC = () => {
       
       showToast('Settings saved successfully', 'success')
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save settings'
-      showToast('Failed to save settings: ' + errorMessage, 'error')
+      showToast('Failed to save settings. Please try again.', 'error')
       console.error('Error saving settings:', err)
     } finally {
       setSaving(false)
