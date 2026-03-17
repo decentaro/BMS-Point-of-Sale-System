@@ -2,6 +2,7 @@ using BCrypt.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using BMS_POS_API.Data;
 using BMS_POS_API.Models;
 using BMS_POS_API.Services;
@@ -199,6 +200,11 @@ namespace BMS_POS_API.Controllers
                     }
                 }
 
+                // Begin a serializable transaction so that the check-then-insert is atomic.
+                // This prevents two concurrent requests from both passing the quantity check
+                // before either has written its ReturnItems, which would allow double-returns.
+                await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
                 // Check for existing returns on these items BEFORE creating return record
                 var existingReturnItems = await _context.ReturnItems
                     .Where(ri => request.ReturnItems.Select(r => r.OriginalSaleItemId).Contains(ri.OriginalSaleItemId))
@@ -212,6 +218,7 @@ namespace BMS_POS_API.Controllers
                     var originalSaleItem = originalSale.SaleItems.FirstOrDefault(si => si.Id == item.OriginalSaleItemId);
                     if (originalSaleItem == null)
                     {
+                        await transaction.RollbackAsync();
                         return BadRequest($"Original sale item {item.OriginalSaleItemId} not found.");
                     }
 
@@ -222,11 +229,13 @@ namespace BMS_POS_API.Controllers
                     // Validate return quantity
                     if (item.ReturnQuantity <= 0)
                     {
+                        await transaction.RollbackAsync();
                         return BadRequest($"Invalid return quantity for item {originalSaleItem.ProductName}.");
                     }
 
                     if (item.ReturnQuantity > availableToReturn)
                     {
+                        await transaction.RollbackAsync();
                         return BadRequest($"Cannot return {item.ReturnQuantity} of {originalSaleItem.ProductName}. Only {availableToReturn} available to return (originally bought {originalSaleItem.Quantity}, already returned {alreadyReturned}).");
                     }
                 }
@@ -290,6 +299,7 @@ namespace BMS_POS_API.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 // Log return processing activity
                 var userIdHeader = Request.Headers["X-User-Id"].FirstOrDefault();

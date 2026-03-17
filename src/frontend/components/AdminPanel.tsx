@@ -52,11 +52,17 @@ const AdminPanel: React.FC = () => {
   const [newConnectionString, setNewConnectionString] = React.useState<string>('')
   
   // Modal keyboard state (following shared pattern)
-  type FormKeys = 'newConnectionString'
+  type FormKeys = 'newConnectionString' | 'clearManagerPin'
   const [kbOpen, setKbOpen] = React.useState<boolean>(false)
   const [kbType, setKbType] = React.useState<KeyboardType>('qwerty')
   const [kbTitle, setKbTitle] = React.useState<string>('')
   const [kbTarget, setKbTarget] = React.useState<FormKeys>('newConnectionString')
+
+  // Clear database modal state
+  const [showClearModal, setShowClearModal] = React.useState<boolean>(false)
+  const [clearConfirmPhrase, setClearConfirmPhrase] = React.useState<string>('')
+  const [clearManagerPin, setClearManagerPin] = React.useState<string>('')
+  const [clearLoading, setClearLoading] = React.useState<boolean>(false)
 
   const openKb = (target: FormKeys, type: KeyboardType, title: string) => {
     setKbTarget(target)
@@ -66,9 +72,8 @@ const AdminPanel: React.FC = () => {
   }
 
   const applyKb = (val: string) => {
-    if (kbTarget === 'newConnectionString') {
-      setNewConnectionString(val)
-    }
+    if (kbTarget === 'newConnectionString') setNewConnectionString(val)
+    else if (kbTarget === 'clearManagerPin') setClearManagerPin(val)
     setKbOpen(false)
   }
 
@@ -379,55 +384,33 @@ const AdminPanel: React.FC = () => {
     }
   }
 
-  const handleClearDatabase = async () => {
-    const confirmed = window.confirm(
-      '🚨 DANGER: Clear Entire Database?\n\n' +
-      'This will DELETE ALL DATA including:\n' +
-      '• All employees and login data\n' +
-      '• All products and inventory\n' +
-      '• All sales and transaction history\n' +
-      '• All system settings\n\n' +
-      'THIS CANNOT BE UNDONE!\n\n' +
-      'Are you absolutely sure?'
-    )
-    
-    if (confirmed) {
-      const doubleConfirm = window.confirm(
-        'FINAL WARNING!\n\n' +
-        'You will lose ALL DATA and need to:\n' +
-        '1. Recreate all employees\n' +
-        '2. Re-add all products\n' +
-        '3. Reconfigure all settings\n\n' +
-        'Click OK in the next dialog to proceed.'
-      )
-      
-      if (doubleConfirm) {
-        const finalConfirm = window.confirm('Final confirmation: Click OK ONLY if you want to permanently delete ALL data and reset the database.')
-        
-        if (finalConfirm) {
-          setLoading(true)
-          try {
-            const result: ApiResponse<any> = await ApiClient.postJson('/AdminSettings/clear-database', {})
-            
-            if (result.success) {
-              showToast('Database cleared successfully. Restarting application...', 'success')
-              
-              // Clear session and reload the entire app to trigger migrations
-              SessionManager.clearSession()
-              window.location.href = '/login'
-            } else {
-              showToast('Failed to clear database: ' + result.message, 'error')
-            }
-          } catch (error) {
-            console.error('Error clearing database:', error)
-            showToast('Failed to clear database', 'error')
-          } finally {
-            setLoading(false)
-          }
-        } else {
-          showToast('Database clear cancelled', 'info')
-        }
+  const handleClearDatabase = () => {
+    setClearConfirmPhrase('')
+    setClearManagerPin('')
+    setShowClearModal(true)
+  }
+
+  const handleConfirmClearDatabase = async () => {
+    if (clearConfirmPhrase !== 'CLEAR DATABASE' || clearManagerPin.length < 4) return
+    setClearLoading(true)
+    try {
+      const result: ApiResponse<any> = await ApiClient.postJson('/AdminSettings/clear-database', {
+        managerPin: clearManagerPin,
+        confirmationPhrase: clearConfirmPhrase
+      })
+      if (result.success) {
+        showToast('Database cleared successfully. Restarting application...', 'success')
+        SessionManager.clearSession()
+        setShowClearModal(false)
+        window.location.href = '/login'
+      } else {
+        showToast('Failed to clear database: ' + result.message, 'error')
       }
+    } catch (error) {
+      console.error('Error clearing database:', error)
+      showToast('Failed to clear database', 'error')
+    } finally {
+      setClearLoading(false)
     }
   }
 
@@ -953,11 +936,94 @@ const AdminPanel: React.FC = () => {
           )}
         </main>
 
+        {/* Clear Database Confirmation Modal */}
+        {showClearModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+              <div className="bg-red-600 px-6 py-4 flex items-center gap-3">
+                <AlertTriangle className="w-6 h-6 text-white flex-shrink-0" />
+                <div>
+                  <p className="text-white font-bold text-lg">Clear Entire Database</p>
+                  <p className="text-red-100 text-sm">This action cannot be undone</p>
+                </div>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800 font-medium">All data will be permanently deleted:</p>
+                  <ul className="mt-1.5 text-xs text-red-700 space-y-0.5 list-disc list-inside">
+                    <li>All employees and login credentials</li>
+                    <li>All products and inventory</li>
+                    <li>All sales and transaction history</li>
+                    <li>All settings and configuration</li>
+                  </ul>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Type <span className="font-mono font-bold text-red-700">CLEAR DATABASE</span> to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={clearConfirmPhrase}
+                    onChange={(e) => setClearConfirmPhrase(e.target.value)}
+                    placeholder="CLEAR DATABASE"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Manager PIN</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={clearManagerPin}
+                      onChange={(e) => setClearManagerPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="••••••"
+                      maxLength={6}
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                      autoComplete="off"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openKb('clearManagerPin', 'numpad', 'Manager PIN')}
+                      className="flex-shrink-0"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowClearModal(false)}
+                    disabled={clearLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0"
+                    onClick={handleConfirmClearDatabase}
+                    disabled={clearConfirmPhrase !== 'CLEAR DATABASE' || clearManagerPin.length < 4 || clearLoading}
+                  >
+                    {clearLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <><Trash2 className="w-4 h-4 mr-1.5" />Delete All Data</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <ModalKeyboard
           open={kbOpen}
           type={kbType}
           title={kbTitle}
-          initialValue={kbTarget === 'newConnectionString' ? newConnectionString : ''}
+          initialValue={kbTarget === 'newConnectionString' ? newConnectionString : kbTarget === 'clearManagerPin' ? clearManagerPin : ''}
           onSubmit={applyKb}
           onClose={() => setKbOpen(false)}
         />

@@ -288,12 +288,39 @@ namespace BMS_POS_API.Controllers
                     });
                 }
 
+                // Validate file extension — only known backup formats are accepted
+                var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { ".sql", ".backup", ".gz", ".zip", ".tar" };
+                var fileExtension = Path.GetExtension(backupFile.FileName);
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = $"Invalid file type '{fileExtension}'. Allowed types: {string.Join(", ", allowedExtensions)}"
+                    });
+                }
+
+                // Enforce a 500 MB size limit
+                const long maxFileSizeBytes = 500L * 1024 * 1024;
+                if (backupFile.Length > maxFileSizeBytes)
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "File size exceeds the maximum allowed size of 500 MB."
+                    });
+                }
+
                 _logger.LogInformation("Starting database restore from uploaded file: {FileName}", backupFile.FileName);
-                
-                // Save uploaded file temporarily
+
+                // Save uploaded file temporarily — use only the filename part to prevent path traversal
+                var safeFileName = Path.GetFileName(backupFile.FileName);
+                if (string.IsNullOrWhiteSpace(safeFileName))
+                    safeFileName = "restore_backup" + fileExtension;
                 var tempDir = Path.Combine(Path.GetTempPath(), "restore_temp");
                 Directory.CreateDirectory(tempDir);
-                var tempFilePath = Path.Combine(tempDir, backupFile.FileName);
+                var tempFilePath = Path.Combine(tempDir, safeFileName);
                 
                 using (var stream = new FileStream(tempFilePath, FileMode.Create))
                 {
@@ -457,6 +484,12 @@ namespace BMS_POS_API.Controllers
         [HttpPost("clear-database")]
         public async Task<ActionResult<ApiResponse<object>>> ClearDatabase([FromBody] ClearDatabaseRequest request)
         {
+            // Require a typed confirmation phrase to prevent accidental data loss
+            if (!string.Equals(request?.ConfirmationPhrase, "CLEAR DATABASE", StringComparison.Ordinal))
+            {
+                return BadRequest(new ApiResponse<object> { Success = false, Message = "Confirmation phrase 'CLEAR DATABASE' is required." });
+            }
+
             // Require manager PIN as a second factor for this destructive operation
             if (string.IsNullOrEmpty(request?.ManagerPin))
             {
@@ -657,5 +690,7 @@ namespace BMS_POS_API.Controllers
     public class ClearDatabaseRequest
     {
         public string? ManagerPin { get; set; }
+        /// <summary>Must equal the literal string "CLEAR DATABASE" for the request to proceed.</summary>
+        public string? ConfirmationPhrase { get; set; }
     }
 }

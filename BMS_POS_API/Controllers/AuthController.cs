@@ -20,7 +20,6 @@ namespace BMS_POS_API.Controllers
         private readonly BmsPosDbContext _context;
         private readonly IUserActivityService _userActivityService;
         private readonly IPinSecurityService _pinSecurityService;
-        private readonly IServiceProvider _serviceProvider;
         private readonly IMetricsService _metricsService;
         private readonly ILoginLockoutService _lockoutService;
         private readonly JwtSecretHolder _jwtSecretHolder;
@@ -29,7 +28,6 @@ namespace BMS_POS_API.Controllers
             BmsPosDbContext context,
             IUserActivityService userActivityService,
             IPinSecurityService pinSecurityService,
-            IServiceProvider serviceProvider,
             IMetricsService metricsService,
             ILoginLockoutService lockoutService,
             JwtSecretHolder jwtSecretHolder)
@@ -37,7 +35,6 @@ namespace BMS_POS_API.Controllers
             _context = context;
             _userActivityService = userActivityService;
             _pinSecurityService = pinSecurityService;
-            _serviceProvider = serviceProvider;
             _metricsService = metricsService;
             _lockoutService = lockoutService;
             _jwtSecretHolder = jwtSecretHolder;
@@ -127,6 +124,23 @@ namespace BMS_POS_API.Controllers
 
                 // Success — reset lockout counter
                 _lockoutService.ResetAttempts(request.EmployeeId);
+
+                // Synchronously upgrade legacy plaintext PIN to BCrypt hash.
+                // Done here (not fire-and-forget) so plaintext never persists
+                // past a successful login.
+                if (_pinSecurityService.IsLegacyPin(employee.Pin))
+                {
+                    employee.Pin = _pinSecurityService.HashPin(request.Pin);
+                    try
+                    {
+                        await _context.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log but don't fail login — PIN still works on next attempt
+                        Console.WriteLine($"Failed to upgrade legacy PIN for employee {employee.EmployeeId}: {ex.Message}");
+                    }
+                }
 
                 // Generate JWT
                 var token = GenerateJwt(employee);
@@ -223,52 +237,10 @@ namespace BMS_POS_API.Controllers
         /// </summary>
         private bool IsValidPin(string storedPin, string providedPin)
         {
-            // Check if stored PIN is legacy (plaintext)
             if (_pinSecurityService.IsLegacyPin(storedPin))
-            {
-                // Legacy plaintext comparison
-                bool isValid = storedPin == providedPin;
-                
-                // If valid, upgrade to hashed PIN in background
-                if (isValid)
-                {
-                    _ = Task.Run(async () => await UpgradeLegacyPinAsync(storedPin, providedPin));
-                }
-                
-                return isValid;
-            }
-            else
-            {
-                // Modern hashed PIN verification
-                return _pinSecurityService.VerifyPin(providedPin, storedPin);
-            }
-        }
+                return storedPin == providedPin;
 
-        /// <summary>
-        /// Upgrades a legacy plaintext PIN to hashed PIN using separate DbContext
-        /// </summary>
-        private async Task UpgradeLegacyPinAsync(string storedPin, string providedPin)
-        {
-            try
-            {
-                // Create a new scope for this background operation
-                using var scope = _serviceProvider.CreateScope();
-                var separateContext = scope.ServiceProvider.GetRequiredService<BmsPosDbContext>();
-                
-                // Find employee with this legacy PIN
-                var employee = await separateContext.Employees
-                    .FirstOrDefaultAsync(e => e.Pin == storedPin);
-                
-                if (employee != null)
-                {
-                    employee.Pin = _pinSecurityService.HashPin(providedPin);
-                    await separateContext.SaveChangesAsync();
-                }
-            }
-            catch
-            {
-                // Upgrade failure is non-fatal; PIN still works as legacy on next login
-            }
+            return _pinSecurityService.VerifyPin(providedPin, storedPin);
         }
 
         /// <summary>
