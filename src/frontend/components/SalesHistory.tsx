@@ -85,7 +85,6 @@ const SalesHistory: React.FC = () => {
   const [searchQuery, setSearchQuery] = React.useState<string>('')
   const [dateFilter, setDateFilter] = React.useState<string>('today')
   const [returns, setReturns] = React.useState<any[]>([])
-  const [loadingReturns, setLoadingReturns] = React.useState<boolean>(false)
   
   // Receipt preview state
   const [showReceiptPreview, setShowReceiptPreview] = React.useState<boolean>(false)
@@ -121,56 +120,32 @@ const SalesHistory: React.FC = () => {
     setKbOpen(false)
   }
 
-  // Load sales from API based on current date filter
+  // Load sales and returns in parallel, merge, then set state once
   const loadSales = async () => {
     try {
       setLoading(true)
-      const endpoint = '/sales'
-      const salesData = await ApiClient.getJson<Sale[]>(endpoint)
-      
-      // Always expect an array from /sales endpoint
-      if (Array.isArray(salesData)) {
-        setSales(salesData)
-      } else {
-        setSales([])
-      }
-      
-      // Load returns data after sales are loaded
-      await loadReturnsData(Array.isArray(salesData) ? salesData : [])
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load sales'
-      showToast('Failed to load sales: ' + errorMessage, 'error')
-      console.error('Error loading sales:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
 
-  // Load returns data and match with sales
-  const loadReturnsData = async (salesData: Sale[]) => {
-    try {
-      setLoadingReturns(true)
-      const returnsData = await ApiClient.getJson<any[]>('/returns')
-      setReturns(returnsData)
-      
-      // Enhance sales data with return information
-      const enhancedSales = salesData.map(sale => {
-        const saleReturns = returnsData.filter(returnRecord => returnRecord.originalSaleId === sale.id)
-        
-        if (saleReturns.length === 0) {
-          return sale // No returns for this sale
-        }
+      const [salesData, returnsData] = await Promise.all([
+        ApiClient.getJson<Sale[]>('/sales'),
+        ApiClient.getJson<any[]>('/returns').catch(() => [] as any[])
+      ])
 
-        // Calculate return totals
-        const totalReturnedItems = saleReturns.reduce((sum, ret) => 
-          sum + ret.returnItems.reduce((itemSum, item) => itemSum + item.returnQuantity, 0), 0)
+      const sales = Array.isArray(salesData) ? salesData : []
+      const returns = Array.isArray(returnsData) ? returnsData : []
+
+      setReturns(returns)
+
+      const enhancedSales = sales.map(sale => {
+        const saleReturns = returns.filter(r => r.originalSaleId === sale.id)
+        if (saleReturns.length === 0) return sale
+
+        const totalReturnedItems = saleReturns.reduce((sum, ret) =>
+          sum + ret.returnItems.reduce((itemSum: number, item: any) => itemSum + item.returnQuantity, 0), 0)
         const totalOriginalItems = sale.saleItems.reduce((sum, item) => sum + item.quantity, 0)
         const totalRefundAmount = saleReturns.reduce((sum, ret) => sum + ret.totalRefundAmount, 0)
-        
-        // Get the most recent return for display
-        const mostRecentReturn = saleReturns.sort((a, b) => 
+        const mostRecentReturn = saleReturns.sort((a, b) =>
           new Date(b.returnDate).getTime() - new Date(a.returnDate).getTime())[0]
-        
+
         return {
           ...sale,
           hasReturns: true,
@@ -184,14 +159,14 @@ const SalesHistory: React.FC = () => {
           }
         }
       })
-      
+
       setSales(enhancedSales)
-      
     } catch (err) {
-      console.error('Error loading returns data:', err)
-      // Don't show error to user since returns are optional
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load sales'
+      showToast('Failed to load sales: ' + errorMessage, 'error')
+      console.error('Error loading sales:', err)
     } finally {
-      setLoadingReturns(false)
+      setLoading(false)
     }
   }
 
