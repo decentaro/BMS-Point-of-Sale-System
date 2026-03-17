@@ -76,6 +76,8 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("Total cannot be negative.");
             if (request.AmountPaid < request.Total)
                 return BadRequest("Amount paid is less than the total.");
+            if (!string.IsNullOrEmpty(request.DiscountReason) && request.DiscountReason.Length > 100)
+                return BadRequest("Discount reason cannot exceed 100 characters.");
             foreach (var item in request.Items)
             {
                 if (item.Quantity <= 0)

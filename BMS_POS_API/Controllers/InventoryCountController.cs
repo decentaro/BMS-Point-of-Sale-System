@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using BMS_POS_API.Data;
 using BMS_POS_API.Models;
 using BMS_POS_API.Services;
@@ -264,6 +265,10 @@ namespace BMS_POS_API.Controllers
                 return Forbid("Only managers can complete inventory counts");
             }
 
+            // Wrap all stock mutations and the status change in a single transaction
+            // so a mid-loop failure cannot leave inventory partially adjusted
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+
             // Apply adjustments to product stock if requested
             if (request.ApplyAdjustments)
             {
@@ -305,6 +310,7 @@ namespace BMS_POS_API.Controllers
             inventoryCount.CompletedByEmployeeId = userId;
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             // Log completion activity
             var adjustmentText = request.ApplyAdjustments ? " and applied adjustments" : "";

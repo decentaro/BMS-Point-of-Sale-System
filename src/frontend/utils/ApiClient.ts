@@ -59,13 +59,18 @@ class ApiClient {
   }
 
   /**
-   * Check if error is retryable
+   * Check if error is retryable.
+   * Only infrastructure errors (502/503/504) are safe to retry automatically.
+   * A 500 Internal Server Error may indicate a partially committed write, so
+   * retrying it on a POST/PUT could submit the same sale or return twice.
+   * Network/timeout errors are always retried regardless of method.
    */
-  private static isRetryableError(error: ApiError): boolean {
-    // Retry on network errors, timeouts, and 5xx server errors
-    return error.type === 'network' || 
-           error.type === 'timeout' || 
-           (error.status !== undefined && error.status >= 500)
+  private static isRetryableError(error: ApiError, method: string = 'GET'): boolean {
+    if (error.type === 'network' || error.type === 'timeout') return true
+    // Only retry infrastructure-level 5xx on idempotent methods
+    const safeRetryStatuses = [502, 503, 504]
+    const isIdempotent = method === 'GET' || method === 'DELETE'
+    return safeRetryStatuses.includes(error.status ?? 0) && isIdempotent
   }
 
   /**
@@ -156,12 +161,13 @@ class ApiClient {
           throw this.createApiError(errorText || `HTTP ${response.status}`, response.status, 'client')
         }
         
-        // Handle server errors (these are retryable)
+        // Handle server errors — only retry infrastructure errors (502/503/504)
+        // on idempotent methods; never retry a 500 on POST/PUT
         if (response.status >= 500) {
           const errorText = await response.text().catch(() => 'Server error')
           lastError = this.createApiError(errorText || `HTTP ${response.status}`, response.status, 'server')
-          
-          if (attempt <= retryConfig.maxRetries) {
+
+          if (attempt <= retryConfig.maxRetries && this.isRetryableError(lastError, method)) {
             const delay = this.calculateRetryDelay(attempt, retryConfig)
             console.warn(`API request failed (attempt ${attempt}/${retryConfig.maxRetries + 1}), retrying in ${delay}ms:`, lastError.message)
             await this.sleep(delay)
@@ -189,7 +195,7 @@ class ApiClient {
         }
         
         // Don't retry auth errors or client errors
-        if (!this.isRetryableError(lastError)) {
+        if (!this.isRetryableError(lastError, method)) {
           // Don't log expected 404s for settings endpoints as errors
           const isExpectedSettingsError = url.includes('/tax-settings') && lastError.status === 404
           if (isExpectedSettingsError) {

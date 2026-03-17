@@ -187,6 +187,13 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("Barcode cannot be empty");
             }
 
+            // Barcode must contain only printable non-whitespace ASCII characters
+            // (covers EAN-13, UPC-A, Code 128, QR, etc. while blocking control chars)
+            if (!product.Barcode.All(c => c > ' ' && c <= '~'))
+            {
+                return BadRequest("Barcode contains invalid characters. Only printable non-whitespace ASCII characters are allowed.");
+            }
+
             // Validate Name
             if (string.IsNullOrWhiteSpace(product.Name))
             {
@@ -258,6 +265,12 @@ namespace BMS_POS_API.Controllers
             if (originalProduct == null)
             {
                 return NotFound();
+            }
+
+            // Validate barcode characters
+            if (!string.IsNullOrWhiteSpace(product.Barcode) && !product.Barcode.All(c => c > ' ' && c <= '~'))
+            {
+                return BadRequest("Barcode contains invalid characters. Only printable non-whitespace ASCII characters are allowed.");
             }
 
             // Check if another product has the same barcode

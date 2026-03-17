@@ -26,6 +26,7 @@ namespace BMS_POS_API.Models
         [Range(0, double.MaxValue)]
         public decimal DiscountAmount { get; set; } = 0;
         
+        [StringLength(100)]
         public string? DiscountReason { get; set; }
         
         [Range(0, double.MaxValue)]

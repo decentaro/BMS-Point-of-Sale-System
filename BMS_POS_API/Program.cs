@@ -118,9 +118,17 @@ builder.Services.AddCors(options =>
     {
         policy.SetIsOriginAllowed(origin =>
               {
+                  // Electron renderer sends a null origin — always allow
                   if (string.IsNullOrEmpty(origin) || origin == "null") return true;
-                  var uri = new Uri(origin);
-                  return uri.Host == "localhost" || uri.Host == "127.0.0.1";
+                  try
+                  {
+                      var uri = new Uri(origin);
+                      // Require http scheme (block https on arbitrary ports, ws, etc.)
+                      // and restrict to loopback addresses only
+                      return uri.Scheme == "http"
+                          && (uri.Host == "localhost" || uri.Host == "127.0.0.1");
+                  }
+                  catch { return false; }
               })
               .AllowAnyMethod()
               .AllowAnyHeader();

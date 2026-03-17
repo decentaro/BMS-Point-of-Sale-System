@@ -241,7 +241,7 @@ namespace BMS_POS_API.Controllers
                         Data = new
                         {
                             backupResult.BackupId,
-                            backupResult.BackupPath,
+                            BackupFolder = Path.GetFileName(backupResult.BackupPath), // folder name only
                             backupResult.Method,
                             backupResult.Size,
                             backupResult.Files,
@@ -455,7 +455,6 @@ namespace BMS_POS_API.Controllers
                 var result = new
                 {
                     fileName = fileInfo.Name,
-                    filePath = latestLogFile,
                     lastModified = fileInfo.LastWriteTime,
                     sizeBytes = fileInfo.Length,
                     canOpen = true
@@ -648,7 +647,6 @@ namespace BMS_POS_API.Controllers
                 
                 var result = new
                 {
-                    folderPath = logsPath,
                     exists = Directory.Exists(logsPath),
                     fileCount = Directory.Exists(logsPath) ? Directory.GetFiles(logsPath, "*.json").Length : 0
                 };

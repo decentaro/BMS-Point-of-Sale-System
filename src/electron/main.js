@@ -406,9 +406,9 @@ ipcMain.handle('check-printer', async () => {
                     if (!line.includes('disabled')) {
                         const match = line.match(/printer (.+?) (is|idle)/);
                         if (match) {
-                            availablePrinter = match[1].trim();
-                            printerStatus = 'found';
-                            break;
+                            availablePrinter = sanitizePrinterName(match[1].trim());
+                            printerStatus = availablePrinter ? 'found' : 'disconnected';
+                            if (availablePrinter) break;
                         }
                     }
                 }
@@ -536,7 +536,7 @@ ipcMain.handle('open-cash-drawer', async () => {
                 const defaultPrinter = execSync('lpstat -d 2>/dev/null', { encoding: 'utf8' });
                 const match = defaultPrinter.match(/system default destination: (.+)/);
                 if (match) {
-                    availablePrinter = match[1].trim();
+                    availablePrinter = sanitizePrinterName(match[1].trim());
                 }
             } catch {}
             
@@ -618,6 +618,19 @@ ipcMain.handle('open-cash-drawer', async () => {
 });
 
 /**
+ * Sanitize a printer name extracted from lpstat output before it is
+ * interpolated into any shell command string.
+ * Allows only alphanumeric characters, hyphens, underscores, and dots —
+ * the characters CUPS uses in printer queue names.
+ * Returns null if the name is empty after sanitization.
+ */
+function sanitizePrinterName(name) {
+    if (!name) return null;
+    const sanitized = name.replace(/[^a-zA-Z0-9\-_.]/g, '');
+    return sanitized.length > 0 ? sanitized : null;
+}
+
+/**
  * Strip ESC/POS control characters from user-supplied text to prevent
  * printer command injection via product names, business names, etc.
  * Keeps printable ASCII (0x20–0x7E), newlines, carriage returns, and tabs.
@@ -653,7 +666,7 @@ ipcMain.handle('print-receipt', async (event, receiptContent, logoPath = null) =
                 const defaultPrinter = execSync('lpstat -d 2>/dev/null', { encoding: 'utf8' });
                 const match = defaultPrinter.match(/system default destination: (.+)/);
                 if (match) {
-                    availablePrinter = match[1].trim();
+                    availablePrinter = sanitizePrinterName(match[1].trim());
                 }
             } catch {}
             
