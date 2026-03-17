@@ -5,14 +5,24 @@ const fs = require('fs');
 // API Configuration - Runtime configurable
 class ApiConfigManager {
     constructor() {
+        const envUrl = process.env.VITE_API_BASE_URL ||
+                       process.env.REACT_APP_API_BASE_URL ||
+                       process.env.BMS_POS_API_BASE_URL;
         this.config = {
-            baseUrl: process.env.VITE_API_BASE_URL || 
-                    process.env.REACT_APP_API_BASE_URL || 
-                    process.env.BMS_POS_API_BASE_URL ||
-                    'http://localhost:5002/api',
+            baseUrl: this.isValidApiUrl(envUrl) ? envUrl : 'http://localhost:5002/api',
             timeout: 30000
         }
         this.loadConfigFromFile()
+    }
+
+    // Only allow localhost/127.0.0.1 — prevents env-var hijacking to a remote host
+    isValidApiUrl(url) {
+        if (!url) return false;
+        try {
+            const parsed = new URL(url);
+            return (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')
+                && (parsed.protocol === 'http:' || parsed.protocol === 'https:');
+        } catch { return false; }
     }
 
     loadConfigFromFile() {
@@ -20,6 +30,11 @@ class ApiConfigManager {
             const configPath = path.join(app.getPath('userData'), 'api-config.json')
             if (fs.existsSync(configPath)) {
                 const fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+                // Validate URL from file before applying
+                if (fileConfig.baseUrl && !this.isValidApiUrl(fileConfig.baseUrl)) {
+                    console.warn('Ignoring invalid API URL from config file:', fileConfig.baseUrl)
+                    delete fileConfig.baseUrl
+                }
                 this.config = { ...this.config, ...fileConfig }
                 console.log('Loaded API config from file:', this.config)
             }
@@ -43,6 +58,10 @@ class ApiConfigManager {
     }
 
     updateConfig(newConfig) {
+        // Reject any attempt to point the API at a non-localhost host
+        if (newConfig.baseUrl && !this.isValidApiUrl(newConfig.baseUrl)) {
+            throw new Error(`Invalid API URL: only localhost/127.0.0.1 is permitted. Got: ${newConfig.baseUrl}`)
+        }
         this.config = { ...this.config, ...newConfig }
         this.saveConfigToFile()
         return this.getConfig()
@@ -318,10 +337,21 @@ ipcMain.handle('open-path', async (event, path) => {
 
 ipcMain.handle('show-open-dialog', async (event, options) => {
     try {
-        if (options.defaultPath && options.defaultPath.startsWith('./')) {
-            options.defaultPath = path.resolve(process.cwd(), options.defaultPath);
+        if (options.defaultPath) {
+            const resolved = options.defaultPath.startsWith('./')
+                ? path.resolve(process.cwd(), options.defaultPath)
+                : options.defaultPath;
+            // Restrict defaultPath to within the user's home dir or app userData —
+            // prevents the dialog from being pre-navigated to sensitive system dirs
+            const home = require('os').homedir();
+            const userData = app.getPath('userData');
+            if (resolved.startsWith(home) || resolved.startsWith(userData)) {
+                options.defaultPath = resolved;
+            } else {
+                delete options.defaultPath;
+            }
         }
-        
+
         const result = await dialog.showOpenDialog(bmsApp.mainWindow, options);
         return result;
     } catch (error) {

@@ -57,6 +57,17 @@ Required environment variables for deployment:
 3. Ensure `.env` file permissions are restricted (chmod 600 on Linux/Mac)
 4. Never commit `.env` file to version control
 
+### JWT Secret File
+
+The API generates a persistent JWT signing secret on first run, stored at:
+- **Linux/Mac:** `~/.config/BMS_POS/bms-jwt.secret`
+- **Windows:** `%APPDATA%\BMS_POS\bms-jwt.secret`
+
+File permissions are automatically set to owner read/write only (0600) on Unix.
+**Important:** If you copy or restore this file (e.g. backup/restore, Docker volume copy),
+verify permissions are preserved. A world-readable secret file allows JWT forgery.
+To rotate the secret (invalidates all active sessions), delete the file and restart the API.
+
 ### Production Recommendations
 
 - Use strong, unique passwords for all database accounts
