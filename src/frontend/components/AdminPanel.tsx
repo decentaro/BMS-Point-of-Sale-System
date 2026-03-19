@@ -14,14 +14,15 @@ import ApiClient from '../utils/ApiClient'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useToast } from '../contexts/ToastContext'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
-import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
 import {
   AlertTriangle, RefreshCw, Download, CheckCircle2, XCircle,
   Shield, Lock, Activity, FileText, Database, ArchiveRestore,
   Save, Wifi, FolderOpen, ExternalLink, Trash2, Settings2,
-  ChevronRight, Info, Clock, HardDrive, X
+  ChevronRight, Info, Clock, HardDrive, X, ArrowLeft
 } from 'lucide-react'
+
+const NAVY = 'hsl(215,65%,30%)'
 
 
 const AdminPanel: React.FC = () => {
@@ -590,15 +591,28 @@ const AdminPanel: React.FC = () => {
 
   return (
     <SessionGuard requiredPermission="admin.view">
-      <div className="w-full h-full flex flex-col bg-white">
-        <PageHeader
-          title="Admin Panel"
-          subtitle="System configuration & technical settings"
-          onBack={goBack}
-          right={<SessionStatus />}
-        />
+      <div className="w-full h-full flex flex-col">
+        <header
+          className="h-16 px-5 flex items-center justify-between flex-shrink-0"
+          style={{ background: NAVY }}
+        >
+          <button
+            onClick={goBack}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white border border-white/25 hover:border-white/50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
 
-        <main className="flex-1 overflow-y-auto bg-slate-50">
+          <div className="text-center">
+            <div className="text-white text-lg font-bold leading-tight tracking-tight">Admin Panel</div>
+            <div className="text-white/50 text-[11px] font-medium mt-0.5">System configuration &amp; technical settings</div>
+          </div>
+
+          <SessionStatus dark />
+        </header>
+
+        <main className="flex-1 overflow-y-auto bg-slate-100">
           {(loading || !adminSettings) ? (
             <SectionLoader message="Loading admin settings..." />
           ) : (
