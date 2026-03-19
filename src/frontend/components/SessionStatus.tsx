@@ -6,9 +6,10 @@ import { formatDateSync, formatTime } from '../utils/dateFormat'
 
 interface SessionStatusProps {
   showLogout?: boolean
+  dark?: boolean
 }
 
-const SessionStatus: React.FC<SessionStatusProps> = ({ showLogout = false }) => {
+const SessionStatus: React.FC<SessionStatusProps> = ({ showLogout = false, dark = false }) => {
   const navigate = useNavigate()
   const [timeLeft, setTimeLeft] = useState(0)
   const [showWarning, setShowWarning] = useState(false)
@@ -93,22 +94,22 @@ const SessionStatus: React.FC<SessionStatusProps> = ({ showLogout = false }) => 
   return (
     <div className="relative">
       {/* Session Info in Header */}
-      <div className="text-xs text-slate-600 text-center">
+      <div className={`text-xs text-center ${dark ? 'text-white/70' : 'text-slate-600'}`}>
         <div className="flex items-center justify-center space-x-2">
           <span>{formatDateForPOS(currentTime)}</span>
-          <span className="text-slate-400">•</span>
+          <span className={dark ? 'text-white/30' : 'text-slate-400'}>•</span>
           <span>{formatTimeForPOS(currentTime)}</span>
         </div>
         <div className="flex items-center justify-center space-x-2">
           <span className="font-medium">{session.name}</span>
-          <span className="text-slate-400">•</span>
-          <span className={timeLeft <= 5 ? 'text-orange-600 font-medium' : ''}>
+          <span className={dark ? 'text-white/30' : 'text-slate-400'}>•</span>
+          <span className={timeLeft <= 5 ? (dark ? 'text-orange-300 font-medium' : 'text-orange-600 font-medium') : ''}>
             {timeLeft}min
           </span>
           {showLogout && (
             <button
               onClick={handleLogout}
-              className="text-red-600 hover:text-red-800 font-medium"
+              className={dark ? 'text-red-300 hover:text-red-200 font-medium' : 'text-red-600 hover:text-red-800 font-medium'}
             >
               Logout
             </button>
