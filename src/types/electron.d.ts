@@ -1,3 +1,99 @@
+export interface OfflineReturn {
+  id: string
+  timestamp: string
+  transactionId: string
+  returnData: {
+    originalSaleId: number
+    processedByEmployeeId: number
+    managerPin: string | null
+    notes: string
+    returnItems: {
+      originalSaleItemId: number
+      returnQuantity: number
+      lineTotal: number
+      condition: string
+      reason: string
+    }[]
+  }
+}
+
+export interface FailedReturn {
+  id: string
+  failedAt: string
+  error: string
+  httpStatus?: number
+  transactionId: string
+  returnData: OfflineReturn['returnData']
+}
+
+export interface OfflineAdjustment {
+  id: string
+  timestamp: string
+  productName: string
+  adjustmentData: {
+    productId: number
+    adjustmentType: string
+    quantityChange: number
+    reason: string
+    notes?: string
+    referenceNumber?: string
+  }
+}
+
+export interface FailedAdjustment {
+  id: string
+  failedAt: string
+  error: string
+  httpStatus?: number
+  productName: string
+  adjustmentData: OfflineAdjustment['adjustmentData']
+}
+
+export interface FailedSale {
+  id: string
+  failedAt: string
+  error: string
+  httpStatus?: number
+  saleData: OfflineTransaction['saleData']
+  receiptData: OfflineTransaction['receiptData']
+}
+
+export interface OfflineTransaction {
+  id: string
+  timestamp: string
+  saleData: {
+    employeeId: number
+    subtotal: number
+    taxRate: number
+    taxAmount: number
+    discountAmount: number
+    discountReason?: string
+    total: number
+    amountPaid: number
+    change: number
+    paymentMethod: string
+    items: { productId: number; quantity: number; unitPrice: number; lineTotal: number }[]
+  }
+  receiptData: {
+    subtotal: number
+    taxAmount: number
+    secondaryTaxAmount: number
+    taxLabel: string
+    secondaryTaxLabel: string
+    discountAmount: number
+    discountPercent: number
+    discountReason: string
+    finalTotal: number
+    amountPaid: number
+    changeAmount: number
+    paymentMethod: string
+    cart: any[]
+    transactionId: string
+    cashierName: string
+    saleDate: string
+  }
+}
+
 export interface ElectronAPI {
   // Authentication
   validateLogin: (employeeId: string, pin: string, selectedRole?: string) => Promise<any>
@@ -46,7 +142,7 @@ export interface ElectronAPI {
     message: string
   }>
   
-  printReceipt: (receiptHtml: string, logoPath?: string) => Promise<{
+  printReceipt: (receiptHtml: string, logoPath?: string, businessName?: string) => Promise<{
     success: boolean
     message: string
   }>
@@ -74,6 +170,44 @@ export interface ElectronAPI {
   // Utility
   setScale: (scale: number) => boolean
   debug: () => string
+
+  // Connectivity
+  onConnectivityChange: (callback: (data: { online: boolean }) => void) => void
+  getConnectivity: () => Promise<{ online: boolean }>
+
+  // Offline queue
+  queueTransaction: (transaction: OfflineTransaction) => Promise<{ success: boolean }>
+  getQueue: () => Promise<OfflineTransaction[]>
+  removeFromQueue: (id: string) => Promise<{ success: boolean }>
+
+  // Product cache
+  saveProductCache: (products: any[]) => Promise<{ success: boolean }>
+  getProductCache: () => Promise<{ products: any[]; savedAt: string } | null>
+
+  // Adjustment queue
+  queueAdjustment: (adjustment: OfflineAdjustment) => Promise<{ success: boolean }>
+  getAdjustmentQueue: () => Promise<OfflineAdjustment[]>
+  removeFromAdjustmentQueue: (id: string) => Promise<{ success: boolean }>
+
+  // Failed sales log
+  logFailedSale: (entry: FailedSale) => Promise<{ success: boolean }>
+  getFailedSales: () => Promise<FailedSale[]>
+  clearFailedSales: () => Promise<{ success: boolean }>
+
+  // Failed adjustments log
+  logFailedAdjustment: (entry: FailedAdjustment) => Promise<{ success: boolean }>
+  getFailedAdjustments: () => Promise<FailedAdjustment[]>
+  clearFailedAdjustments: () => Promise<{ success: boolean }>
+
+  // Return queue
+  queueReturn: (ret: OfflineReturn) => Promise<{ success: boolean }>
+  getReturnQueue: () => Promise<OfflineReturn[]>
+  removeFromReturnQueue: (id: string) => Promise<{ success: boolean }>
+
+  // Failed returns log
+  logFailedReturn: (entry: FailedReturn) => Promise<{ success: boolean }>
+  getFailedReturns: () => Promise<FailedReturn[]>
+  clearFailedReturns: () => Promise<{ success: boolean }>
 }
 
 // Electron extends the browser File API with a `path` property

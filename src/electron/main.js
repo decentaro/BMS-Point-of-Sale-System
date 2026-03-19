@@ -393,6 +393,7 @@ app.whenReady().then(async () => {
     
     await bmsApp.initialize();
     bmsApp.createWindow();
+    connectivityMonitor.start()
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -647,7 +648,7 @@ $ptr=[Runtime.InteropServices.Marshal]::AllocHGlobal($b.Length)
 }
 
 // Receipt printing handler
-ipcMain.handle('print-receipt', async (event, receiptContent, logoPath = null) => {
+ipcMain.handle('print-receipt', async (event, receiptContent, logoPath = null, businessNameOverride = null) => {
     try {
         const printer = findPrinterDevice();
         if (!printer) {
@@ -658,17 +659,21 @@ ipcMain.handle('print-receipt', async (event, receiptContent, logoPath = null) =
         // contains intentional ESC/POS commands. Only externally-sourced text
         // (businessName) is sanitized before being embedded in the stream.
 
-        // Fetch business name from tax settings
+        // Use business name passed from renderer (already in cache), fall back to API fetch
         let businessName = 'Business Name';
-        try {
-            const fetch = globalThis.fetch || require('node-fetch');
-            const response = await fetch(`${apiConfigManager.getConfig().baseUrl}/tax-settings`);
-            if (response.ok) {
-                const taxSettings = await response.json();
-                businessName = sanitizeForPrinter(taxSettings.businessName || 'Business Name');
+        if (businessNameOverride) {
+            businessName = sanitizeForPrinter(businessNameOverride);
+        } else {
+            try {
+                const fetch = globalThis.fetch || require('node-fetch');
+                const response = await fetch(`${apiConfigManager.getConfig().baseUrl}/tax-settings`);
+                if (response.ok) {
+                    const taxSettings = await response.json();
+                    businessName = sanitizeForPrinter(taxSettings.businessName || 'Business Name');
+                }
+            } catch (error) {
+                console.log('Could not fetch business name:', error.message);
             }
-        } catch (error) {
-            console.log('Could not fetch business name:', error.message);
         }
 
         const businessNameLogo = '\x1B\x61\x01' +   // Center alignment
@@ -853,6 +858,154 @@ ipcMain.handle('set-api-config', async (event, config) => {
         throw error
     }
 });
+
+// ─── Offline queue & product cache ───────────────────────────────────────────
+
+const queuePath = path.join(app.getPath('userData'), 'sales-queue.json')
+const adjustmentQueuePath = path.join(app.getPath('userData'), 'adjustment-queue.json')
+const returnQueuePath = path.join(app.getPath('userData'), 'return-queue.json')
+const productCachePath = path.join(app.getPath('userData'), 'product-cache.json')
+const failedSalesPath = path.join(app.getPath('userData'), 'failed-sales.json')
+const failedAdjustmentsPath = path.join(app.getPath('userData'), 'failed-adjustments.json')
+const failedReturnsPath = path.join(app.getPath('userData'), 'failed-returns.json')
+
+const readJson = (filePath, fallback) => {
+    try { return JSON.parse(fs.readFileSync(filePath, 'utf8')) } catch { return fallback }
+}
+const writeJson = (filePath, data) => {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8')
+}
+
+ipcMain.handle('queue-transaction', async (event, transaction) => {
+    const queue = readJson(queuePath, [])
+    queue.push(transaction)
+    writeJson(queuePath, queue)
+    return { success: true }
+})
+
+ipcMain.handle('get-queue', async () => readJson(queuePath, []))
+
+ipcMain.handle('remove-from-queue', async (event, id) => {
+    const queue = readJson(queuePath, [])
+    writeJson(queuePath, queue.filter(t => t.id !== id))
+    return { success: true }
+})
+
+ipcMain.handle('save-product-cache', async (event, products) => {
+    writeJson(productCachePath, { products, savedAt: new Date().toISOString() })
+    return { success: true }
+})
+
+ipcMain.handle('get-product-cache', async () => readJson(productCachePath, null))
+
+ipcMain.handle('get-connectivity', async () => ({ online: connectivityMonitor.isOnline }))
+
+ipcMain.handle('queue-adjustment', async (event, adjustment) => {
+    const queue = readJson(adjustmentQueuePath, [])
+    queue.push(adjustment)
+    writeJson(adjustmentQueuePath, queue)
+    return { success: true }
+})
+
+ipcMain.handle('get-adjustment-queue', async () => readJson(adjustmentQueuePath, []))
+
+ipcMain.handle('remove-from-adjustment-queue', async (event, id) => {
+    const queue = readJson(adjustmentQueuePath, [])
+    writeJson(adjustmentQueuePath, queue.filter(a => a.id !== id))
+    return { success: true }
+})
+
+ipcMain.handle('log-failed-sale', async (event, entry) => {
+    const entries = readJson(failedSalesPath, [])
+    entries.push(entry)
+    writeJson(failedSalesPath, entries)
+    return { success: true }
+})
+
+ipcMain.handle('get-failed-sales', async () => readJson(failedSalesPath, []))
+
+ipcMain.handle('clear-failed-sales', async () => {
+    writeJson(failedSalesPath, [])
+    return { success: true }
+})
+
+ipcMain.handle('queue-return', async (event, ret) => {
+    const queue = readJson(returnQueuePath, [])
+    queue.push(ret)
+    writeJson(returnQueuePath, queue)
+    return { success: true }
+})
+
+ipcMain.handle('get-return-queue', async () => readJson(returnQueuePath, []))
+
+ipcMain.handle('remove-from-return-queue', async (event, id) => {
+    const queue = readJson(returnQueuePath, [])
+    writeJson(returnQueuePath, queue.filter(r => r.id !== id))
+    return { success: true }
+})
+
+ipcMain.handle('log-failed-return', async (event, entry) => {
+    const entries = readJson(failedReturnsPath, [])
+    entries.push(entry)
+    writeJson(failedReturnsPath, entries)
+    return { success: true }
+})
+
+ipcMain.handle('get-failed-returns', async () => readJson(failedReturnsPath, []))
+
+ipcMain.handle('clear-failed-returns', async () => {
+    writeJson(failedReturnsPath, [])
+    return { success: true }
+})
+
+ipcMain.handle('log-failed-adjustment', async (event, entry) => {
+    const entries = readJson(failedAdjustmentsPath, [])
+    entries.push(entry)
+    writeJson(failedAdjustmentsPath, entries)
+    return { success: true }
+})
+
+ipcMain.handle('get-failed-adjustments', async () => readJson(failedAdjustmentsPath, []))
+
+ipcMain.handle('clear-failed-adjustments', async () => {
+    writeJson(failedAdjustmentsPath, [])
+    return { success: true }
+})
+
+// ─── Connection monitor ───────────────────────────────────────────────────────
+
+const connectivityMonitor = {
+    isOnline: true,
+    timer: null,
+
+    start() {
+        this.timer = setInterval(() => this.check(), 5000)
+        // Run an immediate check after 3s (give API time to start)
+        setTimeout(() => this.check(), 3000)
+    },
+
+    async check() {
+        try {
+            const res = await fetch('http://localhost:5002/api/tax-settings', {
+                signal: AbortSignal.timeout(3000)
+            })
+            const nowOnline = res.ok
+            if (nowOnline !== this.isOnline) {
+                this.isOnline = nowOnline
+                if (bmsApp.mainWindow) {
+                    bmsApp.mainWindow.webContents.send('connectivity-changed', { online: this.isOnline })
+                }
+            }
+        } catch {
+            if (this.isOnline) {
+                this.isOnline = false
+                if (bmsApp.mainWindow) {
+                    bmsApp.mainWindow.webContents.send('connectivity-changed', { online: false })
+                }
+            }
+        }
+    }
+}
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

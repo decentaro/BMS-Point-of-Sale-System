@@ -12,6 +12,7 @@ import { SystemSettings } from '../types/SystemSettings'
 import ApiClient from '../utils/ApiClient'
 import { generateTextReceipt } from '../utils/receiptFormatter'
 import { useToast } from '../contexts/ToastContext'
+import { useConnection } from '../contexts/ConnectionContext'
 import PageHeader from './ui/PageHeader'
 import {
   ShoppingCart, Search, Package, Trash2, X, ChevronDown,
@@ -49,6 +50,7 @@ interface CartItem {
 const POS: React.FC = () => {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { isOnline, refreshQueueCount } = useConnection()
 
 
   // State management
@@ -96,7 +98,20 @@ const POS: React.FC = () => {
       setLoading(true)
       const data = await ApiClient.getJson<Product[]>('/products')
       setProducts(data.filter((p: Product) => p.isActive))
+      // Cache products for offline use
+      if (window.electronAPI?.saveProductCache) {
+        window.electronAPI.saveProductCache(data).catch(() => {})
+      }
     } catch (err) {
+      // Try product cache
+      if (window.electronAPI?.getProductCache) {
+        const cached = await window.electronAPI.getProductCache()
+        if (cached?.products?.length) {
+          setProducts(cached.products.filter((p: Product) => p.isActive))
+          showToast('Showing cached product data — offline mode', 'warning')
+          return
+        }
+      }
       showToast('Failed to load products. Please refresh.', 'error')
       console.error('Error loading products:', err)
     } finally {
@@ -361,32 +376,34 @@ const POS: React.FC = () => {
     }
 
     setIsProcessingPayment(true)
+
+    const session = SessionManager.getCurrentSession()
+    if (!session) {
+      showToast('No user logged in', 'error')
+      setIsProcessingPayment(false)
+      return
+    }
+
+    const saleData = {
+      employeeId: session.id,
+      subtotal: subtotal,
+      taxRate: taxSettings?.taxRate || 0,
+      taxAmount: taxAmount + secondaryTaxAmount,
+      discountAmount: discountAmount,
+      discountReason: discountReason,
+      total: finalTotal,
+      amountPaid: parseFloat(amountPaid),
+      change: changeAmount,
+      paymentMethod: paymentMethod,
+      items: cart.map(item => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+        unitPrice: item.product.price,
+        lineTotal: item.total
+      }))
+    }
+
     try {
-      const session = SessionManager.getCurrentSession()
-      if (!session) {
-        showToast('No user logged in', 'error')
-        return
-      }
-
-      const saleData = {
-        employeeId: session.id,
-        subtotal: subtotal,
-        taxRate: taxSettings?.taxRate || 0,
-        taxAmount: taxAmount + secondaryTaxAmount,
-        discountAmount: discountAmount,
-        discountReason: discountReason,
-        total: finalTotal,
-        amountPaid: parseFloat(amountPaid),
-        change: changeAmount,
-        paymentMethod: paymentMethod,
-        items: cart.map(item => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-          unitPrice: item.product.price,
-          lineTotal: item.total
-        }))
-      }
-
       const sale = await ApiClient.postJson<{ transactionId: string; saleDate: string }>('/sales', saleData)
 
       // Extend session for this business action (completing sale)
@@ -421,7 +438,7 @@ const POS: React.FC = () => {
       } else if (systemSettings?.printReceiptAutomatically !== false) {
         // Auto-print fire-and-forget — don't block cart clear on printer response
         const receiptText = generateTextReceipt(previewSaleData, systemSettings!)
-        window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath)
+        window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName)
           .catch((err: unknown) => console.error('Auto-print error:', err))
         handlePaymentSuccess(sale.transactionId)
       } else {
@@ -432,8 +449,46 @@ const POS: React.FC = () => {
       await loadProducts()
 
     } catch (err) {
-      showToast('Payment failed. Please try again.', 'error')
-      console.error('Payment error:', err)
+      // Check if this is a network failure (offline)
+      const isNetworkErr = err instanceof TypeError || (err as any)?.message?.includes('fetch') || (err as any)?.message?.includes('network') || (err as any)?.message?.includes('Failed to fetch') || !isOnline
+
+      if (isNetworkErr || !isOnline) {
+        // Queue the sale for later sync
+        const offlineId = `TXN-OFFLINE-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+        const offlineTransaction = {
+          id: offlineId,
+          timestamp: new Date().toISOString(),
+          saleData,
+          receiptData: {
+            subtotal, taxAmount, secondaryTaxAmount, taxLabel, secondaryTaxLabel,
+            discountAmount, discountPercent, discountReason,
+            finalTotal, amountPaid: parseFloat(amountPaid), changeAmount,
+            paymentMethod, cart,
+            transactionId: offlineId,
+            cashierName: session.name || session.employeeId || 'Unknown Cashier',
+            saleDate: new Date().toISOString()
+          }
+        }
+        await window.electronAPI.queueTransaction(offlineTransaction)
+        await refreshQueueCount()
+
+        // Still print receipt and open cash drawer
+        setCompletedSale(offlineTransaction.receiptData)
+        setShowPaymentModal(false)
+        if (systemSettings?.showReceiptPreview) {
+          setShowReceiptPreview(true)
+        } else if (systemSettings?.printReceiptAutomatically !== false) {
+          const receiptText = generateTextReceipt(offlineTransaction.receiptData, systemSettings!)
+          window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName).catch(() => {})
+          handlePaymentSuccess(offlineId)
+        } else {
+          handlePaymentSuccess(offlineId)
+        }
+        showToast(`Sale queued — will sync when online | ID: ${offlineId}`, 'warning')
+      } else {
+        showToast('Payment failed. Please try again.', 'error')
+        console.error('Payment error:', err)
+      }
     } finally {
       setIsProcessingPayment(false)
     }
@@ -457,7 +512,7 @@ const POS: React.FC = () => {
 
     // Fire-and-forget — clear cart immediately, print in background
     const receiptText = generateTextReceipt(completedSale, systemSettings)
-    window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath)
+    window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName)
       .catch((err: unknown) => console.error('Print error:', err))
     handlePaymentSuccess(completedSale?.transactionId || 'Unknown')
   }

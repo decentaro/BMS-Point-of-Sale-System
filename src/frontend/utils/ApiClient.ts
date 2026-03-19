@@ -24,6 +24,10 @@ interface RetryConfig {
 }
 
 class ApiClient {
+  // Set by ConnectionContext — when false, all requests fail immediately (no retries)
+  static online: boolean = true
+  static setOnline(online: boolean) { ApiClient.online = online }
+
   private static readonly DEFAULT_CONFIG: RetryConfig = {
     maxRetries: 3,
     baseDelay: 1000,
@@ -129,9 +133,14 @@ class ApiClient {
       }
     }
 
+    // Fail immediately when offline — don't waste time on retries
+    if (!ApiClient.online) {
+      throw this.createApiError('Offline', undefined, 'network')
+    }
+
     // Make the request with retry logic
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`
-    
+
     let lastError!: ApiError
     
     for (let attempt = 1; attempt <= retryConfig.maxRetries + 1; attempt++) {
@@ -252,15 +261,27 @@ class ApiClient {
   }
 
   /**
-   * Helper for JSON responses with better error handling
+   * Helper for JSON responses with better error handling.
+   * Automatically caches every successful response in localStorage.
+   * When offline, serves from cache — throws only if no cache exists.
    */
   static async getJson<T>(endpoint: string, requireAuth: boolean = true, options?: Partial<ApiRequestOptions>): Promise<T> {
+    if (!ApiClient.online) {
+      const { default: CacheService } = await import('./CacheService')
+      const cached = CacheService.get<T>(endpoint)
+      if (cached !== null) return cached
+      throw this.createApiError('Offline', undefined, 'network')
+    }
     const response = await this.get(endpoint, requireAuth, options)
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error')
       throw this.createApiError(errorText || `HTTP ${response.status}`, response.status, 'server')
     }
-    return response.json()
+    const data: T = await response.json()
+    // Cache every successful GET response
+    const { default: CacheService } = await import('./CacheService')
+    CacheService.set(endpoint, data)
+    return data
   }
 
   /**

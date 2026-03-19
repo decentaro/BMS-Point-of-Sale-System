@@ -11,6 +11,7 @@ import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
 import { AdminSettings, ApiResponse, BackupCapabilities } from '../types/AdminSettings'
 import { ElectronFile } from '../../types/electron'
 import ApiClient from '../utils/ApiClient'
+import { useConnection } from '../contexts/ConnectionContext'
 import { useToast } from '../contexts/ToastContext'
 import { formatDateSync, formatTime } from '../utils/dateFormat'
 import PageHeader from './ui/PageHeader'
@@ -26,6 +27,7 @@ import {
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { isOnline } = useConnection()
 
   // Session and role validation handled by SessionGuard wrapper
   const goBack = () => {
@@ -805,11 +807,11 @@ const AdminPanel: React.FC = () => {
                   {/* Connection status */}
                   <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 mb-4">
                     <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      adminSettings.databaseStatus === 'Connected' ? 'bg-emerald-500' : 'bg-red-500'
+                      isOnline && adminSettings.databaseStatus === 'Connected' ? 'bg-emerald-500' : 'bg-red-500'
                     }`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-800">
-                        {adminSettings.databaseStatus === 'Connected' ? 'Connected' : 'Disconnected'}
+                        {isOnline && adminSettings.databaseStatus === 'Connected' ? 'Connected' : 'Disconnected'}
                       </p>
                       <p className="text-xs text-slate-500 truncate">****base.supabase.co</p>
                     </div>

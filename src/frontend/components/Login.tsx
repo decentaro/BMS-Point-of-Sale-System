@@ -120,6 +120,7 @@ const Login: React.FC = () => {
           : hasInventory
           ? '/inventory-dashboard'
           : '/pos'
+        window.dispatchEvent(new CustomEvent('bms:logged-in'))
         setTimeout(() => navigate(landingPage), 1000)
       } else {
         const isLockout = result.message?.toLowerCase().includes('locked')

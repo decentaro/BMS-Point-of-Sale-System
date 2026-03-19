@@ -21,7 +21,9 @@ import AdminPanel from './components/AdminPanel'
 import SessionGuard from './components/SessionGuard'
 import { SettingsProvider } from './contexts/SettingsContext'
 import { ToastProvider } from './contexts/ToastContext'
+import { ConnectionProvider } from './contexts/ConnectionContext'
 import ToastContainer from './components/ui/ToastContainer'
+import OfflineBanner from './components/ui/OfflineBanner'
 
 // Router-level auth guard — catches any route that loses its component-level SessionGuard.
 // Components still carry their own guards for role enforcement; this is a safety net.
@@ -114,6 +116,7 @@ function App() {
   )
 
   return (
+    <ConnectionProvider>
     <SettingsProvider>
       <ToastProvider>
         <Router>
@@ -127,6 +130,7 @@ function App() {
           <div className="app-viewport">
             <div className="app-root">
               <ToastContainer />
+              <OfflineBanner />
               <Routes>
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
@@ -152,6 +156,7 @@ function App() {
         </Router>
       </ToastProvider>
     </SettingsProvider>
+    </ConnectionProvider>
   )
 }
 

@@ -13,6 +13,7 @@ import { formatCurrency } from '../utils/formatCurrency'
 import SessionStatus from './SessionStatus'
 import SessionManager from '../utils/SessionManager'
 import ApiClient from '../utils/ApiClient'
+import { useConnection } from '../contexts/ConnectionContext'
 import { useToast } from '../contexts/ToastContext'
 import DateDisplay from './DateDisplay'
 import { formatDateSync } from '../utils/dateFormat'
@@ -86,6 +87,7 @@ interface ReturnItem {
 const Returns: React.FC = () => {
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { isOnline, refreshReturnQueueCount } = useConnection()
 
   // State management
   const [systemSettings, setSystemSettings] = React.useState<SystemSettings | null>(null)
@@ -324,12 +326,21 @@ const Returns: React.FC = () => {
         }))
       }
 
-      // Call API to process return
-      const returnRecord = await ApiClient.postJson<{ returnId: string; totalRefundAmount: number }>('/returns', returnRequest)
-
-      showToast(`Return processed successfully. ID: ${returnRecord.returnId} | Refund: ${formatCurrency(returnTotal)}`, 'success')
-
-      setLastReturnRecord(returnRecord)
+      if (!isOnline) {
+        // Queue the return for sync when back online
+        await window.electronAPI.queueReturn({
+          id: `RET-OFFLINE-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          timestamp: new Date().toISOString(),
+          transactionId: originalSale.transactionId,
+          returnData: returnRequest,
+        })
+        await refreshReturnQueueCount()
+        showToast('Offline — return queued, will sync when back online', 'warning')
+      } else {
+        const returnRecord = await ApiClient.postJson<{ returnId: string; totalRefundAmount: number }>('/returns', returnRequest)
+        showToast(`Return processed successfully. ID: ${returnRecord.returnId} | Refund: ${formatCurrency(returnTotal)}`, 'success')
+        setLastReturnRecord(returnRecord)
+      }
 
       // Reset form
       setOriginalSale(null)
@@ -337,7 +348,7 @@ const Returns: React.FC = () => {
       setSearchTransactionId('')
       setManagerPin('')
       setAlreadyReturnedQty({})
-      
+
     } catch (err) {
       showToast('Failed to process return. Please try again.', 'error')
     } finally {

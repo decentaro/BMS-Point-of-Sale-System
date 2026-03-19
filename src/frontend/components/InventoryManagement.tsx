@@ -11,6 +11,7 @@ import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
 import SessionGuard from './SessionGuard'
 import SessionStatus from './SessionStatus'
 import ApiClient from '../utils/ApiClient'
+import { useConnection } from '../contexts/ConnectionContext'
 import { useBusinessSettings } from '../contexts/SettingsContext'
 import { useToast } from '../contexts/ToastContext'
 import SessionManager from '../utils/SessionManager'
@@ -59,6 +60,7 @@ const InventoryManagement: React.FC = () => {
   const navigate = useNavigate()
   useBusinessSettings()
   const { showToast } = useToast()
+  const { isOnline, refreshAdjustmentQueueCount } = useConnection()
   const [activeTab, setActiveTab] = useState('adjustments')
   
   // Stock Adjustments State
@@ -197,9 +199,28 @@ const InventoryManagement: React.FC = () => {
         referenceNumber: undefined
       }
 
-      await ApiClient.post('/stockadjustments', adjustmentData)
-      
-      showToast('Stock adjustment created successfully', 'success')
+      if (!isOnline) {
+        await window.electronAPI.queueAdjustment({
+          id: `ADJ-OFFLINE-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          timestamp: new Date().toISOString(),
+          productName: selectedProductObj.name,
+          adjustmentData,
+        })
+        await refreshAdjustmentQueueCount()
+        showToast('Offline — adjustment queued, will sync when back online', 'warning')
+      } else {
+        await ApiClient.post('/stockadjustments', adjustmentData)
+        showToast('Stock adjustment created successfully', 'success')
+        await loadProducts()
+        await loadAdjustments()
+        await loadPendingAdjustments()
+        await ApiClient.logActivity(
+          'Created stock adjustment',
+          `Product: ${selectedProductObj.name}, Change: ${quantityChange}`,
+          'StockAdjustment'
+        )
+      }
+
       setSelectedProduct('')
       setSelectedProductObj(null)
       setProductSearch('')
@@ -207,16 +228,6 @@ const InventoryManagement: React.FC = () => {
       setQuantityChange('')
       setReason('')
       setNotes('')
-      
-      await loadProducts()
-      await loadAdjustments()
-      await loadPendingAdjustments()
-
-      await ApiClient.logActivity(
-        'Created stock adjustment',
-        `Product: ${selectedProductObj.name}, Change: ${quantityChange}`,
-        'StockAdjustment'
-      )
     } catch (error: any) {
       showToast('Failed to create adjustment. Please try again.', 'error')
     } finally {
@@ -748,15 +759,27 @@ const InventoryManagement: React.FC = () => {
                           const diff = parseInt(quantityChange) - selectedProductObj.stockQuantity
                           if (diff === 0) { showToast('No adjustment needed — counts match', 'info'); return }
                           try {
-                            await ApiClient.post('/stockadjustments', {
+                            const adjustmentData = {
                               productId: selectedProductObj.id,
                               adjustmentType: 'CORRECTION',
                               quantityChange: diff,
                               reason: 'Physical count adjustment'
-                            })
-                            showToast('Stock adjusted based on physical count', 'success')
+                            }
+                            if (!isOnline) {
+                              await window.electronAPI.queueAdjustment({
+                                id: `ADJ-OFFLINE-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                                timestamp: new Date().toISOString(),
+                                productName: selectedProductObj.name,
+                                adjustmentData,
+                              })
+                              await refreshAdjustmentQueueCount()
+                              showToast('Offline — adjustment queued, will sync when back online', 'warning')
+                            } else {
+                              await ApiClient.post('/stockadjustments', adjustmentData)
+                              showToast('Stock adjusted based on physical count', 'success')
+                              await loadProducts(); await loadAdjustments()
+                            }
                             setProductSearch(''); setQuantityChange(''); setSelectedProductObj(null); setSelectedProduct('')
-                            await loadProducts(); await loadAdjustments()
                           } catch (error: any) { showToast('Failed to create adjustment. Please try again.', 'error') }
                         }}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"

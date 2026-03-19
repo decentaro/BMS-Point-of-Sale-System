@@ -195,7 +195,7 @@ const electronAPI = {
     openCashDrawer: () => ipcRenderer.invoke('open-cash-drawer'),
     
     // Receipt printing
-    printReceipt: (receiptHtml, logoPath) => ipcRenderer.invoke('print-receipt', receiptHtml, logoPath),
+    printReceipt: (receiptHtml, logoPath, businessName) => ipcRenderer.invoke('print-receipt', receiptHtml, logoPath, businessName),
     
     // API Configuration methods
     getApiConfig: () => ipcRenderer.invoke('get-api-config'),
@@ -212,6 +212,46 @@ const electronAPI = {
 
     // Clear JWT token on logout
     clearAuthToken: () => { authToken = null; },
+
+    // Connectivity
+    onConnectivityChange: (callback) => {
+        ipcRenderer.on('connectivity-changed', (event, data) => callback(data))
+    },
+    getConnectivity: () => ipcRenderer.invoke('get-connectivity'),
+
+    // Offline queue
+    queueTransaction: (transaction) => ipcRenderer.invoke('queue-transaction', transaction),
+    getQueue: () => ipcRenderer.invoke('get-queue'),
+    removeFromQueue: (id) => ipcRenderer.invoke('remove-from-queue', id),
+
+    // Product cache
+    saveProductCache: (products) => ipcRenderer.invoke('save-product-cache', products),
+    getProductCache: () => ipcRenderer.invoke('get-product-cache'),
+
+    // Adjustment queue
+    queueAdjustment: (adjustment) => ipcRenderer.invoke('queue-adjustment', adjustment),
+    getAdjustmentQueue: () => ipcRenderer.invoke('get-adjustment-queue'),
+    removeFromAdjustmentQueue: (id) => ipcRenderer.invoke('remove-from-adjustment-queue', id),
+
+    // Failed sales log
+    logFailedSale: (entry) => ipcRenderer.invoke('log-failed-sale', entry),
+    getFailedSales: () => ipcRenderer.invoke('get-failed-sales'),
+    clearFailedSales: () => ipcRenderer.invoke('clear-failed-sales'),
+
+    // Failed adjustments log
+    logFailedAdjustment: (entry) => ipcRenderer.invoke('log-failed-adjustment', entry),
+    getFailedAdjustments: () => ipcRenderer.invoke('get-failed-adjustments'),
+    clearFailedAdjustments: () => ipcRenderer.invoke('clear-failed-adjustments'),
+
+    // Return queue
+    queueReturn: (ret) => ipcRenderer.invoke('queue-return', ret),
+    getReturnQueue: () => ipcRenderer.invoke('get-return-queue'),
+    removeFromReturnQueue: (id) => ipcRenderer.invoke('remove-from-return-queue', id),
+
+    // Failed returns log
+    logFailedReturn: (entry) => ipcRenderer.invoke('log-failed-return', entry),
+    getFailedReturns: () => ipcRenderer.invoke('get-failed-returns'),
+    clearFailedReturns: () => ipcRenderer.invoke('clear-failed-returns'),
 
     // Debug function to test preload
     debug: () => "Preload script loaded successfully!"
