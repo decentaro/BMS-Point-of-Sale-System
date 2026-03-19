@@ -76,7 +76,7 @@ namespace BMS_POS_API.Middleware
 
         // Fields whose values must never appear in logs
         private static readonly HashSet<string> _sensitiveFields =
-            new(StringComparer.OrdinalIgnoreCase) { "pin", "managerPin", "password", "confirmationPhrase" };
+            new(StringComparer.OrdinalIgnoreCase) { "pin", "managerPin", "newPin", "oldPin", "currentPin", "password", "confirmationPhrase" };
 
         /// <summary>
         /// Extract employee ID from auth request body using a proper JSON parser.

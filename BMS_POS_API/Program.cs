@@ -182,7 +182,8 @@ using (var scope = app.Services.CreateScope())
             Role = "Manager",
             IsManager = true,
             IsActive = true,
-            CreatedDate = DateTime.UtcNow
+            CreatedDate = DateTime.UtcNow,
+            MustChangePinOnNextLogin = true
         };
 
         context.Employees.Add(defaultManager);

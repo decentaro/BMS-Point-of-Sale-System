@@ -19,6 +19,10 @@ const Login: React.FC = () => {
   const [employeeId, setEmployeeId] = useState('')
   const [pin, setPin] = useState('')
   const [statusMessage, setStatusMessage] = useState('Please sign in')
+  const [pendingEmployee, setPendingEmployee] = useState<{ id: number; name: string; role: string; isManager: boolean; token: string; landingPage: string } | null>(null)
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [pinChangeStep, setPinChangeStep] = useState<'new' | 'confirm'>('new')
 
   const inputNumber = (num: string) => {
     playKeySound()
@@ -46,7 +50,7 @@ const Login: React.FC = () => {
     if (params.get('reason') === 'expired') {
       showToast('Your session has expired. Please log in again.', 'warning')
     }
-  }, [])
+  }, [location.search, showToast])
 
   const backspace = () => {
     playKeySound()
@@ -120,6 +124,20 @@ const Login: React.FC = () => {
           : hasInventory
           ? '/inventory-dashboard'
           : '/pos'
+
+        if (result.data.employee.mustChangePinOnNextLogin) {
+          setPendingEmployee({
+            id: result.data.employee.id,
+            name: result.data.employee.name,
+            role: fullRole,
+            isManager: result.data.employee.isManager || fullRole.includes('Manager'),
+            token: result.data.token,
+            landingPage,
+          })
+          setStatusMessage('Please set a new PIN')
+          return
+        }
+
         window.dispatchEvent(new CustomEvent('bms:logged-in'))
         setTimeout(() => navigate(landingPage), 1000)
       } else {
@@ -134,6 +152,101 @@ const Login: React.FC = () => {
       showToast('Login failed. Please check your connection and try again.', 'error')
       setStatusMessage('Please sign in')
     }
+  }
+
+  const handlePinChangeInput = (num: string) => {
+    playKeySound()
+    if (pinChangeStep === 'new') {
+      if (newPin.length < 6) setNewPin(prev => prev + num)
+    } else {
+      if (confirmPin.length < 6) setConfirmPin(prev => prev + num)
+    }
+  }
+
+  const handlePinChangeBackspace = () => {
+    playKeySound()
+    if (pinChangeStep === 'new') setNewPin(prev => prev.slice(0, -1))
+    else setConfirmPin(prev => prev.slice(0, -1))
+  }
+
+  const handlePinChangeSubmit = async () => {
+    if (!pendingEmployee) return
+    if (pinChangeStep === 'new') {
+      if (newPin.length < 4) { showToast('PIN must be at least 4 digits', 'warning'); return }
+      setPinChangeStep('confirm')
+      return
+    }
+    if (newPin !== confirmPin) {
+      showToast('PINs do not match. Try again.', 'error')
+      setNewPin('')
+      setConfirmPin('')
+      setPinChangeStep('new')
+      return
+    }
+    try {
+      SessionManager.setToken(pendingEmployee.token)
+      await ApiClient.put(`/employees/${pendingEmployee.id}/reset-pin`, { newPin })
+      await SessionManager.createSession({
+        id: pendingEmployee.id,
+        employeeId: String(pendingEmployee.id),
+        name: pendingEmployee.name,
+        role: pendingEmployee.role,
+        isManager: pendingEmployee.isManager,
+      })
+      showToast('PIN updated successfully', 'success')
+      window.dispatchEvent(new CustomEvent('bms:logged-in'))
+      setTimeout(() => navigate(pendingEmployee.landingPage), 800)
+    } catch {
+      showToast('Failed to update PIN. Please try again.', 'error')
+      setNewPin('')
+      setConfirmPin('')
+      setPinChangeStep('new')
+    }
+  }
+
+  if (pendingEmployee) {
+    const currentPinValue = pinChangeStep === 'new' ? newPin : confirmPin
+    const label = pinChangeStep === 'new' ? 'Enter new PIN' : 'Confirm new PIN'
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 w-80 text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mb-4">
+            <span className="text-2xl">🔐</span>
+          </div>
+          <h2 className="text-lg font-bold text-slate-800 mb-1">Set a new PIN</h2>
+          <p className="text-sm text-slate-500 mb-4">Your default PIN must be changed before you can continue.</p>
+          <p className="text-sm font-medium text-slate-700 mb-2">{label}</p>
+          <div className="flex justify-center gap-2 mb-6">
+            {[0,1,2,3,4,5].map(i => (
+              <div key={i} className={`w-3 h-3 rounded-full border-2 ${i < currentPinValue.length ? 'bg-emerald-600 border-emerald-600' : 'border-slate-300'}`} />
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((key) => (
+              <button
+                key={key}
+                onClick={() => key === '⌫' ? handlePinChangeBackspace() : key ? handlePinChangeInput(key) : undefined}
+                disabled={!key}
+                className={`h-12 rounded-lg font-semibold text-lg transition-colors ${
+                  key === '⌫' ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                  : key ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200'
+                  : 'invisible'
+                }`}
+              >
+                {key}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handlePinChangeSubmit}
+            disabled={currentPinValue.length < 4}
+            className="w-full py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {pinChangeStep === 'new' ? 'Next' : 'Set PIN'}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

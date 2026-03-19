@@ -55,5 +55,8 @@ namespace BMS_POS_API.Models
 
         [Column("locked_until")]
         public DateTime? LockedUntil { get; set; }
+
+        [Column("must_change_pin_on_next_login")]
+        public bool MustChangePinOnNextLogin { get; set; } = false;
     }
 }

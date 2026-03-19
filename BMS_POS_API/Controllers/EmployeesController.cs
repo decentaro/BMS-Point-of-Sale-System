@@ -157,9 +157,6 @@ namespace BMS_POS_API.Controllers
             if (employee.HireDate.HasValue && employee.HireDate.Value.Kind == DateTimeKind.Unspecified)
                 employee.HireDate = DateTime.SpecifyKind(employee.HireDate.Value, DateTimeKind.Utc);
 
-            // Clear change tracker to avoid conflicts
-            _context.ChangeTracker.Clear();
-
             _context.Entry(employee).State = EntityState.Modified;
 
             try
@@ -311,8 +308,9 @@ namespace BMS_POS_API.Controllers
             // Store old PIN info for logging (don't log actual PIN values for security)
             var oldPinLength = employee.Pin?.Length ?? 0;
 
-            // Hash and update PIN
+            // Hash and update PIN; clear any forced-change requirement
             employee.Pin = _pinSecurityService.HashPin(request.NewPin);
+            employee.MustChangePinOnNextLogin = false;
             await _context.SaveChangesAsync();
 
             // Log PIN reset activity
