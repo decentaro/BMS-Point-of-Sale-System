@@ -40,6 +40,7 @@ interface ZReport {
   totalTax: number
   totalReturns: number
   totalRefunds: number
+  netRevenue: number
   cashSales: number
   cardSales: number
   paymentBreakdown: ZReportPaymentBreakdown[]
@@ -59,6 +60,7 @@ interface ZReportSummaryRow {
   totalTax: number
   totalReturns: number
   totalRefunds: number
+  netRevenue: number
   cashSales: number
   cardSales: number
   openingCash: number
@@ -291,7 +293,7 @@ const Reconciliation: React.FC = () => {
   // ── Export range CSV ───────────────────────────────────────────────────────
   const exportRangeCSV = () => {
     if (rangeRows.length === 0) return
-    const header = 'Date,Session,Status,Transactions,Gross Sales,Discounts,Net Sales,Tax,Returns,Refunds,Cash Sales,Card Sales,Opening Cash,Expected Closing,Actual Closing,Variance'
+    const header = 'Date,Session,Status,Transactions,Gross Sales,Discounts,Net Sales,Tax,Returns,Refunds,Net Revenue,Cash Sales,Card Sales,Opening Cash,Expected Closing,Actual Closing,Variance'
     const rows = rangeRows.map(r => [
       r.date.slice(0, 10),
       r.sessionCode || 'N/A',
@@ -303,6 +305,7 @@ const Reconciliation: React.FC = () => {
       r.totalTax.toFixed(2),
       r.totalReturns,
       r.totalRefunds.toFixed(2),
+      r.netRevenue.toFixed(2),
       r.cashSales.toFixed(2),
       r.cardSales.toFixed(2),
       r.openingCash.toFixed(2),
@@ -605,17 +608,19 @@ const ZReportPanel: React.FC<ZReportPanelProps> = ({
             <div className="space-y-2 mt-3">
               <InfoRow label="Total Transactions" value={String(report.totalTransactions)} />
               <InfoRow label="Gross Sales" value={formatCurrency(report.grossSales)} />
-              <InfoRow label="Discounts" value={`-${formatCurrency(report.totalDiscounts)}`} valueClass="text-amber-600" />
+              {report.totalDiscounts > 0 && (
+                <InfoRow label="Discounts" value={`-${formatCurrency(report.totalDiscounts)}`} valueClass="text-amber-600" />
+              )}
               <div className="border-t border-slate-100 pt-2 mt-2">
                 <InfoRow label="Net Sales" value={formatCurrency(report.netSales)} valueClass="font-semibold text-slate-800" />
                 <InfoRow label="Tax Collected" value={formatCurrency(report.totalTax)} />
               </div>
-              {(report.totalReturns > 0 || report.totalRefunds > 0) && (
-                <div className="border-t border-slate-100 pt-2 mt-2">
-                  <InfoRow label="Returns" value={String(report.totalReturns)} />
-                  <InfoRow label="Total Refunds" value={`-${formatCurrency(report.totalRefunds)}`} valueClass="text-red-500" />
-                </div>
-              )}
+              <div className="border-t border-slate-100 pt-2 mt-2">
+                <InfoRow label={`Returns (${report.totalReturns})`} value={report.totalRefunds > 0 ? `-${formatCurrency(report.totalRefunds)}` : '—'} valueClass={report.totalRefunds > 0 ? 'text-red-500' : 'text-slate-400'} />
+              </div>
+              <div className="border-t border-slate-200 pt-2 mt-2">
+                <InfoRow label="Net Revenue" value={formatCurrency(report.netRevenue)} valueClass="font-bold text-slate-800" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -772,10 +777,11 @@ const RangeTable: React.FC<{ rows: ZReportSummaryRow[] }> = ({ rows }) => {
       totalDiscounts: acc.totalDiscounts + r.totalDiscounts,
       totalReturns: acc.totalReturns + r.totalReturns,
       totalRefunds: acc.totalRefunds + r.totalRefunds,
+      netRevenue: acc.netRevenue + r.netRevenue,
       cashSales: acc.cashSales + r.cashSales,
       cardSales: acc.cardSales + r.cardSales,
     }),
-    { totalTransactions: 0, netSales: 0, totalTax: 0, totalDiscounts: 0, totalReturns: 0, totalRefunds: 0, cashSales: 0, cardSales: 0 }
+    { totalTransactions: 0, netSales: 0, totalTax: 0, totalDiscounts: 0, totalReturns: 0, totalRefunds: 0, netRevenue: 0, cashSales: 0, cardSales: 0 }
   )
 
   return (
@@ -793,6 +799,7 @@ const RangeTable: React.FC<{ rows: ZReportSummaryRow[] }> = ({ rows }) => {
                 <th className="text-right px-3 py-3 text-xs font-semibold text-slate-500 uppercase">Cash</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-slate-500 uppercase">Card</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-slate-500 uppercase">Refunds</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-slate-500 uppercase">Net Rev.</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-slate-500 uppercase">Variance</th>
               </tr>
             </thead>
@@ -813,6 +820,7 @@ const RangeTable: React.FC<{ rows: ZReportSummaryRow[] }> = ({ rows }) => {
                   <td className="px-3 py-3 text-right text-red-500">
                     {r.totalRefunds > 0 ? `-${formatCurrency(r.totalRefunds)}` : '—'}
                   </td>
+                  <td className="px-3 py-3 text-right font-medium text-slate-800">{formatCurrency(r.netRevenue)}</td>
                   <td className={`px-3 py-3 text-right font-medium ${varianceColour(r.cashVariance)}`}>
                     {r.cashVariance != null
                       ? `${r.cashVariance >= 0 ? '+' : ''}${formatCurrency(r.cashVariance)}`
@@ -832,6 +840,7 @@ const RangeTable: React.FC<{ rows: ZReportSummaryRow[] }> = ({ rows }) => {
                 <td className="px-3 py-3 text-right font-bold text-red-500">
                   {totals.totalRefunds > 0 ? `-${formatCurrency(totals.totalRefunds)}` : '—'}
                 </td>
+                <td className="px-3 py-3 text-right font-bold text-slate-800">{formatCurrency(totals.netRevenue)}</td>
                 <td className="px-3 py-3" />
               </tr>
             </tfoot>

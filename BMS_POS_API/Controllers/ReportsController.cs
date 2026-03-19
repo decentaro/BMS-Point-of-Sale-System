@@ -73,6 +73,7 @@ namespace BMS_POS_API.Controllers
                     TotalTax = report.TotalTax,
                     TotalReturns = report.TotalReturns,
                     TotalRefunds = report.TotalRefunds,
+                    NetRevenue = report.NetRevenue,
                     CashSales = report.CashSales,
                     CardSales = report.CardSales,
                     OpeningCash = report.OpeningCash,
@@ -127,8 +128,8 @@ namespace BMS_POS_API.Controllers
             var cardSales = sales.Where(s => s.PaymentMethod != "Cash").Sum(s => s.Total);
 
             // Returns breakdown — cash refunds reduce expected closing cash
-            var cashRefunds = returns.Sum(r => r.TotalRefundAmount); // simplified: all refunds treated as cash
             var totalRefunds = returns.Sum(r => r.TotalRefundAmount);
+            var cashRefunds  = totalRefunds; // simplified: all refunds treated as cash
 
             var openingCash = session?.OpeningCash ?? 0;
             var expectedClosingCash = openingCash + cashSales - cashRefunds;
@@ -155,6 +156,7 @@ namespace BMS_POS_API.Controllers
                 TotalTax = totalTax,
                 TotalReturns = returns.Count,
                 TotalRefunds = totalRefunds,
+                NetRevenue = netSales + totalTax - totalRefunds,
                 CashSales = cashSales,
                 CardSales = cardSales,
                 PaymentBreakdown = paymentBreakdown,
@@ -184,6 +186,7 @@ namespace BMS_POS_API.Controllers
         public decimal TotalTax { get; set; }
         public int TotalReturns { get; set; }
         public decimal TotalRefunds { get; set; }
+        public decimal NetRevenue { get; set; }
         public decimal CashSales { get; set; }
         public decimal CardSales { get; set; }
         public List<ZReportPaymentBreakdown> PaymentBreakdown { get; set; } = new();
@@ -211,6 +214,7 @@ namespace BMS_POS_API.Controllers
         public decimal TotalTax { get; set; }
         public int TotalReturns { get; set; }
         public decimal TotalRefunds { get; set; }
+        public decimal NetRevenue { get; set; }
         public decimal CashSales { get; set; }
         public decimal CardSales { get; set; }
         public decimal OpeningCash { get; set; }

@@ -453,6 +453,7 @@ interface ZReportForPrint {
   totalTax: number
   totalReturns: number
   totalRefunds: number
+  netRevenue: number
   paymentBreakdown: { paymentMethod: string; transactionCount: number; totalAmount: number }[]
   expectedClosingCash: number
   cashVariance: number | null
@@ -514,11 +515,9 @@ export const generateZReportReceipt = (report: ZReportForPrint, settings: System
   if (report.totalDiscounts > 0) r += two('Discounts:', '-' + cur(report.totalDiscounts))
   r += two('Net Sales:', cur(report.netSales))
   r += two('Tax Collected:', cur(report.totalTax))
-  if (report.totalReturns > 0) {
-    r += dash + '\n'
-    r += two('Returns:', String(report.totalReturns))
-    r += two('Total Refunds:', '-' + cur(report.totalRefunds))
-  }
+  r += dash + '\n'
+  r += two(`Returns (${report.totalReturns}):`, report.totalRefunds > 0 ? '-' + cur(report.totalRefunds) : '—')
+  r += two('NET REVENUE:', cur(report.netRevenue))
 
   // Payment breakdown
   if (report.paymentBreakdown.length > 0) {
