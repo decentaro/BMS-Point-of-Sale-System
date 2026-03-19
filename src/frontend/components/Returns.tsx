@@ -179,25 +179,18 @@ const Returns: React.FC = () => {
 
     try {
       setSearchLoading(true)
-      
-      const allSales = await ApiClient.getJson<Sale[]>('/sales')
-      
-      // Search by full transaction ID or last 8 digits
+
       const searchTerm = searchTransactionId.trim()
-      const foundSale = allSales.find((sale: Sale) => {
-        // First try exact match (for barcode scanning)
-        if (sale.transactionId === searchTerm) {
-          return true
-        }
-        // Then try last 8 digits match (for manual entry)
-        const last8 = sale.transactionId.slice(-8)
-        return last8 === searchTerm
-      })
-      
+      let foundSale: Sale | null = null
+      try {
+        foundSale = await ApiClient.getJson<Sale>(`/sales/search?transactionId=${encodeURIComponent(searchTerm)}`)
+      } catch {
+        // 404 = not found
+      }
+
       if (!foundSale) {
-        // Determine if user entered full transaction ID or just last 8 digits
         const isFullTransactionId = searchTerm.includes('TXN-') || searchTerm.length > 8
-        const errorMsg = isFullTransactionId 
+        const errorMsg = isFullTransactionId
           ? `Transaction ID "${searchTerm}" not found`
           : `Transaction ID ending in "${searchTerm}" not found`
         showToast(errorMsg, 'error')

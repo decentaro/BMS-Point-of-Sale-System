@@ -45,6 +45,31 @@ namespace BMS_POS_API.Controllers
                 .ToListAsync();
         }
 
+        // GET: api/sales/search?transactionId=TXN-20260318-ABCD1234
+        // Accepts the full transaction ID or just the last 8 characters (as printed on receipts).
+        [HttpGet("search")]
+        public async Task<ActionResult<Sale>> SearchSale([FromQuery] string transactionId)
+        {
+            if (string.IsNullOrWhiteSpace(transactionId))
+                return BadRequest("transactionId query parameter is required.");
+
+            var term = transactionId.Trim();
+
+            var sale = await _context.Sales
+                .Include(s => s.Employee)
+                .Include(s => s.SaleItems)
+                    .ThenInclude(si => si.Product)
+                .Where(s => s.Status == "Completed")
+                .FirstOrDefaultAsync(s =>
+                    s.TransactionId == term ||
+                    s.TransactionId.EndsWith(term));
+
+            if (sale == null)
+                return NotFound();
+
+            return sale;
+        }
+
         // GET: api/sales/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Sale>> GetSale(int id)
