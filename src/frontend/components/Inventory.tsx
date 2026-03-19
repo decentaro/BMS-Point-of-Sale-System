@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Package, Search, ScanBarcode, Plus, Save, Trash2,
-  X, ChevronDown, Tag, AlertTriangle, Edit2, ArrowLeft
+  X, ChevronDown, Tag, AlertTriangle, Edit2, ArrowLeft, Upload
 } from 'lucide-react'
 import { Button } from './ui/button'
 import HybridInput from './HybridInput'
@@ -67,6 +67,9 @@ const Inventory: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = React.useState<number | null>(null)
   const [isEditing, setIsEditing] = React.useState<boolean>(false)
   const [upcImageUrl, setUpcImageUrl] = React.useState<string | null>(null)
+  const [pendingImageFile, setPendingImageFile] = React.useState<File | null>(null)
+  const [pendingImagePreviewUrl, setPendingImagePreviewUrl] = React.useState<string | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [isSearching, setIsSearching] = React.useState<boolean>(false)
   const [viewingProduct, setViewingProduct] = React.useState<Product | null>(null)
   const [showDeleteModal, setShowDeleteModal] = React.useState<boolean>(false)
@@ -293,12 +296,16 @@ const Inventory: React.FC = () => {
         price: parseFloat(form.price) || 0,
         unit: 'pcs',
         isActive: true,
-        imageUrl: upcImageUrl // Include image from UPC database
+        imageUrl: upcImageUrl
       }
-      
-      await ApiClient.postJson('/products', productData)
-      
-      await loadProducts() // Reload products
+
+      const newProduct = await ApiClient.postJson<Product>('/products', productData)
+
+      if (pendingImageFile) {
+        await uploadProductImage(newProduct.id, pendingImageFile)
+      }
+
+      await loadProducts()
       clearForm()
       showToast('Product added successfully', 'success')
     } catch (err) {
@@ -377,12 +384,12 @@ const Inventory: React.FC = () => {
     })
     setSelectedProduct(null)
     setIsEditing(false)
-    setUpcImageUrl(null) // Clear UPC image URL
+    setUpcImageUrl(null)
+    setPendingImageFile(null)
+    setPendingImagePreviewUrl(null)
   }
 
   const selectProduct = (product: Product) => {
-    console.log('Selected product:', product) // Debug
-    console.log('Product imageUrl:', product.imageUrl) // Debug
     setSelectedProduct(product.id)
     setForm({
       ...form,
@@ -397,6 +404,41 @@ const Inventory: React.FC = () => {
       price: product.price.toString()
     })
     setIsEditing(true)
+    setUpcImageUrl(null)
+    setPendingImageFile(null)
+    setPendingImagePreviewUrl(null)
+  }
+
+  const uploadProductImage = async (productId: number, file: File) => {
+    try {
+      const response = await ApiClient.uploadFile(`/products/${productId}/image`, file, undefined, 'image')
+      if (!response.ok) throw new Error('Upload failed')
+      const result = await response.json()
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, imageUrl: result.imageUrl } : p))
+      showToast('Image uploaded successfully', 'success')
+    } catch (err) {
+      showToast('Image upload failed. Please try again.', 'error')
+      console.error('Image upload error:', err)
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    // Use FileReader for a data URL — works in Electron's file:// context
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      setPendingImagePreviewUrl(evt.target?.result as string ?? null)
+    }
+    reader.readAsDataURL(file)
+
+    if (isEditing && selectedProduct !== null) {
+      await uploadProductImage(selectedProduct, file)
+    } else {
+      setPendingImageFile(file)
+    }
   }
 
   const viewProduct = (product: Product) => {
@@ -434,6 +476,9 @@ const Inventory: React.FC = () => {
   const FieldLabel = ({ children }: { children: React.ReactNode }) => (
     <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">{children}</label>
   )
+
+  const editingProductImageUrl = isEditing ? (products.find(p => p.id === selectedProduct)?.imageUrl ?? null) : null
+  const displayImageUrl = pendingImagePreviewUrl ?? upcImageUrl ?? editingProductImageUrl
 
   const stockStatus = (p: Product) => {
     if (p.stockQuantity === 0)                     return { label: 'Out of Stock', cls: 'bg-red-100 text-red-700' }
@@ -700,24 +745,40 @@ const Inventory: React.FC = () => {
                       onChange={(v) => setForm({...form, price: v})} onTouchKeyboard={() => openKb('price', 'decimal', 'Selling Price')} />
                   </div>
 
-                  {/* UPC image preview */}
-                  {upcImageUrl && (
-                    <div className="col-span-full">
-                      <FieldLabel>Product Image Preview</FieldLabel>
-                      <div className="w-full h-20 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden">
-                        <img
-                          src={upcImageUrl}
-                          alt="Product preview"
-                          className="max-w-full max-h-full object-contain"
-                          onError={(e) => {
-                            const placeholder = `https://via.placeholder.com/200x200/f1f5f9/64748b?text=${encodeURIComponent(form.name || 'Product')}`
-                            e.currentTarget.src = placeholder
-                            setUpcImageUrl(placeholder)
-                          }}
-                        />
+                  {/* Product image */}
+                  <div className="col-span-full">
+                    <FieldLabel>Product Image</FieldLabel>
+                    <div className="flex gap-2 items-center">
+                      <div className="w-14 h-14 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {displayImageUrl ? (
+                          <img
+                            key={displayImageUrl}
+                            src={displayImageUrl}
+                            alt="Product"
+                            className="max-w-full max-h-full object-contain"
+                            onError={(e) => { e.currentTarget.style.display = 'none' }}
+                          />
+                        ) : (
+                          <Package className="w-6 h-6 text-slate-200" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Button size="sm" variant="outline" type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full h-8 text-xs border-slate-300 text-slate-600 hover:bg-slate-50 gap-1">
+                          <Upload className="w-3 h-3" />
+                          {displayImageUrl ? 'Replace Image' : 'Upload Image'}
+                        </Button>
+                        {pendingImageFile && (
+                          <p className="text-[10px] text-slate-500 mt-1 truncate">{pendingImageFile.name}</p>
+                        )}
+                        {!isEditing && !displayImageUrl && (
+                          <p className="text-[10px] text-slate-400 mt-1">Optional — or scan barcode to auto-fill</p>
+                        )}
                       </div>
                     </div>
-                  )}
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                  </div>
                 </form>
               </div>
 

@@ -447,6 +447,54 @@ namespace BMS_POS_API.Controllers
             return NoContent();
         }
 
+        // POST: api/products/{id}/image
+        [HttpPost("{id}/image")]
+        [RequestSizeLimit(5_242_880)] // 5 MB
+        public async Task<IActionResult> UploadProductImage(int id, IFormFile image)
+        {
+            var product = await _context.Products.FindAsync(id);
+            if (product == null) return NotFound();
+
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
+            if (!allowedTypes.Contains(image.ContentType.ToLower()))
+                return BadRequest("Only JPEG, PNG, GIF, and WebP images are allowed.");
+
+            if (image.Length == 0)
+                return BadRequest("Image file is empty.");
+
+            var productImagesPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "products");
+            Directory.CreateDirectory(productImagesPath);
+
+            // Delete old locally-uploaded image if it exists
+            if (!string.IsNullOrEmpty(product.ImageUrl) && product.ImageUrl.Contains("/uploads/products/"))
+            {
+                try
+                {
+                    var oldFilename = Path.GetFileName(new Uri(product.ImageUrl).LocalPath);
+                    var oldFilePath = Path.Combine(productImagesPath, oldFilename);
+                    if (System.IO.File.Exists(oldFilePath))
+                        System.IO.File.Delete(oldFilePath);
+                }
+                catch { /* ignore cleanup errors */ }
+            }
+
+            var ext = Path.GetExtension(image.FileName).ToLower();
+            if (string.IsNullOrEmpty(ext)) ext = ".jpg";
+            var filename = $"product_{id}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}{ext}";
+            var filePath = Path.Combine(productImagesPath, filename);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await image.CopyToAsync(stream);
+            }
+
+            product.ImageUrl = $"{Request.Scheme}://{Request.Host}/uploads/products/{filename}";
+            product.LastUpdated = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { imageUrl = product.ImageUrl });
+        }
+
         private bool ProductExists(int id)
         {
             return _context.Products.Any(p => p.Id == id);
