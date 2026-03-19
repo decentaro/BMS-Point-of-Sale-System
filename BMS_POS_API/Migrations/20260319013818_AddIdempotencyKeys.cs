@@ -11,28 +11,28 @@ namespace BMS_POS_API.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "IdempotencyKey",
+                name: "idempotency_key",
                 table: "sales",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
-                name: "IdempotencyKey",
+                name: "idempotency_key",
                 table: "returns",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_sales_IdempotencyKey",
+                name: "IX_sales_idempotency_key",
                 table: "sales",
-                column: "IdempotencyKey",
+                column: "idempotency_key",
                 unique: true,
                 filter: "idempotency_key IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_returns_IdempotencyKey",
+                name: "IX_returns_idempotency_key",
                 table: "returns",
-                column: "IdempotencyKey",
+                column: "idempotency_key",
                 unique: true,
                 filter: "idempotency_key IS NOT NULL");
         }
@@ -41,19 +41,19 @@ namespace BMS_POS_API.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "IX_sales_IdempotencyKey",
+                name: "IX_sales_idempotency_key",
                 table: "sales");
 
             migrationBuilder.DropIndex(
-                name: "IX_returns_IdempotencyKey",
+                name: "IX_returns_idempotency_key",
                 table: "returns");
 
             migrationBuilder.DropColumn(
-                name: "IdempotencyKey",
+                name: "idempotency_key",
                 table: "sales");
 
             migrationBuilder.DropColumn(
-                name: "IdempotencyKey",
+                name: "idempotency_key",
                 table: "returns");
         }
     }

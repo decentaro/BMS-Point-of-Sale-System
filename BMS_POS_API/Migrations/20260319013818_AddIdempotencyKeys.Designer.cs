@@ -548,6 +548,7 @@ namespace BMS_POS_API.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("IdempotencyKey")
+                        .HasColumnName("idempotency_key")
                         .HasColumnType("text");
 
                     b.Property<bool>("ManagerApprovalRequired")
@@ -668,6 +669,7 @@ namespace BMS_POS_API.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("IdempotencyKey")
+                        .HasColumnName("idempotency_key")
                         .HasColumnType("text");
 
                     b.Property<string>("Notes")

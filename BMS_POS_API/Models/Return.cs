@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BMS_POS_API.Models
 {
@@ -30,6 +31,7 @@ namespace BMS_POS_API.Models
         public string? Notes { get; set; }
 
         // Deduplication key — prevents duplicate records if the same request is retried
+        [Column("idempotency_key")]
         public string? IdempotencyKey { get; set; }
 
         // Navigation property
