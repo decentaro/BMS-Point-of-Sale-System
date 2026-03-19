@@ -104,27 +104,34 @@ namespace BMS_POS_API.Controllers
             if (employee == null)
                 return BadRequest("Invalid employee ID");
 
-            // Pre-fetch all products in one query and validate before any DB writes
-            var productIds = request.Items.Select(i => i.ProductId).ToList();
-            var products = await _context.Products
-                .Where(p => productIds.Contains(p.Id))
-                .ToDictionaryAsync(p => p.Id);
-
-            foreach (var item in request.Items)
-            {
-                if (!products.TryGetValue(item.ProductId, out var product))
-                    return BadRequest($"Invalid product ID: {item.ProductId}");
-                if (product.StockQuantity < item.Quantity)
-                    return BadRequest($"Insufficient stock for {product.Name}. Available: {product.StockQuantity}, Requested: {item.Quantity}");
-            }
-
-            // All validations passed — write atomically
             var currentTime = DateTime.UtcNow;
             var transactionId = $"TXN-{currentTime:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
 
+            // Product fetch and stock validation must happen inside the serializable transaction.
+            // Doing it outside means two concurrent requests can both pass the check before either
+            // decrements stock, causing an oversell.
             await using var tx = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
             try
             {
+                var productIds = request.Items.Select(i => i.ProductId).ToList();
+                var products = await _context.Products
+                    .Where(p => productIds.Contains(p.Id))
+                    .ToDictionaryAsync(p => p.Id);
+
+                foreach (var item in request.Items)
+                {
+                    if (!products.TryGetValue(item.ProductId, out var product))
+                    {
+                        await tx.RollbackAsync();
+                        return BadRequest($"Invalid product ID: {item.ProductId}");
+                    }
+                    if (product.StockQuantity < item.Quantity)
+                    {
+                        await tx.RollbackAsync();
+                        return BadRequest($"Insufficient stock for {product.Name}. Available: {product.StockQuantity}, Requested: {item.Quantity}");
+                    }
+                }
+
                 var sale = new Sale
                 {
                     TransactionId = transactionId,
@@ -190,11 +197,9 @@ namespace BMS_POS_API.Controllers
 
                 return CreatedAtAction(nameof(GetSale), new { id = sale.Id }, completeSale);
             }
-            catch (Exception ex) when (ex is Npgsql.PostgresException pg && (pg.SqlState == "23505" || pg.SqlState == "40001"))
+            catch (Exception ex) when (ex is Npgsql.PostgresException pg && pg.SqlState == "23505")
             {
-                // 23505 = unique_violation (idempotency key already exists)
-                // 40001 = serialization_failure (concurrent serializable tx conflict)
-                // In both cases the sale was already committed — return it.
+                // unique_violation — idempotency key already exists; return the committed sale
                 await tx.RollbackAsync();
                 if (!string.IsNullOrEmpty(idempotencyKey))
                 {
@@ -205,6 +210,13 @@ namespace BMS_POS_API.Controllers
                     if (duplicate != null) return Ok(duplicate);
                 }
                 throw;
+            }
+            catch (Exception ex) when (ex is Npgsql.PostgresException pg && pg.SqlState == "40001")
+            {
+                // serialization_failure — a concurrent transaction won the race.
+                // Stock is validated inside the transaction, so the caller can simply retry.
+                await tx.RollbackAsync();
+                return Conflict("Sale could not be completed due to a concurrent update. Please try again.");
             }
             catch
             {
