@@ -28,7 +28,7 @@ namespace BMS_POS_API.Controllers
             else if (!DateTime.TryParse(date, out reportDate))
                 return BadRequest("Invalid date format. Use yyyy-MM-dd.");
             else
-                reportDate = DateTime.SpecifyKind(reportDate.Date, DateTimeKind.Utc);
+                reportDate = DateTime.SpecifyKind(reportDate.Date.ToUniversalTime(), DateTimeKind.Utc);
             var nextDay = reportDate.AddDays(1);
 
             return Ok(await BuildZReport(reportDate, nextDay));
@@ -45,8 +45,8 @@ namespace BMS_POS_API.Controllers
             if (!DateTime.TryParse(endDate, out var end))
                 return BadRequest("Invalid endDate format. Use yyyy-MM-dd.");
 
-            start = DateTime.SpecifyKind(start.Date, DateTimeKind.Utc);
-            end = DateTime.SpecifyKind(end.Date, DateTimeKind.Utc);
+            start = DateTime.SpecifyKind(start.Date.ToUniversalTime(), DateTimeKind.Utc);
+            end = DateTime.SpecifyKind(end.Date.ToUniversalTime(), DateTimeKind.Utc);
 
             if (end < start)
                 return BadRequest("endDate must be on or after startDate.");
@@ -89,11 +89,14 @@ namespace BMS_POS_API.Controllers
 
         private async Task<ZReportResponse> BuildZReport(DateTime reportDate, DateTime nextDay)
         {
-            // Load cash session for this date
+            // Load cash session for this date.
+            // Sessions may be stored as local-midnight UTC (new) or UTC midnight (legacy),
+            // so check both to avoid missing sessions after the timezone fix.
+            var utcMidnight = DateTime.SpecifyKind(reportDate.ToLocalTime().Date, DateTimeKind.Utc);
             var session = await _context.CashSessions
                 .Include(cs => cs.OpenedByEmployee)
                 .Include(cs => cs.ClosedByEmployee)
-                .FirstOrDefaultAsync(cs => cs.SessionDate == reportDate);
+                .FirstOrDefaultAsync(cs => cs.SessionDate == reportDate || cs.SessionDate == utcMidnight);
 
             // Load all completed sales for this date
             var sales = await _context.Sales
