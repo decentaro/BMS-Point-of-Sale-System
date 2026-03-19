@@ -125,6 +125,8 @@ const Returns: React.FC = () => {
     setKbOpen(true)
   }
 
+  const taxMultiplier = 1 + (originalSale?.taxRate ?? 0) / 100
+
   const applyKb = (val: string) => {
     if (kbTarget === 'search') {
       setSearchTransactionId(val)
@@ -132,22 +134,22 @@ const Returns: React.FC = () => {
       setManagerPin(val)
     } else if (kbTarget === 'returnQuantity' && editingItemId !== null) {
       const quantity = parseInt(val) || 0
-      setReturnItems(prev => prev.map(item => 
-        item.saleItemId === editingItemId 
-          ? { ...item, returnQuantity: Math.min(quantity, item.originalQuantity), lineTotal: Math.min(quantity, item.originalQuantity) * item.unitPrice }
-          : item
-      ))
+      setReturnItems(prev => prev.map(item => {
+        if (item.saleItemId !== editingItemId) return item
+        const qty = Math.min(quantity, item.originalQuantity)
+        return { ...item, returnQuantity: qty, lineTotal: qty * item.unitPrice * taxMultiplier }
+      }))
     }
     setKbOpen(false)
   }
 
   const updateReturnQuantity = (saleItemId: number, value: string) => {
     const quantity = parseInt(value) || 0
-    setReturnItems(prev => prev.map(ri =>
-      ri.saleItemId === saleItemId
-        ? { ...ri, returnQuantity: Math.min(quantity, ri.originalQuantity), lineTotal: Math.min(quantity, ri.originalQuantity) * ri.unitPrice }
-        : ri
-    ))
+    setReturnItems(prev => prev.map(ri => {
+      if (ri.saleItemId !== saleItemId) return ri
+      const qty = Math.min(quantity, ri.originalQuantity)
+      return { ...ri, returnQuantity: qty, lineTotal: qty * ri.unitPrice * taxMultiplier }
+    }))
   }
 
   // Load system settings
@@ -392,12 +394,21 @@ const Returns: React.FC = () => {
       receipt += '\n' + dashedLine + '\n'
       receipt += centerText('RETURNED ITEMS')
       receipt += dashedLine + '\n'
+      const returnTaxRate: number = originalSale?.taxRate ?? 0
+      const returnSubtotal = returnRecord.returnItems?.reduce(
+        (sum: number, item: any) => sum + item.returnQuantity * item.unitPrice, 0) ?? 0
+      const returnTaxAmount = returnRecord.totalRefundAmount - returnSubtotal
+
       returnRecord.returnItems?.forEach((item: any) => {
         receipt += twoCol(item.productName, formatCurrency(item.lineTotal))
-        receipt += `  ${item.returnQuantity} x ${formatCurrency(item.unitPrice)}  [${item.condition}]\n`
+        receipt += `  ${item.returnQuantity} x ${formatCurrency(item.unitPrice)}\n`
         receipt += `  Reason: ${item.reason}\n`
       })
       receipt += '\n' + dashedLine + '\n'
+      receipt += twoCol('Subtotal:', formatCurrency(returnSubtotal))
+      if (returnTaxRate > 0) {
+        receipt += twoCol(`Tax (${returnTaxRate}%):`, formatCurrency(returnTaxAmount))
+      }
       receipt += twoCol('TOTAL REFUND:', formatCurrency(returnRecord.totalRefundAmount))
       receipt += '\n' + centerText('Thank you')
       receipt += '\n\n\n\n'
@@ -636,6 +647,11 @@ const Returns: React.FC = () => {
                           <div>
                             <p className="text-sm font-semibold text-slate-700">Total Refund Amount</p>
                             <p className="text-xs text-slate-500">{returnItems.filter(i => i.returnQuantity > 0).length} item(s) selected</p>
+                            {(originalSale?.taxRate ?? 0) > 0 && (() => {
+                              const subtotal = returnItems.reduce((sum, i) => sum + i.returnQuantity * i.unitPrice, 0)
+                              const tax = returnTotal - subtotal
+                              return <p className="text-xs text-slate-500">Subtotal {formatCurrency(subtotal)} + Tax {formatCurrency(tax)}</p>
+                            })()}
                           </div>
                           <p className="text-xl font-bold text-emerald-600">{formatCurrency(returnTotal)}</p>
                         </div>
