@@ -88,7 +88,7 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("Employee not found");
             }
 
-            if (employee.Role != "Manager")
+            if (!employee.Role.Split(',').Select(r => r.Trim()).Contains("Manager"))
             {
                 return Forbid("Only managers can start inventory counts");
             }
@@ -260,7 +260,7 @@ namespace BMS_POS_API.Controllers
 
             // Check if user is manager
             var employee = await _context.Employees.FindAsync(userId);
-            if (employee == null || employee.Role != "Manager")
+            if (employee == null || !employee.Role.Split(',').Select(r => r.Trim()).Contains("Manager"))
             {
                 return Forbid("Only managers can complete inventory counts");
             }
@@ -374,7 +374,7 @@ namespace BMS_POS_API.Controllers
 
             // Check if user is manager
             var employee = await _context.Employees.FindAsync(userId);
-            if (employee == null || employee.Role != "Manager")
+            if (employee == null || !employee.Role.Split(',').Select(r => r.Trim()).Contains("Manager"))
             {
                 return Forbid("Only managers can cancel inventory counts");
             }

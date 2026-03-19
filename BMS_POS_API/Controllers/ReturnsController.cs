@@ -257,7 +257,7 @@ namespace BMS_POS_API.Controllers
                 // Generate unique return ID (format: RET-YYYYMMDD-XXXXXXXX)
                 var currentTime = DateTime.UtcNow;
                 var timestamp = currentTime.ToString("yyyyMMdd");
-                var randomHex = new Random().Next(0, int.MaxValue).ToString("X8");
+                var randomHex = Random.Shared.Next(0, int.MaxValue).ToString("X8");
                 var returnId = $"RET-{timestamp}-{randomHex}";
 
                 // Create return record

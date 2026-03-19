@@ -221,7 +221,7 @@ namespace BMS_POS_API.Controllers
 
             // Check if user is manager
             var employee = await _context.Employees.FindAsync(userId);
-            if (employee == null || employee.Role != "Manager")
+            if (employee == null || !employee.Role.Split(',').Select(r => r.Trim()).Contains("Manager"))
             {
                 return Forbid("Only managers can approve stock adjustments");
             }

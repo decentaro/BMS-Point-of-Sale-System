@@ -93,7 +93,7 @@ namespace BMS_POS_API.Controllers
 
             // Generate session code: CS-YYYYMMDD-NNNN
             var sessionCount = await _context.CashSessions
-                .CountAsync(cs => cs.SessionDate.Year == today.Year && cs.SessionDate.Month == today.Month);
+                .CountAsync(cs => cs.SessionDate == today);
             var sessionCode = $"CS-{today:yyyyMMdd}-{(sessionCount + 1):D4}";
 
             var session = new CashSession
