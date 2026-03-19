@@ -332,6 +332,7 @@ const Returns: React.FC = () => {
         await window.electronAPI.queueReturn({
           id: `RET-OFFLINE-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           timestamp: new Date().toISOString(),
+          idempotencyKey,
           transactionId: originalSale.transactionId,
           returnData: returnRequest,
         })

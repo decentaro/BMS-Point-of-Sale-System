@@ -170,7 +170,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       for (const item of queue) {
         try {
-          await ApiClient.postJson('/returns', item.returnData, true, { headers: { 'X-Idempotency-Key': item.id } })
+          await ApiClient.postJson('/returns', item.returnData, true, { headers: { 'X-Idempotency-Key': item.idempotencyKey ?? item.id } })
           await window.electronAPI.removeFromReturnQueue(item.id)
           setReturnQueueCount(prev => Math.max(0, prev - 1))
         } catch (error: any) {

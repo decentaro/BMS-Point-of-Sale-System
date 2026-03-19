@@ -1,6 +1,7 @@
 export interface OfflineReturn {
   id: string
   timestamp: string
+  idempotencyKey?: string
   transactionId: string
   returnData: {
     originalSaleId: number
