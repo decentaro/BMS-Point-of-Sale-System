@@ -84,9 +84,10 @@ const POS: React.FC = () => {
   const [kbTarget, setKbTarget] = React.useState<'search' | 'discount' | 'discountReason' | 'amountPaid' | 'managerPin' | 'cartQuantity'>('search')
   const [editingCartItemId, setEditingCartItemId] = React.useState<number | null>(null)
 
-  // Barcode scanner state
-  const [scanBuffer, setScanBuffer] = React.useState<string>('')
-  const [scanTimeout, setScanTimeout] = React.useState<NodeJS.Timeout | null>(null)
+  // Barcode scanner state — refs avoid stale closure issues inside setTimeout
+  const scanBufferRef  = React.useRef<string>('')
+  const scanTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  const lastScanRef    = React.useRef<{ barcode: string; at: number } | null>(null)
 
   // Manager approval state
   const [pendingDiscountPercent, setPendingDiscountPercent] = React.useState<number>(0)
@@ -196,41 +197,33 @@ const POS: React.FC = () => {
   // Barcode scanner detection
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if keyboard modal is open or if typing in an input field
       if (kbOpen || (e.target as HTMLElement).tagName === 'INPUT') return
 
-      // Clear previous timeout
-      if (scanTimeout) {
-        clearTimeout(scanTimeout)
-      }
+      if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current)
 
-      // Add character to scan buffer
-      if (e.key.length === 1) { // Only single characters, not special keys
-        setScanBuffer(prev => prev + e.key)
-      }
+      if (e.key.length === 1) scanBufferRef.current += e.key
 
-      // Set timeout to process scan (barcode scanners are very fast)
-      const timeout = setTimeout(() => {
-        const fullBarcode = scanBuffer + e.key
-        if (fullBarcode.length >= 5) { // Minimum barcode length
-          // Remove 'Enter' from the end if present (barcode scanners often send Enter)
-          const cleanBarcode = fullBarcode.replace(/Enter$/, '')
-          if (cleanBarcode.length >= 5) {
-            searchByBarcode(cleanBarcode)
-          }
-        }
-        setScanBuffer('')
-      }, 100) // 100ms timeout
+      scanTimeoutRef.current = setTimeout(() => {
+        const barcode = scanBufferRef.current.replace(/Enter$/, '')
+        scanBufferRef.current = ''
 
-      setScanTimeout(timeout)
+        if (barcode.length < 5) return
+
+        // Ignore duplicate scan of the same barcode within 500ms
+        const now = Date.now()
+        if (lastScanRef.current?.barcode === barcode && now - lastScanRef.current.at < 500) return
+
+        lastScanRef.current = { barcode, at: now }
+        searchByBarcode(barcode)
+      }, 100)
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      if (scanTimeout) clearTimeout(scanTimeout)
+      if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current)
     }
-  }, [kbOpen, scanBuffer, scanTimeout])
+  }, [kbOpen])
 
   // Keyboard handling
   const openKb = (target: 'search' | 'discount' | 'discountReason' | 'amountPaid' | 'managerPin' | 'cartQuantity', type: KeyboardType, title: string, cartItemId?: number) => {
