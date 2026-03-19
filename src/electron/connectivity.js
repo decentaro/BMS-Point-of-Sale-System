@@ -30,7 +30,8 @@ function createConnectivityMonitor(bmsApp) {
                 const res = await fetch('http://localhost:5002/api/tax-settings', {
                     signal: AbortSignal.timeout(3000)
                 })
-                const nowOnline = res.ok
+                // Any HTTP response (even 4xx) means the server is reachable
+                const nowOnline = res.status !== 0
                 if (nowOnline !== this.isOnline) {
                     this.isOnline = nowOnline
                     this.sendToRenderer({ online: this.isOnline })

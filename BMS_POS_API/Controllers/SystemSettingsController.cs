@@ -40,6 +40,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/system-settings
         [HttpPost]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<SystemSettings>> CreateOrUpdateSystemSettings(SystemSettings request)
         {
             
@@ -131,6 +132,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/system-settings/upload-logo
         [HttpPost("upload-logo")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult> UploadLogo(IFormFile logo)
         {
             if (logo == null || logo.Length == 0)
@@ -177,7 +179,7 @@ namespace BMS_POS_API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error saving file: {ex.Message}");
+                return StatusCode(500, "An unexpected error occurred. Please try again.");
             }
         }
 
@@ -192,7 +194,7 @@ namespace BMS_POS_API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Error getting business time: {ex.Message}");
+                return StatusCode(500, "An unexpected error occurred. Please try again.");
             }
         }
 

@@ -8,27 +8,34 @@ const os = require('os')
 function register(ipcMain, bmsApp) {
     ipcMain.handle('open-path', async (event, filePath) => {
         try {
-            if (!fs.existsSync(filePath)) {
+            // Restrict to home directory to prevent opening arbitrary system paths
+            const resolvedPath = path.resolve(filePath)
+            const homeDir = os.homedir()
+            if (!resolvedPath.startsWith(homeDir + path.sep) && resolvedPath !== homeDir) {
+                return { success: false, error: 'Access denied: path is outside the allowed directory' }
+            }
+
+            if (!fs.existsSync(resolvedPath)) {
                 return { success: false, error: 'Path does not exist' }
             }
 
-            const stat = fs.statSync(filePath)
+            const stat = fs.statSync(resolvedPath)
             let result
 
             if (stat.isDirectory()) {
-                result = await shell.openPath(filePath)
+                result = await shell.openPath(resolvedPath)
             } else {
-                result = await shell.openPath(filePath)
+                result = await shell.openPath(resolvedPath)
                 if (result !== '') {
-                    result = await shell.showItemInFolder(filePath)
+                    result = await shell.showItemInFolder(resolvedPath)
                 }
             }
 
             return result === '' || result === undefined
                 ? { success: true }
                 : { success: false, error: result }
-        } catch (error) {
-            return { success: false, error: error.message }
+        } catch {
+            return { success: false, error: 'Failed to open path' }
         }
     })
 

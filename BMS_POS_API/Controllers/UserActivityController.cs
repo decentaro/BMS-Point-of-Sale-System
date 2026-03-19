@@ -54,7 +54,7 @@ namespace BMS_POS_API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest($"Failed to retrieve user activities: {ex.Message}");
+                return StatusCode(500, "An unexpected error occurred. Please try again.");
             }
         }
 
@@ -99,7 +99,7 @@ namespace BMS_POS_API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest($"Failed to retrieve activity summary: {ex.Message}");
+                return StatusCode(500, "An unexpected error occurred. Please try again.");
             }
         }
     }

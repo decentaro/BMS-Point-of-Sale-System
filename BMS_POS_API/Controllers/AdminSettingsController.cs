@@ -636,7 +636,7 @@ namespace BMS_POS_API.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Failed to clear database: " + ex.Message,
+                    Message = "Failed to clear database. Please try again.",
                     ErrorCode = "ADMIN_011"
                 });
             }

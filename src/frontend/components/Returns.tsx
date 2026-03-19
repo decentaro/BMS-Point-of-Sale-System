@@ -29,6 +29,7 @@ interface Sale {
   status: string
   subtotal: number
   taxAmount: number
+  taxRate: number
   discountAmount: number
   total: number
   amountPaid: number

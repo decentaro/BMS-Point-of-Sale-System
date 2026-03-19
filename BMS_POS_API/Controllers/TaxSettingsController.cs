@@ -39,6 +39,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/tax-settings
         [HttpPost]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<TaxSettings>> CreateOrUpdateTaxSettings(TaxSettingsRequest request)
         {
             // Check if settings already exist
