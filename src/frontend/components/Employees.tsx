@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Users, Search, Plus, Save, UserX, UserCheck,
-  X, KeyRound, Shield, ShoppingCart, Package
+  X, KeyRound, Shield, ShoppingCart, Package, ArrowLeft
 } from 'lucide-react'
 import { Button } from './ui/button'
 import HybridInput from './HybridInput'
@@ -10,8 +10,9 @@ import ModalKeyboard, { KeyboardType } from './ModalKeyboard'
 import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
 import ApiClient from '../utils/ApiClient'
-import PageHeader from './ui/PageHeader'
 import { useToast } from '../contexts/ToastContext'
+
+const NAVY = 'hsl(215,65%,30%)'
 
 // Employee interface matching the API model
 interface Employee {
@@ -344,16 +345,29 @@ const Employees: React.FC = () => {
 
   return (
     <SessionGuard requiredRole="Manager">
-      <div className="w-full h-full flex flex-col bg-white">
-        <PageHeader
-          title="Employees"
-          subtitle="Manage employees"
-          onBack={() => navigate('/manager')}
-          right={<SessionStatus />}
-        />
+      <div className="w-full h-full flex flex-col">
+        <header
+          className="h-16 px-5 flex items-center justify-between flex-shrink-0"
+          style={{ background: NAVY }}
+        >
+          <button
+            onClick={() => navigate('/manager')}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white border border-white/25 hover:border-white/50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
+
+          <div className="text-center">
+            <div className="text-white text-lg font-bold leading-tight tracking-tight">Employees</div>
+            <div className="text-white/50 text-[11px] font-medium mt-0.5">Manage staff</div>
+          </div>
+
+          <SessionStatus dark />
+        </header>
 
         {/* Body */}
-        <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
+        <main className="flex-1 p-2 bg-slate-100 overflow-hidden">
           <div className="h-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-2">
 
             {/* Left: employee list */}

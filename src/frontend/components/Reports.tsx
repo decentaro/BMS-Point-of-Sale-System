@@ -7,13 +7,14 @@ import SessionGuard from './SessionGuard'
 import SessionStatus from './SessionStatus'
 import ApiClient from '../utils/ApiClient'
 import { formatDateForFile } from '../utils/dateFormat'
-import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
+
+const NAVY = 'hsl(215,65%,30%)'
 import Reconciliation from './Reconciliation'
 import {
   Download, ChevronRight, TrendingUp, ShoppingCart, Banknote,
   Percent, Users, RotateCcw, PackageX, ShoppingBag, Receipt,
-  CreditCard, Tag, Trophy, CalendarDays
+  CreditCard, Tag, Trophy, CalendarDays, ArrowLeft
 } from 'lucide-react'
 
 interface SalesSummary {
@@ -363,13 +364,26 @@ const Reports: React.FC = () => {
 
   return (
     <SessionGuard requiredRole="Manager">
-      <div className="w-full h-full flex flex-col bg-white">
-        <PageHeader
-          title="Sales Reports"
-          subtitle="Business analytics and performance data"
-          onBack={goBack}
-          right={<SessionStatus />}
-        />
+      <div className="w-full h-full flex flex-col">
+        <header
+          className="h-16 px-5 flex items-center justify-between flex-shrink-0"
+          style={{ background: NAVY }}
+        >
+          <button
+            onClick={goBack}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white border border-white/25 hover:border-white/50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
+
+          <div className="text-center">
+            <div className="text-white text-lg font-bold leading-tight tracking-tight">Sales Reports</div>
+            <div className="text-white/50 text-[11px] font-medium mt-0.5">Business analytics and performance data</div>
+          </div>
+
+          <SessionStatus dark />
+        </header>
 
         {/* Tab bar */}
         <div className="border-b border-slate-200 bg-white px-6">
@@ -393,7 +407,7 @@ const Reports: React.FC = () => {
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto bg-slate-50">
+        <main className="flex-1 overflow-y-auto bg-slate-100">
           {activeTab === 'reconciliation' ? (
             <div className="max-w-6xl mx-auto px-6 py-6">
               <Reconciliation />

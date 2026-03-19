@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle, Info, Search, Receipt, RotateCcw,
-  CheckCircle2, Printer, Shield, ChevronDown, ScanBarcode
+  CheckCircle2, Printer, Shield, ChevronDown, ScanBarcode, ArrowLeft
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -17,8 +17,9 @@ import { useConnection } from '../contexts/ConnectionContext'
 import { useToast } from '../contexts/ToastContext'
 import DateDisplay from './DateDisplay'
 import { formatDateSync } from '../utils/dateFormat'
-import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
+
+const NAVY = 'hsl(215,65%,30%)'
 
 // Sale interface matching the API model
 interface Sale {
@@ -434,16 +435,31 @@ const Returns: React.FC = () => {
 
   return (
     <SessionGuard>
-      <div className="w-full h-full flex flex-col bg-white">
-        <PageHeader
-          title="Returns & Refunds"
-          subtitle={loading ? 'Loading...' : systemSettings ? `Process customer returns • ${systemSettings.returnTimeLimitDays}-day policy` : 'Process customer returns'}
-          onBack={goBack}
-          right={<SessionStatus />}
-        />
+      <div className="w-full h-full flex flex-col">
+        <header
+          className="h-16 px-5 flex items-center justify-between flex-shrink-0"
+          style={{ background: NAVY }}
+        >
+          <button
+            onClick={goBack}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white border border-white/25 hover:border-white/50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
+
+          <div className="text-center">
+            <div className="text-white text-lg font-bold leading-tight tracking-tight">Returns &amp; Refunds</div>
+            <div className="text-white/50 text-[11px] font-medium mt-0.5">
+              {loading ? 'Loading...' : systemSettings ? `Process customer returns · ${systemSettings.returnTimeLimitDays}-day policy` : 'Process customer returns'}
+            </div>
+          </div>
+
+          <SessionStatus dark />
+        </header>
 
         {/* Body */}
-        <main className="flex-1 px-4 pb-4 overflow-y-auto bg-slate-50">
+        <main className="flex-1 px-4 pb-4 overflow-y-auto bg-slate-100">
           {loading ? (
             <SectionLoader message="Loading returns system..." />
           ) : !systemSettings?.enableReturns ? (

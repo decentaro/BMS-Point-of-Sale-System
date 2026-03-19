@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, Receipt, Plus, Save, CheckCircle2,
-  XCircle, Percent, FileText
+  XCircle, Percent, FileText, ArrowLeft
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -13,8 +13,9 @@ import SessionStatus from './SessionStatus'
 import SessionGuard from './SessionGuard'
 import ApiClient from '../utils/ApiClient'
 import { useToast } from '../contexts/ToastContext'
-import PageHeader from './ui/PageHeader'
 import { SectionLoader } from './ui/LoadingSpinner'
+
+const NAVY = 'hsl(215,65%,30%)'
 
 interface TaxSettings {
   businessName: string
@@ -172,15 +173,28 @@ const TaxSettings: React.FC = () => {
 
   return (
     <SessionGuard requiredRole="Manager">
-      <div className="w-full h-full flex flex-col bg-white">
-        <PageHeader
-          title="Tax Settings"
-          subtitle="Configure sales tax for your business"
-          onBack={() => navigate('/manager')}
-          right={<SessionStatus />}
-        />
+      <div className="w-full h-full flex flex-col">
+        <header
+          className="h-16 px-5 flex items-center justify-between flex-shrink-0"
+          style={{ background: NAVY }}
+        >
+          <button
+            onClick={() => navigate('/manager')}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white border border-white/25 hover:border-white/50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
 
-        <main className="flex-1 overflow-y-auto bg-slate-50">
+          <div className="text-center">
+            <div className="text-white text-lg font-bold leading-tight tracking-tight">Tax Settings</div>
+            <div className="text-white/50 text-[11px] font-medium mt-0.5">Configure sales tax for your business</div>
+          </div>
+
+          <SessionStatus dark />
+        </header>
+
+        <main className="flex-1 overflow-y-auto bg-slate-100">
           {loading ? (
             <SectionLoader message="Loading tax settings..." />
           ) : (

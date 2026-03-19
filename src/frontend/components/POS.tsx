@@ -13,11 +13,12 @@ import ApiClient from '../utils/ApiClient'
 import { generateTextReceipt } from '../utils/receiptFormatter'
 import { useToast } from '../contexts/ToastContext'
 import { useConnection } from '../contexts/ConnectionContext'
-import PageHeader from './ui/PageHeader'
 import {
   ShoppingCart, Search, Package, Trash2, X, ChevronDown,
-  Banknote, CreditCard, Percent, Shield, Tag
+  Banknote, CreditCard, Percent, Shield, Tag, ArrowLeft
 } from 'lucide-react'
+
+const NAVY = 'hsl(215,65%,30%)'
 
 // Product interface matching the API model
 interface Product {
@@ -576,18 +577,22 @@ const POS: React.FC = () => {
 
   return (
     <SessionGuard>
-      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+      <div className="w-full h-full flex flex-col overflow-hidden">
 
       {/* Top */}
-      <PageHeader
-        title="Point of Sale"
-        subtitle="Sell items"
-        onBack={goBack}
-        right={<SessionStatus />}
-      />
+      <header className="h-16 flex items-center px-4 gap-3 shrink-0" style={{ background: NAVY }}>
+        <button onClick={goBack} className="flex items-center gap-1.5 text-white/80 hover:text-white border border-white/30 hover:border-white/60 rounded-lg px-3 py-1.5 text-sm transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <div className="flex-1 text-center">
+          <div className="text-white font-semibold text-lg leading-tight">Point of Sale</div>
+          <div className="text-white/60 text-xs">Sell items</div>
+        </div>
+        <SessionStatus dark />
+      </header>
 
       {/* Body: left products, right cart/totals */}
-      <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
+      <main className="flex-1 p-2 bg-slate-100 overflow-hidden">
         <div className="h-full flex flex-col lg:flex-row gap-2">
 
           {/* ── Left: product grid ── */}

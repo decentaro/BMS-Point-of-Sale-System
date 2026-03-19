@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowUpDown, Package, Clock, CheckCircle2, XCircle,
   ChevronDown, Plus, Search, CalendarDays, X,
-  ClipboardList, Layers, AlertTriangle, ScanBarcode
+  ClipboardList, Layers, AlertTriangle, ScanBarcode, ArrowLeft
 } from 'lucide-react'
 import { Button } from './ui/button'
 import HybridInput from './HybridInput'
@@ -16,7 +16,7 @@ import { useBusinessSettings } from '../contexts/SettingsContext'
 import { useToast } from '../contexts/ToastContext'
 import SessionManager from '../utils/SessionManager'
 import { formatDateSync } from '../utils/dateFormat'
-import PageHeader from './ui/PageHeader'
+const NAVY = 'hsl(215,65%,30%)'
 
 interface Product {
   id: number
@@ -341,13 +341,26 @@ const InventoryManagement: React.FC = () => {
 
   return (
     <SessionGuard requiredPermission="inventory.adjust">
-      <div className="w-full h-full flex flex-col bg-white">
-        <PageHeader
-          title="Advanced Inventory"
-          subtitle="Stock adjustments & tracking"
-          onBack={goBack}
-          right={<SessionStatus />}
-        />
+      <div className="w-full h-full flex flex-col">
+        <header
+          className="h-16 px-5 flex items-center justify-between flex-shrink-0"
+          style={{ background: NAVY }}
+        >
+          <button
+            onClick={goBack}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white border border-white/25 hover:border-white/50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
+
+          <div className="text-center">
+            <div className="text-white text-lg font-bold leading-tight tracking-tight">Advanced Inventory</div>
+            <div className="text-white/50 text-[11px] font-medium mt-0.5">Stock adjustments &amp; tracking</div>
+          </div>
+
+          <SessionStatus dark />
+        </header>
 
         {/* Tabs */}
         <div className="border-b border-slate-200 bg-white px-4">
@@ -370,7 +383,7 @@ const InventoryManagement: React.FC = () => {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 px-4 pb-4 pt-4 overflow-y-auto bg-slate-50">
+        <main className="flex-1 px-4 pb-4 pt-4 overflow-y-auto bg-slate-100">
           <div className="space-y-4 max-w-4xl mx-auto">
 
           {/* ── Stock Adjustments Tab ── */}

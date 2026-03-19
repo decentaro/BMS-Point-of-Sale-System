@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Package, Search, ScanBarcode, Plus, Save, Trash2,
-  X, ChevronDown, Tag, AlertTriangle, Edit2
+  X, ChevronDown, Tag, AlertTriangle, Edit2, ArrowLeft
 } from 'lucide-react'
 import { Button } from './ui/button'
 import HybridInput from './HybridInput'
@@ -13,8 +13,9 @@ import SessionGuard from './SessionGuard'
 import SessionManager from '../utils/SessionManager'
 import { SystemSettings } from '../types/SystemSettings'
 import ApiClient from '../utils/ApiClient'
-import PageHeader from './ui/PageHeader'
 import { useToast } from '../contexts/ToastContext'
+
+const NAVY = 'hsl(215,65%,30%)'
 
 // Product interface matching the API model
 interface Product {
@@ -442,15 +443,28 @@ const Inventory: React.FC = () => {
 
   return (
     <SessionGuard requiredPermission="inventory.view">
-      <div className="w-full h-full flex flex-col bg-white overflow-hidden">
-        <PageHeader
-          title="Inventory"
-          subtitle="Manage products"
-          onBack={goBack}
-          right={<SessionStatus />}
-        />
+      <div className="w-full h-full flex flex-col overflow-hidden">
+        <header
+          className="h-16 px-5 flex items-center justify-between flex-shrink-0"
+          style={{ background: NAVY }}
+        >
+          <button
+            onClick={goBack}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white border border-white/25 hover:border-white/50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
 
-        <main className="flex-1 p-2 bg-slate-50 overflow-hidden">
+          <div className="text-center">
+            <div className="text-white text-lg font-bold leading-tight tracking-tight">Inventory</div>
+            <div className="text-white/50 text-[11px] font-medium mt-0.5">Manage products</div>
+          </div>
+
+          <SessionStatus dark />
+        </header>
+
+        <main className="flex-1 p-2 bg-slate-100 overflow-hidden">
           <div className="h-full flex gap-2">
 
             {/* ── Left: product list ── */}
