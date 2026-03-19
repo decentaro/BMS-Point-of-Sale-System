@@ -645,7 +645,7 @@ const POS: React.FC = () => {
                     return (
                       <div
                         key={product.id}
-                        className={`rounded-lg bg-white transition text-left overflow-hidden border cursor-pointer relative h-32 sm:h-36 md:h-40 lg:h-32 xl:h-36 ${
+                        className={`rounded-lg bg-white transition text-left overflow-hidden border cursor-pointer relative h-32 sm:h-36 md:h-40 lg:h-32 xl:h-36 flex flex-col ${
                           isOutOfStock
                             ? 'border-red-200 bg-red-50 cursor-not-allowed opacity-70'
                             : inCart
@@ -691,7 +691,7 @@ const POS: React.FC = () => {
                         )}
 
                         {/* Product image */}
-                        <div className="w-full h-[70px] sm:h-[85px] bg-slate-50 flex items-center justify-center overflow-hidden">
+                        <div className="w-full h-[70px] sm:h-[85px] bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0">
                           {product.imageUrl && product.imageUrl.trim() !== '' ? (
                             <img
                               src={product.imageUrl}
@@ -713,16 +713,18 @@ const POS: React.FC = () => {
                         </div>
 
                         {/* Product info */}
-                        <div className="p-1.5 flex flex-col justify-between">
+                        <div className="p-1.5 flex-1 min-h-0 flex flex-col">
                           <div className="text-xs font-medium text-slate-800 line-clamp-2 leading-tight" title={product.name}>
                             {product.name}
                           </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <div className="text-[11px] text-emerald-600 font-bold">{formatCurrency(product.price)}</div>
-                            <div className={`text-[10px] font-medium ${
-                              isOutOfStock ? 'text-red-500' : isLowStock ? 'text-amber-600' : 'text-slate-400'
-                            }`}>
-                              {product.stockQuantity}
+                          <div className="flex items-center justify-between mt-auto pt-0.5">
+                            <div className="text-[10px]">
+                              <span className="text-slate-400">Price: </span>
+                              <span className="text-emerald-600 font-bold">{formatCurrency(product.price)}</span>
+                            </div>
+                            <div className={`text-[10px]`}>
+                              <span className="text-slate-400">Stock: </span>
+                              <span className={`font-bold ${isOutOfStock ? 'text-red-500' : isLowStock ? 'text-amber-600' : 'text-slate-500'}`}>{product.stockQuantity}</span>
                             </div>
                           </div>
                         </div>
