@@ -1,5 +1,6 @@
 
 import ApiClient from './ApiClient'
+import { API_BASE_URL } from '../config/api'
 
 interface UserSession {
   id: number
@@ -238,6 +239,26 @@ class SessionManager {
   }
 
   /**
+   * Call the logout endpoint to invalidate the JWT on the server, then clear locally.
+   * Fire-and-forget: if the API call fails (e.g. offline), we still clear the local
+   * session — the token will expire naturally after 12 hours.
+   */
+  static async logout(): Promise<void> {
+    const token = this.restoreToken()
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+      } catch {
+        // Offline or API unreachable — local clearance still happens below
+      }
+    }
+    this.clearSession()
+  }
+
+  /**
    * Clear current session and JWT token
    */
   static clearSession(): void {
@@ -270,7 +291,6 @@ class SessionManager {
     const headers: Record<string, string> = {
       'X-User-Id': session.id.toString(),
       'X-User-Name': session.name || session.employeeId,
-      'X-Session-Token': session.sessionToken
     }
 
     if (token) {
@@ -341,9 +361,8 @@ class SessionManager {
   }
 
   private static startActivityMonitoring(): void {
-    // Clear any existing timers completely
+    // Clear any existing timer
     if (this.activityTimer) {
-      clearInterval(this.activityTimer)
       clearTimeout(this.activityTimer)
       this.activityTimer = null
     }
@@ -356,17 +375,9 @@ class SessionManager {
         return
       }
       
-      // Check for inactivity
       const now = Date.now()
       const sessionTimeLeft = session.expiresAt - now
-      
-      // SessionStatus component handles warnings - don't show here
-      // if (sessionTimeLeft <= warningThreshold && !this.warningShown) {
-      //   console.log('Showing expiry warning')
-      //   this.warningShown = true
-      //   this.showExpiryWarning()
-      // }
-      
+
       // Auto-logout if session expired
       if (sessionTimeLeft <= 0) {
         this.handleSessionExpiry()
@@ -379,21 +390,8 @@ class SessionManager {
       this.activityTimer = setTimeout(monitorSession, checkInterval)
     }
     
-    // Start monitoring
     monitorSession()
-    
-    // Note: Removed automatic activity tracking for fixed-duration sessions
   }
-
-  /**
-   * Update last activity time (for API calls)
-   */
-  static async updateActivity(): Promise<void> {
-    // Note: Sessions now only extend when user explicitly chooses via warning popup
-  }
-
-  // Removed automatic activity tracking for fixed-duration sessions
-  // Sessions now only extend when user explicitly chooses via warning popup
 
   private static handleSessionExpiry(): void {
     this.clearSession()

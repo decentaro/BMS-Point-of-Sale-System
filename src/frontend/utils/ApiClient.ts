@@ -113,8 +113,6 @@ class ApiClient {
       const authHeaders = SessionManager.getUserHeaders()
       Object.assign(requestHeaders, authHeaders)
       
-      // Update activity on each API call
-      SessionManager.updateActivity()
     }
 
     // Prepare request options
@@ -376,7 +374,6 @@ class ApiClient {
     
     if (SessionManager.isSessionValid()) {
       Object.assign(headers, SessionManager.getUserHeaders())
-      SessionManager.updateActivity()
     }
 
     return this.request(endpoint, {

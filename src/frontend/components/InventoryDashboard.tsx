@@ -20,7 +20,7 @@ const InventoryDashboard: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { SessionManager.clearSession(); navigate('/login') }}
+            onClick={async () => { await SessionManager.logout(); navigate('/login') }}
             className="gap-1.5 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
           >
             <LogOut className="w-3.5 h-3.5" />

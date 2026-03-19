@@ -23,6 +23,7 @@ namespace BMS_POS_API.Controllers
         private readonly IMetricsService _metricsService;
         private readonly ILoginLockoutService _lockoutService;
         private readonly JwtSecretHolder _jwtSecretHolder;
+        private readonly TokenDenylistService _denylist;
 
         public AuthController(
             BmsPosDbContext context,
@@ -30,7 +31,8 @@ namespace BMS_POS_API.Controllers
             IPinSecurityService pinSecurityService,
             IMetricsService metricsService,
             ILoginLockoutService lockoutService,
-            JwtSecretHolder jwtSecretHolder)
+            JwtSecretHolder jwtSecretHolder,
+            TokenDenylistService denylist)
         {
             _context = context;
             _userActivityService = userActivityService;
@@ -38,6 +40,7 @@ namespace BMS_POS_API.Controllers
             _metricsService = metricsService;
             _lockoutService = lockoutService;
             _jwtSecretHolder = jwtSecretHolder;
+            _denylist = denylist;
         }
 
         // POST: api/auth/login
@@ -179,6 +182,25 @@ namespace BMS_POS_API.Controllers
                     AuthErrorCodes.DATABASE_ERROR
                 ));
             }
+        }
+
+        // POST: api/auth/logout
+        [HttpPost("logout")]
+        [Authorize]
+        public IActionResult Logout()
+        {
+            var jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+            var expClaim = User.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
+
+            if (jti != null)
+            {
+                var expiresAt = expClaim != null && long.TryParse(expClaim, out var exp)
+                    ? DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime
+                    : DateTime.UtcNow.AddHours(12);
+                _denylist.Revoke(jti, expiresAt);
+            }
+
+            return Ok(new { message = "Logged out" });
         }
 
         private string GenerateJwt(Employee employee)

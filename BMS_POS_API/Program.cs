@@ -76,6 +76,7 @@ builder.Services.AddSingleton<ILoginLockoutService, LoginLockoutService>();
 // Add JWT secret holder (generates a random secret on startup)
 var jwtSecretHolder = new JwtSecretHolder();
 builder.Services.AddSingleton(jwtSecretHolder);
+builder.Services.AddSingleton<BMS_POS_API.Services.TokenDenylistService>();
 
 // Add JWT authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -88,6 +89,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuer = false,
             ValidateAudience = false,
             ClockSkew = TimeSpan.Zero
+        };
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var denylist = context.HttpContext.RequestServices
+                    .GetRequiredService<BMS_POS_API.Services.TokenDenylistService>();
+                var jti = context.Principal?.FindFirst(
+                    System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
+                if (jti != null && denylist.IsRevoked(jti))
+                    context.Fail("Token has been revoked");
+                return Task.CompletedTask;
+            }
         };
     });
 
