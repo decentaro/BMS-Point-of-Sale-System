@@ -138,6 +138,19 @@ namespace BMS_POS_API.Controllers
         {
             try
             {
+                // Idempotency check — return existing return if this key was already processed
+                var idempotencyKey = Request.Headers["X-Idempotency-Key"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(idempotencyKey))
+                {
+                    var existing = await _context.Returns
+                        .Include(r => r.OriginalSale)
+                        .Include(r => r.ProcessedByEmployee)
+                        .Include(r => r.ReturnItems).ThenInclude(ri => ri.Product)
+                        .FirstOrDefaultAsync(r => r.IdempotencyKey == idempotencyKey);
+                    if (existing != null)
+                        return Ok(new { returnId = existing.ReturnId, totalRefundAmount = existing.TotalRefundAmount });
+                }
+
                 // Validate the original sale exists
                 var originalSale = await _context.Sales
                     .Include(s => s.SaleItems)
@@ -258,7 +271,8 @@ namespace BMS_POS_API.Controllers
                     ProcessedByEmployeeId = request.ProcessedByEmployeeId,
                     ApprovedByEmployeeId = approvingManager?.Id,
                     ManagerApprovalRequired = needsManagerApproval,
-                    Notes = request.Notes
+                    Notes = request.Notes,
+                    IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey
                 };
 
                 _context.Returns.Add(returnRecord);

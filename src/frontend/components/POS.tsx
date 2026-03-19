@@ -384,6 +384,9 @@ const POS: React.FC = () => {
       return
     }
 
+    // Generate once per payment attempt — stable key for deduplication on retry
+    const idempotencyKey = `POS-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
     const saleData = {
       employeeId: session.id,
       subtotal: subtotal,
@@ -404,7 +407,7 @@ const POS: React.FC = () => {
     }
 
     try {
-      const sale = await ApiClient.postJson<{ transactionId: string; saleDate: string }>('/sales', saleData)
+      const sale = await ApiClient.postJson<{ transactionId: string; saleDate: string }>('/sales', saleData, true, { headers: { 'X-Idempotency-Key': idempotencyKey } })
 
       // Extend session for this business action (completing sale)
       SessionManager.extendForBusinessAction('Sale completed')

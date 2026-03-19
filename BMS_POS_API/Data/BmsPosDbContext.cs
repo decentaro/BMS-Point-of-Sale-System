@@ -47,8 +47,16 @@ namespace BMS_POS_API.Data
             modelBuilder.Entity<AdminSettings>().ToTable("admin_settings");
             modelBuilder.Entity<CashSession>().ToTable("cash_sessions");
 
-            // Create initial admin user only if no users exist
-            // This will be handled by the startup logic instead of seed data
+            // Unique partial indexes for idempotency keys (only when not null)
+            modelBuilder.Entity<Sale>()
+                .HasIndex(s => s.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL");
+
+            modelBuilder.Entity<Return>()
+                .HasIndex(r => r.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL");
         }
 
         public override int SaveChanges()

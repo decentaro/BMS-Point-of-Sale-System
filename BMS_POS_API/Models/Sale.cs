@@ -44,5 +44,8 @@ namespace BMS_POS_API.Models
         public List<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
         
         public string? Notes { get; set; }
+
+        // Deduplication key — prevents duplicate records if the same request is retried
+        public string? IdempotencyKey { get; set; }
     }
 }

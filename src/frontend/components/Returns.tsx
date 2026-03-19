@@ -275,6 +275,7 @@ const Returns: React.FC = () => {
 
   // Process return
   const processReturn = async () => {
+    const idempotencyKey = `RET-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
     try {
       setProcessingReturn(true)
       
@@ -337,7 +338,7 @@ const Returns: React.FC = () => {
         await refreshReturnQueueCount()
         showToast('Offline — return queued, will sync when back online', 'warning')
       } else {
-        const returnRecord = await ApiClient.postJson<{ returnId: string; totalRefundAmount: number }>('/returns', returnRequest)
+        const returnRecord = await ApiClient.postJson<{ returnId: string; totalRefundAmount: number }>('/returns', returnRequest, true, { headers: { 'X-Idempotency-Key': idempotencyKey } })
         showToast(`Return processed successfully. ID: ${returnRecord.returnId} | Refund: ${formatCurrency(returnTotal)}`, 'success')
         setLastReturnRecord(returnRecord)
       }

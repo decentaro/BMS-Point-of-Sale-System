@@ -86,6 +86,18 @@ namespace BMS_POS_API.Controllers
                     return BadRequest("Item unit price cannot be negative.");
             }
 
+            // Idempotency check — return existing sale if this key was already processed
+            var idempotencyKey = Request.Headers["X-Idempotency-Key"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(idempotencyKey))
+            {
+                var existing = await _context.Sales
+                    .Include(s => s.Employee)
+                    .Include(s => s.SaleItems).ThenInclude(si => si.Product)
+                    .FirstOrDefaultAsync(s => s.IdempotencyKey == idempotencyKey);
+                if (existing != null)
+                    return Ok(existing);
+            }
+
             // Validate employee
             var employee = await _context.Employees.FindAsync(request.EmployeeId);
             if (employee == null)
@@ -127,7 +139,8 @@ namespace BMS_POS_API.Controllers
                     Change = request.Change,
                     PaymentMethod = request.PaymentMethod,
                     Status = "Completed",
-                    Notes = request.Notes
+                    Notes = request.Notes,
+                    IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey
                 };
 
                 _context.Sales.Add(sale);

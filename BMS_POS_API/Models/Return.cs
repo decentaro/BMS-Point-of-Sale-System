@@ -28,7 +28,10 @@ namespace BMS_POS_API.Models
         public bool ManagerApprovalRequired { get; set; } = false;
         
         public string? Notes { get; set; }
-        
+
+        // Deduplication key — prevents duplicate records if the same request is retried
+        public string? IdempotencyKey { get; set; }
+
         // Navigation property
         public List<ReturnItem> ReturnItems { get; set; } = new List<ReturnItem>();
     }
