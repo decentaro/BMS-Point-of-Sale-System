@@ -598,18 +598,27 @@ function findPrinterDevice() {
  * Linux/RPi: writes directly to the device file — no CUPS, no spooler, no queue.
  * Windows:   uses PowerShell + Win32 spooler RAW datatype (bypasses GDI rendering).
  */
-function sendRawToPrinter(printerInfo, data) {
+async function sendRawToPrinter(printerInfo, data) {
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data, 'binary');
 
     if (printerInfo.platform === 'linux') {
-        fs.writeFileSync(printerInfo.device, buf);
+        // fs.promises.writeFile is async — does not block the event loop.
+        // The race ensures we surface a timeout error if the device is
+        // unresponsive (paper jam, USB disconnect) rather than hanging forever.
+        const TIMEOUT_MS = 5000;
+        await Promise.race([
+            fs.promises.writeFile(printerInfo.device, buf),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error(`Printer write timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+            ),
+        ]);
         return;
     }
 
     if (printerInfo.platform === 'win32') {
         const tempFile = path.join(require('os').tmpdir(), `bms_print_${require('crypto').randomUUID()}.bin`);
         try {
-            fs.writeFileSync(tempFile, buf);
+            await fs.promises.writeFile(tempFile, buf);
             // Win32 spooler raw print via PowerShell — RAW datatype bypasses all Windows rendering
             const psScript = `
 $pn='${printerInfo.device.replace(/'/g, "''")}'; $fp='${tempFile.replace(/\\/g, '\\\\').replace(/'/g, "''")}'
@@ -637,12 +646,15 @@ $ptr=[Runtime.InteropServices.Marshal]::AllocHGlobal($b.Length)
 [Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
 [RawPrint]::EndPagePrinter($hP)|Out-Null; [RawPrint]::EndDocPrinter($hP)|Out-Null; [RawPrint]::ClosePrinter($hP)|Out-Null
 `;
-            require('child_process').execFileSync(
-                'powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript],
-                { timeout: 15000 }
-            );
+            await new Promise((resolve, reject) => {
+                require('child_process').execFile(
+                    'powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript],
+                    { timeout: 15000 },
+                    (err) => err ? reject(err) : resolve()
+                );
+            });
         } finally {
-            try { fs.unlinkSync(tempFile); } catch {}
+            try { await fs.promises.unlink(tempFile); } catch {}
         }
     }
 }
@@ -698,7 +710,7 @@ ipcMain.handle('print-receipt', async (event, receiptContent, logoPath = null, b
         thermalReceiptContent += '\x1B\x64\x05';       // ESC d 5 - Feed 5 lines
         thermalReceiptContent += '\x1D\x56\x41\x03';   // GS V A 3 - Partial cut
 
-        sendRawToPrinter(printer, Buffer.from(thermalReceiptContent, 'binary'));
+        await sendRawToPrinter(printer, Buffer.from(thermalReceiptContent, 'binary'));
         return { success: true, message: `Receipt printed to ${printer.name}` };
 
     } catch (error) {
