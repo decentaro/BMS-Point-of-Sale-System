@@ -24,6 +24,7 @@ import { ToastProvider } from './contexts/ToastContext'
 import { ConnectionProvider } from './contexts/ConnectionContext'
 import ToastContainer from './components/ui/ToastContainer'
 import OfflineBanner from './components/ui/OfflineBanner'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 
 // Router-level auth guard — catches any route that loses its component-level SessionGuard.
 // Components still carry their own guards for role enforcement; this is a safety net.
@@ -116,6 +117,19 @@ function App() {
   )
 
   return (
+    <ErrorBoundary fallback={
+      <div className="flex flex-col items-center justify-center w-screen h-screen bg-white text-center p-8">
+        <div className="text-5xl mb-4">⚠️</div>
+        <h1 className="text-2xl font-bold text-slate-800 mb-2">Application error</h1>
+        <p className="text-slate-500 mb-6">Something went wrong. Please reload the app.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+        >
+          Reload
+        </button>
+      </div>
+    }>
     <ConnectionProvider>
     <SettingsProvider>
       <ToastProvider>
@@ -157,6 +171,7 @@ function App() {
       </ToastProvider>
     </SettingsProvider>
     </ConnectionProvider>
+    </ErrorBoundary>
   )
 }
 
