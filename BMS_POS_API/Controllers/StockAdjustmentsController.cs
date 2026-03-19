@@ -136,9 +136,12 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("Employee not found");
             }
 
-            // Determine if approval required (large adjustments or certain types)
-            var requiresApproval = Math.Abs(request.QuantityChange) > 50 || 
-                                 Math.Abs(request.QuantityChange * product.Cost) > 500 ||
+            // Determine if approval required — thresholds come from SystemSettings
+            var settings = await _context.SystemSettings.FirstOrDefaultAsync();
+            var quantityThreshold = settings?.StockAdjustmentApprovalQuantityThreshold ?? 50;
+            var costThreshold = settings?.StockAdjustmentApprovalCostThreshold ?? 500m;
+            var requiresApproval = Math.Abs(request.QuantityChange) > quantityThreshold ||
+                                 Math.Abs(request.QuantityChange * product.Cost) > costThreshold ||
                                  request.AdjustmentType == "THEFT";
 
             // Create stock adjustment

@@ -85,6 +85,11 @@ namespace BMS_POS_API.Models
         
         public string ReturnReasons { get; set; } = "Defective Product,Wrong Size,Pet Doesn't Like,Food Allergies,Damaged Package,Changed Mind,Other";
         
+        // Stock Adjustment Approval Thresholds
+        public int StockAdjustmentApprovalQuantityThreshold { get; set; } = 50;
+
+        public decimal StockAdjustmentApprovalCostThreshold { get; set; } = 500.00m;
+
         // Product Management Settings
         public string productCategories { get; set; } = "Pet Food,Pet Toys,Pet Accessories,Pet Medicine,Pet Grooming,Pet Treats";
         
