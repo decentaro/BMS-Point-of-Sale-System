@@ -89,96 +89,98 @@ namespace BMS_POS_API.Controllers
             // Validate employee
             var employee = await _context.Employees.FindAsync(request.EmployeeId);
             if (employee == null)
-            {
                 return BadRequest("Invalid employee ID");
+
+            // Pre-fetch all products in one query and validate before any DB writes
+            var productIds = request.Items.Select(i => i.ProductId).ToList();
+            var products = await _context.Products
+                .Where(p => productIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id);
+
+            foreach (var item in request.Items)
+            {
+                if (!products.TryGetValue(item.ProductId, out var product))
+                    return BadRequest($"Invalid product ID: {item.ProductId}");
+                if (product.StockQuantity < item.Quantity)
+                    return BadRequest($"Insufficient stock for {product.Name}. Available: {product.StockQuantity}, Requested: {item.Quantity}");
             }
 
-            // Get current time for transaction ID
+            // All validations passed — write atomically
             var currentTime = DateTime.UtcNow;
             var transactionId = $"TXN-{currentTime:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
 
-            // Store the current time directly as the sale date
-            var saleDate = currentTime;
-
-            // Create the sale
-            var sale = new Sale
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                TransactionId = transactionId,
-                EmployeeId = request.EmployeeId,
-                SaleDate = saleDate,
-                Subtotal = request.Subtotal,
-                TaxRate = request.TaxRate,
-                TaxAmount = request.TaxAmount,
-                DiscountAmount = request.DiscountAmount,
-                DiscountReason = request.DiscountReason,
-                Total = request.Total,
-                AmountPaid = request.AmountPaid,
-                Change = request.Change,
-                PaymentMethod = request.PaymentMethod,
-                Status = "Completed",
-                Notes = request.Notes
-            };
-
-            _context.Sales.Add(sale);
-            await _context.SaveChangesAsync();
-
-            // Add sale items and update inventory
-            foreach (var item in request.Items)
-            {
-                var product = await _context.Products.FindAsync(item.ProductId);
-                if (product == null)
+                var sale = new Sale
                 {
-                    return BadRequest($"Invalid product ID: {item.ProductId}");
-                }
-
-                // Check if there's enough stock
-                if (product.StockQuantity < item.Quantity)
-                {
-                    return BadRequest($"Insufficient stock for {product.Name}. Available: {product.StockQuantity}, Requested: {item.Quantity}");
-                }
-
-                // Create sale item
-                var saleItem = new SaleItem
-                {
-                    SaleId = sale.Id,
-                    ProductId = item.ProductId,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    LineTotal = item.LineTotal,
-                    ProductName = product.Name,
-                    ProductBarcode = product.Barcode
+                    TransactionId = transactionId,
+                    EmployeeId = request.EmployeeId,
+                    SaleDate = currentTime,
+                    Subtotal = request.Subtotal,
+                    TaxRate = request.TaxRate,
+                    TaxAmount = request.TaxAmount,
+                    DiscountAmount = request.DiscountAmount,
+                    DiscountReason = request.DiscountReason,
+                    Total = request.Total,
+                    AmountPaid = request.AmountPaid,
+                    Change = request.Change,
+                    PaymentMethod = request.PaymentMethod,
+                    Status = "Completed",
+                    Notes = request.Notes
                 };
 
-                _context.SaleItems.Add(saleItem);
+                _context.Sales.Add(sale);
+                await _context.SaveChangesAsync(); // Needed to get sale.Id for SaleItems
 
-                // Update product stock
-                product.StockQuantity -= item.Quantity;
-                product.LastUpdated = currentTime;
+                foreach (var item in request.Items)
+                {
+                    var product = products[item.ProductId];
+
+                    _context.SaleItems.Add(new SaleItem
+                    {
+                        SaleId = sale.Id,
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        LineTotal = item.LineTotal,
+                        ProductName = product.Name,
+                        ProductBarcode = product.Barcode
+                    });
+
+                    product.StockQuantity -= item.Quantity;
+                    product.LastUpdated = currentTime;
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                // Log activity outside transaction — non-critical, failure here doesn't affect the sale
+                var itemsSummary = string.Join(", ", request.Items.Select(i => $"{i.Quantity}x {i.ProductId}"));
+                await _userActivityService.LogActivityAsync(
+                    request.EmployeeId,
+                    employee.Name ?? employee.EmployeeId,
+                    $"Processed sale: {itemsSummary} - Total: {request.Total:C}",
+                    $"Payment: {request.PaymentMethod}, Items: {request.Items.Count}, Discount: {request.DiscountAmount:C}",
+                    "Sale",
+                    sale.Id,
+                    "SALE",
+                    HttpContext.Connection?.RemoteIpAddress?.ToString()
+                );
+
+                var completeSale = await _context.Sales
+                    .Include(s => s.Employee)
+                    .Include(s => s.SaleItems)
+                    .ThenInclude(si => si.Product)
+                    .FirstOrDefaultAsync(s => s.Id == sale.Id);
+
+                return CreatedAtAction(nameof(GetSale), new { id = sale.Id }, completeSale);
             }
-
-            await _context.SaveChangesAsync();
-
-            // Log sale activity
-            var itemsSummary = string.Join(", ", request.Items.Select(i => $"{i.Quantity}x {i.ProductId}"));
-            await _userActivityService.LogActivityAsync(
-                request.EmployeeId,
-                employee.Name ?? employee.EmployeeId,
-                $"Processed sale: {itemsSummary} - Total: {request.Total:C}",
-                $"Payment: {request.PaymentMethod}, Items: {request.Items.Count}, Discount: {request.DiscountAmount:C}",
-                "Sale",
-                sale.Id,
-                "SALE",
-                HttpContext.Connection?.RemoteIpAddress?.ToString()
-            );
-
-            // Return the complete sale with related data
-            var completeSale = await _context.Sales
-                .Include(s => s.Employee)
-                .Include(s => s.SaleItems)
-                .ThenInclude(si => si.Product)
-                .FirstOrDefaultAsync(s => s.Id == sale.Id);
-
-            return CreatedAtAction(nameof(GetSale), new { id = sale.Id }, completeSale);
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
         }
 
         // GET: api/sales/today
