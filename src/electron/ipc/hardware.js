@@ -223,7 +223,7 @@ function register(ipcMain, apiConfigManager) {
             ]
             for (const command of drawerCommands) {
                 try {
-                    sendRawToPrinter(printer, command)
+                    await sendRawToPrinter(printer, command)
                     return { success: true, message: `Cash drawer opened via ${printer.name}` }
                 } catch { continue }
             }

@@ -12,11 +12,16 @@ const failedSalesPath     = path.join(app.getPath('userData'), 'failed-sales.jso
 const failedAdjustmentsPath = path.join(app.getPath('userData'), 'failed-adjustments.json')
 const failedReturnsPath   = path.join(app.getPath('userData'), 'failed-returns.json')
 
-const readJson  = (filePath, fallback) => {
+const readJson = (filePath, fallback) => {
     try { return JSON.parse(fs.readFileSync(filePath, 'utf8')) } catch { return fallback }
 }
+
+// Write to a temp file then rename — atomic on POSIX, best-effort on Windows.
+// Prevents partial-write corruption if the process crashes mid-write.
 const writeJson = (filePath, data) => {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8')
+    const tmp = filePath + '.tmp'
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8')
+    fs.renameSync(tmp, filePath)
 }
 
 function register(ipcMain) {

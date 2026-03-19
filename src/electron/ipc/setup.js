@@ -65,9 +65,10 @@ function register(ipcMain) {
             ssl: { rejectUnauthorized: false },
             connectionTimeoutMillis: 8000,
         })
+        let connected = false
         try {
             await client.connect()
-            await client.end()
+            connected = true
             return { reachable: true }
         } catch (err) {
             const msg = err.message || ''
@@ -80,6 +81,8 @@ function register(ipcMain) {
             if (msg.includes('timeout'))
                 return { reachable: false, error: 'Connection timed out. Check your internet and the host.' }
             return { reachable: false, error: msg }
+        } finally {
+            if (connected) try { await client.end() } catch {}
         }
     })
 

@@ -318,7 +318,7 @@ namespace BMS_POS_API.Controllers
                 var safeFileName = Path.GetFileName(backupFile.FileName);
                 if (string.IsNullOrWhiteSpace(safeFileName))
                     safeFileName = "restore_backup" + fileExtension;
-                var tempDir = Path.Combine(Path.GetTempPath(), "restore_temp");
+                var tempDir = Path.Combine(Path.GetTempPath(), $"restore_temp_{Guid.NewGuid()}");
                 Directory.CreateDirectory(tempDir);
                 var tempFilePath = Path.Combine(tempDir, safeFileName);
                 
@@ -501,7 +501,7 @@ namespace BMS_POS_API.Controllers
 
             bool pinValid = managers.Any(m =>
             {
-                bool isLegacy = !m.Pin.StartsWith("$2");
+                bool isLegacy = m.Pin?.StartsWith("$2") != true;
                 return isLegacy ? m.Pin == request.ManagerPin
                                 : BCrypt.Net.BCrypt.Verify(request.ManagerPin, m.Pin);
             });

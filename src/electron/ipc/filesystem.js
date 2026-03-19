@@ -59,11 +59,18 @@ function register(ipcMain, bmsApp) {
             if (!ALLOWED_EXTENSIONS.includes(ext)) {
                 throw new Error('File type not permitted. Only backup files (.backup, .sql, .gz, .dump, .bak) can be read.')
             }
-            const stat = await fs.promises.stat(filePath)
+            // Restrict to home directory or app userData — same policy as show-open-dialog
+            const resolved = path.resolve(filePath)
+            const home = os.homedir()
+            const userData = app.getPath('userData')
+            if (!resolved.startsWith(home) && !resolved.startsWith(userData)) {
+                throw new Error('Access denied: file is outside permitted directories.')
+            }
+            const stat = await fs.promises.stat(resolved)
             if (!stat.isFile()) {
                 throw new Error('Path is not a regular file.')
             }
-            return await fs.promises.readFile(filePath)
+            return await fs.promises.readFile(resolved)
         } catch (error) {
             console.error('Failed to read file:', filePath, error)
             throw new Error(`Failed to read file: ${error.message}`)

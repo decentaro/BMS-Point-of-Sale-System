@@ -236,12 +236,10 @@ class BMSApp {
         this.mainWindow.setPosition(nextDisplay.bounds.x, nextDisplay.bounds.y);
         if (this.mainWindow.isFullScreen()) {
             this.mainWindow.setFullScreen(false);
-            setTimeout(() => { this.mainWindow.setFullScreen(true); }, 100);
+            setTimeout(() => { if (this.mainWindow) this.mainWindow.setFullScreen(true); }, 100);
         }
     }
 
-    async initialize() {
-    }
 }
 
 const bmsApp = new BMSApp();
@@ -264,7 +262,6 @@ app.whenReady().then(async () => {
     if (!process.argv.includes('--dev')) {
         Menu.setApplicationMenu(null);
     }
-    await bmsApp.initialize();
     bmsApp.createWindow();
     connectivityMonitor.start()
 

@@ -201,7 +201,7 @@ namespace BMS_POS_API.Controllers
 
                     foreach (var m in managers)
                     {
-                        bool isLegacy = !m.Pin.StartsWith("$2");
+                        bool isLegacy = m.Pin?.StartsWith("$2") != true;
                         bool pinMatch = isLegacy ? m.Pin == request.ManagerPin
                                                  : BCrypt.Net.BCrypt.Verify(request.ManagerPin, m.Pin);
                         if (pinMatch) { approvingManager = m; break; }

@@ -91,7 +91,6 @@ const POS: React.FC = () => {
 
   // Manager approval state
   const [pendingDiscountPercent, setPendingDiscountPercent] = React.useState<number>(0)
-  const [_showManagerPinPrompt, setShowManagerPinPrompt] = React.useState<boolean>(false)
 
   // Load products from API
   const loadProducts = async () => {
@@ -157,7 +156,6 @@ const POS: React.FC = () => {
       if (response.success) {
         // PIN is valid, apply the pending discount
         setDiscountPercent(pendingDiscountPercent)
-        setShowManagerPinPrompt(false)
         setPendingDiscountPercent(0)
         setKbOpen(false)
 
@@ -167,14 +165,12 @@ const POS: React.FC = () => {
         }, 500)
       } else {
         showToast('Invalid manager PIN. Discount not applied.', 'error')
-        setShowManagerPinPrompt(false)
         setPendingDiscountPercent(0)
         setKbOpen(false)
       }
     } catch (error) {
       console.error('Error validating manager PIN:', error)
       showToast('Error validating manager PIN. Please try again.', 'error')
-      setShowManagerPinPrompt(false)
       setPendingDiscountPercent(0)
       setKbOpen(false)
     }
@@ -248,7 +244,6 @@ const POS: React.FC = () => {
           if (systemSettings?.requireManagerApprovalForDiscount && session.role !== 'Manager') {
             // Store pending discount and ask for manager PIN
             setPendingDiscountPercent(percent)
-            setShowManagerPinPrompt(true)
             openKb('managerPin', 'decimal', 'Enter Manager PIN for Discount Approval')
             return
           }
@@ -951,7 +946,6 @@ const POS: React.FC = () => {
                       if (session) {
                         if (systemSettings?.requireManagerApprovalForDiscount && session.role !== 'Manager') {
                           setPendingDiscountPercent(percent)
-                          setShowManagerPinPrompt(true)
                           openKb('managerPin', 'decimal', 'Enter Manager PIN for Discount Approval')
                           return
                         }
