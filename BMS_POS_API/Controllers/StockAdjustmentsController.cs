@@ -94,6 +94,18 @@ namespace BMS_POS_API.Controllers
                 return BadRequest($"Invalid adjustment type. Valid types: {string.Join(", ", validTypes)}");
             }
 
+            // Idempotency check — return existing adjustment if this key was already processed
+            var idempotencyKey = Request.Headers["X-Idempotency-Key"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(idempotencyKey))
+            {
+                var existing = await _context.StockAdjustments
+                    .Include(sa => sa.Product)
+                    .Include(sa => sa.AdjustedByEmployee)
+                    .FirstOrDefaultAsync(sa => sa.IdempotencyKey == idempotencyKey);
+                if (existing != null)
+                    return Ok(existing);
+            }
+
             // Get product and validate
             var product = await _context.Products.FindAsync(request.ProductId);
             if (product == null)
@@ -144,7 +156,8 @@ namespace BMS_POS_API.Controllers
                 AdjustmentDate = DateTime.UtcNow,
                 ReferenceNumber = request.ReferenceNumber,
                 RequiresApproval = requiresApproval,
-                IsApproved = !requiresApproval // Auto-approve if not required
+                IsApproved = !requiresApproval,
+                IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey
             };
 
             _context.StockAdjustments.Add(stockAdjustment);

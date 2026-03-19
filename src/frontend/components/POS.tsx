@@ -454,6 +454,7 @@ const POS: React.FC = () => {
         const offlineTransaction = {
           id: offlineId,
           timestamp: new Date().toISOString(),
+          idempotencyKey,  // preserve original key so sync deduplicates correctly
           saleData,
           receiptData: {
             subtotal, taxAmount, secondaryTaxAmount, taxLabel, secondaryTaxLabel,

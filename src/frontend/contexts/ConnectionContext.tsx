@@ -125,7 +125,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       let processed = 0
       for (const item of queue) {
         try {
-          await ApiClient.postJson('/sales', item.saleData, true, { headers: { 'X-Idempotency-Key': item.id } })
+          await ApiClient.postJson('/sales', item.saleData, true, { headers: { 'X-Idempotency-Key': item.idempotencyKey ?? item.id } })
           await window.electronAPI.removeFromQueue(item.id)
           processed++
           setSyncProgress({ current: processed, total: queue.length })
@@ -209,7 +209,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       for (const item of queue) {
         try {
-          await ApiClient.postJson('/stockadjustments', item.adjustmentData)
+          await ApiClient.postJson('/stockadjustments', item.adjustmentData, true, { headers: { 'X-Idempotency-Key': item.id } })
           await window.electronAPI.removeFromAdjustmentQueue(item.id)
           setAdjustmentQueueCount(prev => Math.max(0, prev - 1))
         } catch (error: any) {

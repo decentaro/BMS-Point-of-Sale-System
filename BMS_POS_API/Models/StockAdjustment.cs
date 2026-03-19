@@ -74,5 +74,10 @@ namespace BMS_POS_API.Models
 
         [Column("approved_date")]
         public DateTime? ApprovedDate { get; set; }
+
+        // Deduplication key — prevents duplicate records if the same request is retried
+        [Column("idempotency_key")]
+        [StringLength(100)]
+        public string? IdempotencyKey { get; set; }
     }
 }

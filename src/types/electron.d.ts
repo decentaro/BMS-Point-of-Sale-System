@@ -61,6 +61,7 @@ export interface FailedSale {
 export interface OfflineTransaction {
   id: string
   timestamp: string
+  idempotencyKey?: string
   saleData: {
     employeeId: number
     subtotal: number

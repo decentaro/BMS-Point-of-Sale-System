@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using BMS_POS_API.Data;
 using BMS_POS_API.Models;
 using BMS_POS_API.Services;
@@ -121,7 +122,7 @@ namespace BMS_POS_API.Controllers
             var currentTime = DateTime.UtcNow;
             var transactionId = $"TXN-{currentTime:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
 
-            await using var tx = await _context.Database.BeginTransactionAsync();
+            await using var tx = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
             try
             {
                 var sale = new Sale
@@ -188,6 +189,22 @@ namespace BMS_POS_API.Controllers
                     .FirstOrDefaultAsync(s => s.Id == sale.Id);
 
                 return CreatedAtAction(nameof(GetSale), new { id = sale.Id }, completeSale);
+            }
+            catch (Exception ex) when (ex is Npgsql.PostgresException pg && (pg.SqlState == "23505" || pg.SqlState == "40001"))
+            {
+                // 23505 = unique_violation (idempotency key already exists)
+                // 40001 = serialization_failure (concurrent serializable tx conflict)
+                // In both cases the sale was already committed — return it.
+                await tx.RollbackAsync();
+                if (!string.IsNullOrEmpty(idempotencyKey))
+                {
+                    var duplicate = await _context.Sales
+                        .Include(s => s.Employee)
+                        .Include(s => s.SaleItems).ThenInclude(si => si.Product)
+                        .FirstOrDefaultAsync(s => s.IdempotencyKey == idempotencyKey);
+                    if (duplicate != null) return Ok(duplicate);
+                }
+                throw;
             }
             catch
             {

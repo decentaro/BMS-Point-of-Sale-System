@@ -57,6 +57,11 @@ namespace BMS_POS_API.Data
                 .HasIndex(r => r.IdempotencyKey)
                 .IsUnique()
                 .HasFilter("idempotency_key IS NOT NULL");
+
+            modelBuilder.Entity<StockAdjustment>()
+                .HasIndex(sa => sa.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL");
         }
 
         public override int SaveChanges()
