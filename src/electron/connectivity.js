@@ -11,6 +11,20 @@ function createConnectivityMonitor(bmsApp) {
             setTimeout(() => this.check(), 3000)
         },
 
+        stop() {
+            if (this.timer) {
+                clearInterval(this.timer)
+                this.timer = null
+            }
+        },
+
+        sendToRenderer(payload) {
+            const win = bmsApp.mainWindow
+            if (win && !win.isDestroyed()) {
+                win.webContents.send('connectivity-changed', payload)
+            }
+        },
+
         async check() {
             try {
                 const res = await fetch('http://localhost:5002/api/tax-settings', {
@@ -19,16 +33,12 @@ function createConnectivityMonitor(bmsApp) {
                 const nowOnline = res.ok
                 if (nowOnline !== this.isOnline) {
                     this.isOnline = nowOnline
-                    if (bmsApp.mainWindow) {
-                        bmsApp.mainWindow.webContents.send('connectivity-changed', { online: this.isOnline })
-                    }
+                    this.sendToRenderer({ online: this.isOnline })
                 }
             } catch {
                 if (this.isOnline) {
                     this.isOnline = false
-                    if (bmsApp.mainWindow) {
-                        bmsApp.mainWindow.webContents.send('connectivity-changed', { online: false })
-                    }
+                    this.sendToRenderer({ online: false })
                 }
             }
         }

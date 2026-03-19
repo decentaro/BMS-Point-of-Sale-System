@@ -1,4 +1,5 @@
 using BCrypt.Net;
+using Npgsql;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -27,18 +28,25 @@ namespace BMS_POS_API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Return>>> GetReturns(
             [FromQuery] int limit = 100,
-            [FromQuery] int offset = 0)
+            [FromQuery] int offset = 0,
+            [FromQuery] int? saleId = null)
         {
             if (limit > 500) limit = 500;
             if (limit < 1) limit = 1;
             if (offset < 0) offset = 0;
 
-            return await _context.Returns
+            var query = _context.Returns
                 .Include(r => r.OriginalSale)
                 .Include(r => r.ProcessedByEmployee)
                 .Include(r => r.ApprovedByEmployee)
                 .Include(r => r.ReturnItems)
                     .ThenInclude(ri => ri.Product)
+                .AsQueryable();
+
+            if (saleId.HasValue)
+                query = query.Where(r => r.OriginalSaleId == saleId.Value);
+
+            return await query
                 .OrderByDescending(r => r.ReturnDate)
                 .Skip(offset)
                 .Take(limit)
@@ -352,9 +360,13 @@ namespace BMS_POS_API.Controllers
 
                 return CreatedAtAction(nameof(GetReturn), new { id = returnRecord.Id }, completedReturn);
             }
-            catch (Exception ex)
+            catch (PostgresException pg) when (pg.SqlState == "40001")
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                return Conflict("Return could not be processed due to a concurrent update. Please try again.");
+            }
+            catch
+            {
+                return StatusCode(500, "An unexpected error occurred. Please try again.");
             }
         }
     }

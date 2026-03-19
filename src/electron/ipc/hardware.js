@@ -144,10 +144,14 @@ $ptr=[Runtime.InteropServices.Marshal]::AllocHGlobal($b.Length)
 
 function register(ipcMain, apiConfigManager) {
     ipcMain.handle('check-barcode-scanner', async () => {
+        const { execFile } = require('child_process')
+        const execAsync = (cmd, args, opts) => new Promise((resolve, reject) => {
+            execFile(cmd, args, opts, (err, stdout) => err ? reject(err) : resolve(stdout))
+        })
+
         try {
             if (process.platform === 'linux') {
-                const { execFileSync } = require('child_process')
-                const output = execFileSync('lsusb', [], {
+                const output = await execAsync('lsusb', [], {
                     encoding: 'utf8', timeout: 3000,
                     stdio: ['pipe', 'pipe', 'ignore']
                 })
@@ -166,11 +170,10 @@ function register(ipcMain, apiConfigManager) {
             }
 
             if (process.platform === 'win32') {
-                const { execFileSync } = require('child_process')
-                const out = execFileSync('powershell', [
+                const out = (await execAsync('powershell', [
                     '-NoProfile', '-NonInteractive', '-Command',
                     `Get-WmiObject Win32_PnPEntity | Where-Object {$_.DeviceID -like 'USB*'} | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress`
-                ], { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] }).trim()
+                ], { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore'] })).trim()
                 const devices = [].concat(out ? JSON.parse(out) : [])
                 for (const name of devices) {
                     if (SCANNER_NAME_KEYWORDS.some(kw => (name || '').toLowerCase().includes(kw))) {

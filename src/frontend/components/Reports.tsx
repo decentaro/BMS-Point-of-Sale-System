@@ -101,7 +101,6 @@ const Reports: React.FC = () => {
         totalDiscounts: data.totalDiscounts
       })
     } catch (err) {
-      console.error('Error loading today summary:', err)
     }
   }
 
@@ -110,7 +109,6 @@ const Reports: React.FC = () => {
       const data = await ApiClient.getJson<SalesSummary>('/sales/this-week')
       setWeekSummary(data)
     } catch (err) {
-      console.error('Error loading week summary:', err)
     }
   }
 
@@ -119,7 +117,6 @@ const Reports: React.FC = () => {
       const data = await ApiClient.getJson<SalesSummary>('/sales/this-month')
       setMonthSummary(data)
     } catch (err) {
-      console.error('Error loading month summary:', err)
     }
   }
 
@@ -128,7 +125,6 @@ const Reports: React.FC = () => {
       const data = await ApiClient.getJson<TopProduct[]>(`/sales/top-products?days=${topProductsDays}`)
       setTopProducts(data)
     } catch (err) {
-      console.error('Error loading top products:', err)
     }
   }
 
@@ -137,7 +133,6 @@ const Reports: React.FC = () => {
       const data = await ApiClient.getJson<PaymentBreakdown>('/sales/payment-breakdown?period=month')
       setPaymentBreakdown(data)
     } catch (err) {
-      console.error('Error loading payment breakdown:', err)
     }
   }
 
@@ -146,7 +141,6 @@ const Reports: React.FC = () => {
       const data = await ApiClient.getJson<TaxSummary>('/sales/tax-summary?period=month')
       setTaxSummary(data)
     } catch (err) {
-      console.error('Error loading tax summary:', err)
     }
   }
 
@@ -155,7 +149,6 @@ const Reports: React.FC = () => {
       const data = await ApiClient.getJson<EmployeePerformance[]>('/sales/employee-performance?period=month')
       setEmployeePerformance(data)
     } catch (err) {
-      console.error('Error loading employee performance:', err)
     }
   }
 
@@ -164,7 +157,6 @@ const Reports: React.FC = () => {
       const data = await ApiClient.getJson<ReturnsSummary>(`/returns/summary?period=${period}`)
       setReturnsSummary(data)
     } catch (err) {
-      console.error('Error loading returns summary:', err)
     }
   }
 
@@ -183,7 +175,6 @@ const Reports: React.FC = () => {
         loadReturnsSummary()
       ])
     } catch (err) {
-      console.error('Error loading reports:', err)
     } finally {
       setLoading(false)
     }

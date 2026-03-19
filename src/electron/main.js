@@ -199,7 +199,7 @@ class BMSApp {
 
         this.mainWindow.webContents.on('before-input-event', (event, input) => {
             if (input.control && input.shift && input.key.toLowerCase() === 'q') app.quit();
-            if (input.key === 'F11') this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen());
+            if (input.key === 'F11') this.mainWindow?.setFullScreen(!this.mainWindow?.isFullScreen());
             if (input.control && input.shift && input.key.toLowerCase() === 'm') this.moveToNextDisplay();
             if (input.key === 'F12' && !isDev) event.preventDefault();
         });
@@ -276,4 +276,8 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
     }
+});
+
+app.on('before-quit', () => {
+    connectivityMonitor.stop()
 });

@@ -215,7 +215,9 @@ const electronAPI = {
 
     // Connectivity
     onConnectivityChange: (callback) => {
-        ipcRenderer.on('connectivity-changed', (event, data) => callback(data))
+        const handler = (event, data) => callback(data)
+        ipcRenderer.on('connectivity-changed', handler)
+        return () => ipcRenderer.removeListener('connectivity-changed', handler)
     },
     getConnectivity: () => ipcRenderer.invoke('get-connectivity'),
 

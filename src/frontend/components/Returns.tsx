@@ -137,7 +137,8 @@ const Returns: React.FC = () => {
       const quantity = parseInt(val) || 0
       setReturnItems(prev => prev.map(item => {
         if (item.saleItemId !== editingItemId) return item
-        const qty = Math.min(quantity, item.originalQuantity)
+        const maxReturnable = item.originalQuantity - (alreadyReturnedQty[item.saleItemId] || 0)
+        const qty = Math.min(quantity, maxReturnable)
         return { ...item, returnQuantity: qty, lineTotal: qty * item.unitPrice * taxMultiplier }
       }))
     }
@@ -148,7 +149,8 @@ const Returns: React.FC = () => {
     const quantity = parseInt(value) || 0
     setReturnItems(prev => prev.map(ri => {
       if (ri.saleItemId !== saleItemId) return ri
-      const qty = Math.min(quantity, ri.originalQuantity)
+      const maxReturnable = ri.originalQuantity - (alreadyReturnedQty[saleItemId] || 0)
+      const qty = Math.min(quantity, maxReturnable)
       return { ...ri, returnQuantity: qty, lineTotal: qty * ri.unitPrice * taxMultiplier }
     }))
   }
@@ -211,33 +213,34 @@ const Returns: React.FC = () => {
         }
       }
 
-      // Check if this transaction has already been fully/partially returned
+      // Check if this transaction has already been fully/partially returned.
+      // Fetch only returns for this specific sale (avoids the 100-record limit).
       let returnedQtyMap: Record<number, number> = {}
       try {
-        const existingReturns = await ApiClient.getJson('/returns')
-        const existingReturn = (existingReturns as any[]).find((r: any) => r.originalSaleId === foundSale.id)
+        const saleReturns = await ApiClient.getJson<any[]>(`/returns?saleId=${foundSale.id}&limit=500`)
 
-        if (existingReturn) {
-          // Build a map of saleItemId -> already returned quantity
-          ;(existingReturn.returnItems as any[]).forEach((ri: any) => {
+        // Aggregate returned quantities across ALL returns for this sale
+        for (const ret of saleReturns) {
+          for (const ri of (ret.returnItems as any[])) {
             const key = ri.originalSaleItemId ?? ri.saleItemId
             returnedQtyMap[key] = (returnedQtyMap[key] || 0) + ri.returnQuantity
-          })
+          }
+        }
 
+        if (saleReturns.length > 0) {
           const totalOriginalQuantities = foundSale.saleItems.reduce((sum, item) => sum + item.quantity, 0)
-          const totalReturnedQuantities = existingReturn.returnItems.reduce((sum: number, item: any) => sum + item.returnQuantity, 0)
+          const totalReturnedQuantities = Object.values(returnedQtyMap).reduce((a, b) => a + b, 0)
 
           if (totalReturnedQuantities >= totalOriginalQuantities) {
-            showToast(`Transaction already fully returned. Return ID: ${existingReturn.returnId}`, 'info')
+            showToast(`Transaction already fully returned.`, 'info')
             setSearchTransactionId('')
             return
           } else {
-            showToast(`Transaction partially returned. Return ID: ${existingReturn.returnId}`, 'info')
+            showToast(`Transaction partially returned — ${totalOriginalQuantities - totalReturnedQuantities} item(s) still returnable.`, 'info')
           }
         }
-      } catch (error) {
-        // Returns might not exist yet - that's okay
-        console.log('No existing returns found (expected for new setup)')
+      } catch {
+        // Returns might not exist yet — that's fine
       }
 
       setAlreadyReturnedQty(returnedQtyMap)

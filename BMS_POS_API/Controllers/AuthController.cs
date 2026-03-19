@@ -239,10 +239,16 @@ namespace BMS_POS_API.Controllers
             if (await _lockoutService.IsLockedOutAsync(lockoutKey))
                 return Ok(new ValidateManagerResponse { Success = false, Message = "Too many failed attempts. Please wait before trying again." });
 
-            // Find managers and verify PIN with hashing support
-            var managers = await _context.Employees
+            // Load candidates broadly in SQL, then filter strictly in memory to avoid
+            // substring false-positives (e.g. "AssistantManager" containing "Manager")
+            var candidates = await _context.Employees
                 .Where(e => (e.Role.Contains("Manager") || e.IsManager == true) && e.IsActive)
                 .ToListAsync();
+
+            var managers = candidates.Where(m =>
+                (m.Role ?? "").Split(',').Select(r => r.Trim())
+                    .Contains("Manager", StringComparer.OrdinalIgnoreCase)
+                || m.IsManager == true).ToList();
 
             // Check PIN against all managers (supports both legacy and hashed PINs)
             var manager = managers.FirstOrDefault(m => IsValidPin(m.Pin, request.Pin));

@@ -262,7 +262,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Listen for connectivity changes from main process
   useEffect(() => {
     if (!window.electronAPI?.onConnectivityChange) return
-    window.electronAPI.onConnectivityChange(({ online }) => {
+    const cleanup = window.electronAPI.onConnectivityChange(({ online }) => {
       setIsOnline(online)
       ApiClient.setOnline(online)
       if (online) {
@@ -276,6 +276,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       wasOnlineRef.current = online
     })
+    return cleanup
   }, [syncQueue, syncAdjustmentQueue, syncReturnQueue])
 
   // Warm cache on login event
