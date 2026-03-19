@@ -24,11 +24,11 @@ namespace BMS_POS_API.Controllers
         {
             DateTime reportDate;
             if (string.IsNullOrEmpty(date))
-                reportDate = DateTime.UtcNow.Date;
+                reportDate = DateTime.SpecifyKind(DateTime.Today.ToUniversalTime(), DateTimeKind.Utc);
             else if (!DateTime.TryParse(date, out reportDate))
                 return BadRequest("Invalid date format. Use yyyy-MM-dd.");
-
-            reportDate = DateTime.SpecifyKind(reportDate.Date, DateTimeKind.Utc);
+            else
+                reportDate = DateTime.SpecifyKind(reportDate.Date, DateTimeKind.Utc);
             var nextDay = reportDate.AddDays(1);
 
             return Ok(await BuildZReport(reportDate, nextDay));

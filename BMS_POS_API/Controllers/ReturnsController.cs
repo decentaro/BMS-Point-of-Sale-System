@@ -49,12 +49,12 @@ namespace BMS_POS_API.Controllers
         [HttpGet("summary")]
         public async Task<ActionResult<object>> GetReturnsSummary([FromQuery] string period = "month")
         {
-            var now = DateTime.UtcNow;
+            var localToday = DateTime.Today;
             DateTime cutoff = period switch
             {
-                "today" => now.Date,
-                "week"  => now.AddDays(-7),
-                "month" => now.AddDays(-30),
+                "today" => DateTime.SpecifyKind(localToday.ToUniversalTime(), DateTimeKind.Utc),
+                "week"  => DateTime.SpecifyKind(localToday.AddDays(-7).ToUniversalTime(), DateTimeKind.Utc),
+                "month" => DateTime.SpecifyKind(localToday.AddDays(-30).ToUniversalTime(), DateTimeKind.Utc),
                 _       => DateTime.MinValue
             };
 

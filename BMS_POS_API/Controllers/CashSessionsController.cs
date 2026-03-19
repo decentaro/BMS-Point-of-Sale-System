@@ -47,7 +47,7 @@ namespace BMS_POS_API.Controllers
         [HttpGet("today")]
         public async Task<ActionResult<CashSessionResponse?>> GetTodaySession()
         {
-            var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+            var today = DateTime.SpecifyKind(DateTime.Today.ToUniversalTime(), DateTimeKind.Utc);
 
             var session = await _context.CashSessions
                 .Include(cs => cs.OpenedByEmployee)
@@ -83,7 +83,7 @@ namespace BMS_POS_API.Controllers
             if (employee == null)
                 return BadRequest("Invalid employee ID.");
 
-            var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+            var today = DateTime.SpecifyKind(DateTime.Today.ToUniversalTime(), DateTimeKind.Utc);
 
             var existing = await _context.CashSessions
                 .FirstOrDefaultAsync(cs => cs.SessionDate == today);

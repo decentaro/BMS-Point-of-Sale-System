@@ -14,7 +14,7 @@ import Reconciliation from './Reconciliation'
 import {
   Download, ChevronRight, TrendingUp, ShoppingCart, Banknote,
   Percent, Users, RotateCcw, PackageX, ShoppingBag, Receipt,
-  CreditCard, Tag, Trophy, CalendarDays, ArrowLeft
+  CreditCard, Tag, Trophy, CalendarDays, ArrowLeft, RefreshCw
 } from 'lucide-react'
 
 interface SalesSummary {
@@ -417,8 +417,16 @@ const Reports: React.FC = () => {
           ) : (
             <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
 
-              {/* Export */}
-              <div className="flex justify-end">
+              {/* Toolbar */}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadReports}
+                  className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-50"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

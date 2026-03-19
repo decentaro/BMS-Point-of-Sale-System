@@ -254,9 +254,9 @@ namespace BMS_POS_API.Controllers
         [HttpGet("today")]
         public async Task<ActionResult<SalesTodayResponse>> GetTodaySales()
         {
-            var currentTime = DateTime.UtcNow;
-            var today = DateTime.SpecifyKind(currentTime.Date, DateTimeKind.Utc);
-            var tomorrow = today.AddDays(1);
+            var localToday = DateTime.Today;
+            var today    = DateTime.SpecifyKind(localToday.ToUniversalTime(),             DateTimeKind.Utc);
+            var tomorrow = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(),  DateTimeKind.Utc);
 
             var todaySales = await _context.Sales
                 .Where(s => s.SaleDate >= today && s.SaleDate < tomorrow && s.Status == "Completed")
@@ -281,18 +281,17 @@ namespace BMS_POS_API.Controllers
         [HttpGet("this-week")]
         public async Task<ActionResult<SalesSummaryResponse>> GetThisWeekSummary()
         {
-            // Get start of current week (Monday)
-            var currentTime = DateTime.UtcNow;
-            var today = DateTime.SpecifyKind(currentTime.Date, DateTimeKind.Utc);
-            var startOfWeek = today.AddDays(-(int)today.DayOfWeek + 1);
-            
+            var localToday  = DateTime.Today;
+            var endOfDay    = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
+            var startOfWeek = DateTime.SpecifyKind(localToday.AddDays(-(int)localToday.DayOfWeek + 1).ToUniversalTime(), DateTimeKind.Utc);
+
             var weekSales = await _context.Sales
-                .Where(s => s.SaleDate >= startOfWeek && s.SaleDate < today.AddDays(1))
+                .Where(s => s.SaleDate >= startOfWeek && s.SaleDate < endOfDay)
                 .ToListAsync();
 
             var response = new SalesSummaryResponse
             {
-                Period = $"Week of {startOfWeek:MMM dd}",
+                Period = $"Week of {localToday.AddDays(-(int)localToday.DayOfWeek + 1):MMM dd}",
                 TotalSales = weekSales.Count,
                 TotalRevenue = weekSales.Sum(s => s.Total),
                 TotalTax = weekSales.Sum(s => s.TaxAmount),
@@ -306,17 +305,17 @@ namespace BMS_POS_API.Controllers
         [HttpGet("this-month")]
         public async Task<ActionResult<SalesSummaryResponse>> GetThisMonthSummary()
         {
-            var currentTime = DateTime.UtcNow;
-            var today = DateTime.SpecifyKind(currentTime.Date, DateTimeKind.Utc);
-            var startOfMonth = DateTime.SpecifyKind(new DateTime(today.Year, today.Month, 1), DateTimeKind.Utc);
-            
+            var localToday   = DateTime.Today;
+            var endOfDay     = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
+            var startOfMonth = DateTime.SpecifyKind(new DateTime(localToday.Year, localToday.Month, 1).ToUniversalTime(), DateTimeKind.Utc);
+
             var monthSales = await _context.Sales
-                .Where(s => s.SaleDate >= startOfMonth && s.SaleDate < today.AddDays(1))
+                .Where(s => s.SaleDate >= startOfMonth && s.SaleDate < endOfDay)
                 .ToListAsync();
 
             var response = new SalesSummaryResponse
             {
-                Period = startOfMonth.ToString("MMMM yyyy"),
+                Period = new DateTime(localToday.Year, localToday.Month, 1).ToString("MMMM yyyy"),
                 TotalSales = monthSales.Count,
                 TotalRevenue = monthSales.Sum(s => s.Total),
                 TotalTax = monthSales.Sum(s => s.TaxAmount),
@@ -355,29 +354,27 @@ namespace BMS_POS_API.Controllers
         [HttpGet("payment-breakdown")]
         public async Task<ActionResult<PaymentBreakdownResponse>> GetPaymentBreakdown([FromQuery] string period = "today")
         {
-            var currentTime = DateTime.UtcNow;
-            var today = DateTime.SpecifyKind(currentTime.Date, DateTimeKind.Utc);
-            
+            var localToday = DateTime.Today;
+            var endDate    = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
+
             DateTime startDate;
             string periodLabel;
-            
+
             switch (period.ToLower())
             {
                 case "week":
-                    startDate = today.AddDays(-(int)today.DayOfWeek + 1);
-                    periodLabel = $"Week of {startDate:MMM dd}";
+                    startDate   = DateTime.SpecifyKind(localToday.AddDays(-(int)localToday.DayOfWeek + 1).ToUniversalTime(), DateTimeKind.Utc);
+                    periodLabel = $"Week of {localToday.AddDays(-(int)localToday.DayOfWeek + 1):MMM dd}";
                     break;
                 case "month":
-                    startDate = DateTime.SpecifyKind(new DateTime(today.Year, today.Month, 1), DateTimeKind.Utc);
-                    periodLabel = startDate.ToString("MMMM yyyy");
+                    startDate   = DateTime.SpecifyKind(new DateTime(localToday.Year, localToday.Month, 1).ToUniversalTime(), DateTimeKind.Utc);
+                    periodLabel = new DateTime(localToday.Year, localToday.Month, 1).ToString("MMMM yyyy");
                     break;
                 default: // today
-                    startDate = today;
+                    startDate   = DateTime.SpecifyKind(localToday.ToUniversalTime(), DateTimeKind.Utc);
                     periodLabel = "Today";
                     break;
             }
-            
-            var endDate = today.AddDays(1);
             
             var paymentBreakdown = await _context.Sales
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
@@ -401,29 +398,27 @@ namespace BMS_POS_API.Controllers
         [HttpGet("tax-summary")]
         public async Task<ActionResult<TaxSummaryResponse>> GetTaxSummary([FromQuery] string period = "month")
         {
-            var currentTime = DateTime.UtcNow;
-            var today = DateTime.SpecifyKind(currentTime.Date, DateTimeKind.Utc);
-            
+            var localToday = DateTime.Today;
+            var endDate    = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
+
             DateTime startDate;
             string periodLabel;
-            
+
             switch (period.ToLower())
             {
                 case "week":
-                    startDate = today.AddDays(-(int)today.DayOfWeek + 1);
-                    periodLabel = $"Week of {startDate:MMM dd}";
+                    startDate   = DateTime.SpecifyKind(localToday.AddDays(-(int)localToday.DayOfWeek + 1).ToUniversalTime(), DateTimeKind.Utc);
+                    periodLabel = $"Week of {localToday.AddDays(-(int)localToday.DayOfWeek + 1):MMM dd}";
                     break;
                 case "year":
-                    startDate = DateTime.SpecifyKind(new DateTime(today.Year, 1, 1), DateTimeKind.Utc);
-                    periodLabel = today.Year.ToString();
+                    startDate   = DateTime.SpecifyKind(new DateTime(localToday.Year, 1, 1).ToUniversalTime(), DateTimeKind.Utc);
+                    periodLabel = localToday.Year.ToString();
                     break;
                 default: // month
-                    startDate = DateTime.SpecifyKind(new DateTime(today.Year, today.Month, 1), DateTimeKind.Utc);
-                    periodLabel = startDate.ToString("MMMM yyyy");
+                    startDate   = DateTime.SpecifyKind(new DateTime(localToday.Year, localToday.Month, 1).ToUniversalTime(), DateTimeKind.Utc);
+                    periodLabel = new DateTime(localToday.Year, localToday.Month, 1).ToString("MMMM yyyy");
                     break;
             }
-            
-            var endDate = today.AddDays(1);
             
             var sales = await _context.Sales
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
@@ -443,25 +438,23 @@ namespace BMS_POS_API.Controllers
         [HttpGet("employee-performance")]
         public async Task<ActionResult<List<EmployeePerformanceResponse>>> GetEmployeePerformance([FromQuery] string period = "month")
         {
-            var currentTime = DateTime.UtcNow;
-            var today = DateTime.SpecifyKind(currentTime.Date, DateTimeKind.Utc);
-            
+            var localToday = DateTime.Today;
+            var endDate    = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
+
             DateTime startDate;
-            
+
             switch (period.ToLower())
             {
                 case "week":
-                    startDate = today.AddDays(-(int)today.DayOfWeek + 1);
+                    startDate = DateTime.SpecifyKind(localToday.AddDays(-(int)localToday.DayOfWeek + 1).ToUniversalTime(), DateTimeKind.Utc);
                     break;
                 case "today":
-                    startDate = today;
+                    startDate = DateTime.SpecifyKind(localToday.ToUniversalTime(), DateTimeKind.Utc);
                     break;
                 default: // month
-                    startDate = DateTime.SpecifyKind(new DateTime(today.Year, today.Month, 1), DateTimeKind.Utc);
+                    startDate = DateTime.SpecifyKind(new DateTime(localToday.Year, localToday.Month, 1).ToUniversalTime(), DateTimeKind.Utc);
                     break;
             }
-            
-            var endDate = today.AddDays(1);
             
             var employeePerformance = await _context.Sales
                 .Include(s => s.Employee)
