@@ -116,8 +116,11 @@ namespace BMS_POS_API.Controllers
                 .OrderByDescending(p => p.TotalAmount)
                 .ToList();
 
-            var grossSales = sales.Sum(s => s.Subtotal + s.DiscountAmount); // pre-discount subtotal
-            var netSales = sales.Sum(s => s.Total);
+            // Sale.Subtotal = pre-discount, pre-tax item total (set by POS from cart totals).
+            // Gross = raw item prices before any deductions.
+            // Net   = what was earned after discounts, before tax (Total already has tax baked in).
+            var grossSales = sales.Sum(s => s.Subtotal);
+            var netSales   = sales.Sum(s => s.Total - s.TaxAmount);
             var totalDiscounts = sales.Sum(s => s.DiscountAmount);
             var totalTax = sales.Sum(s => s.TaxAmount);
             var cashSales = sales.Where(s => s.PaymentMethod == "Cash").Sum(s => s.Total);
