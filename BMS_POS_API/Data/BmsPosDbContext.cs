@@ -62,6 +62,14 @@ namespace BMS_POS_API.Data
                 .HasIndex(sa => sa.IdempotencyKey)
                 .IsUnique()
                 .HasFilter("idempotency_key IS NOT NULL");
+
+            // Performance indexes for common query patterns
+            modelBuilder.Entity<Product>().HasIndex(p => p.Barcode);
+            modelBuilder.Entity<Product>().HasIndex(p => p.IsActive);
+            modelBuilder.Entity<Sale>().HasIndex(s => new { s.SaleDate, s.Status });
+            modelBuilder.Entity<Sale>().HasIndex(s => s.EmployeeId);
+            modelBuilder.Entity<Return>().HasIndex(r => r.ReturnDate);
+            modelBuilder.Entity<UserActivity>().HasIndex(ua => ua.UserId);
         }
 
         public override int SaveChanges()

@@ -551,6 +551,9 @@ const POS: React.FC = () => {
   const finalTotal = Math.max(0, totalBeforeDiscount - discountAmount)
   const changeAmount = Math.max(0, parseFloat(amountPaid || '0') - finalTotal)
 
+  // O(1) cart lookup map — avoids O(n*m) cart.find inside the product grid render
+  const cartMap = React.useMemo(() => new Map(cart.map(c => [c.product.id, c])), [cart])
+
   // Filter products based on search
   const filteredProducts = React.useMemo(() => {
     if (!searchQuery.trim()) return products
@@ -636,7 +639,7 @@ const POS: React.FC = () => {
                   </div>
                 ) : (
                   filteredProducts.map((product) => {
-                    const cartItem = cart.find(item => item.product.id === product.id)
+                    const cartItem = cartMap.get(product.id)
                     const quantityInCart = cartItem ? cartItem.quantity : 0
                     const isOutOfStock = product.stockQuantity === 0
                     const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= product.minStockLevel
@@ -877,7 +880,7 @@ const POS: React.FC = () => {
           kbTarget === 'amountPaid' ? amountPaid :
           kbTarget === 'managerPin' ? '' :
           kbTarget === 'cartQuantity' && editingCartItemId ?
-            cart.find(item => item.product.id === editingCartItemId)?.quantity.toString() || '' : ''
+            cartMap.get(editingCartItemId)?.quantity.toString() || '' : ''
         }
         masked={kbTarget === 'managerPin'}
         onSubmit={applyKb}

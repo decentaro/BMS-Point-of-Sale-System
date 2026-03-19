@@ -115,10 +115,6 @@ const Inventory: React.FC = () => {
     try {
       setLoading(true)
       const data = await ApiClient.getProducts()
-      console.log('Loaded products:', data) // Debug: see product data
-      data.forEach((product: Product, index: number) => {
-        console.log(`Product ${index + 1} imageUrl:`, product.imageUrl) // Debug each image URL
-      })
       setProducts(data)
     } catch (err) {
       showToast('Failed to load products. Please refresh and try again.', 'error')
@@ -158,7 +154,6 @@ const Inventory: React.FC = () => {
           const cleanBarcode = fullBarcode.replace(/Enter$/, '')
           if (cleanBarcode.length >= 5) {
             setForm(prev => ({ ...prev, barcode: cleanBarcode }))
-            console.log('Barcode scanned:', cleanBarcode)
           }
         }
         setScanBuffer('')
@@ -183,7 +178,6 @@ const Inventory: React.FC = () => {
       // First, try to find in local database
       try {
         const product = await ApiClient.getJson<Product>(`/products/barcode/${encodeURIComponent(barcode)}`, true)
-        console.log('Found product in local database:', product)
         selectProduct(product)
         // Clear barcode field after successful scan
         setForm(prev => ({ ...prev, barcode: '' }))
@@ -191,7 +185,6 @@ const Inventory: React.FC = () => {
       } catch (error: any) {
         // If not found locally, try UPC Item Database
         if (error.message?.includes('404') || error.status === 404) {
-          console.log('Product not found locally, checking UPC database...')
           await searchUPCDatabase(barcode)
           // Don't clear barcode field here - user might want to add new product with this barcode
         } else {
@@ -217,13 +210,9 @@ const Inventory: React.FC = () => {
       }
       
       const data = await response.json()
-      console.log('UPC Database response:', data)
       
       if (data.code === 'OK' && data.items && data.items.length > 0) {
         const item = data.items[0]
-        console.log('UPC Item details:', item)
-        console.log('Available images:', item.images)
-        console.log('Item properties:', Object.keys(item))
         
         // Extract image URL from UPC data (prefer working HTTPS images)
         let imageUrl = null
@@ -245,13 +234,6 @@ const Inventory: React.FC = () => {
             imageUrl = httpsImages.length > 0 ? httpsImages[0] : null
           }
         }
-        console.log('All available images:', item.images)
-        console.log('Filtered working images:', item.images.filter((img: string) => {
-          if (img.includes('spin_prod_ec_') || img.includes('rpx/i/s/i/spin')) return false
-          const reliableDomains = ['walmart.com', 'amazon.com', 'target.com', 'walgreens.com']
-          return reliableDomains.some(domain => img.includes(domain)) || img.startsWith('https://')
-        }))
-        console.log('Selected image URL:', imageUrl)
         setUpcImageUrl(imageUrl)
         
         // Populate form with UPC data for new product creation
@@ -271,7 +253,6 @@ const Inventory: React.FC = () => {
         setSelectedProduct(null) // Clear selection since this is a new product
         setIsEditing(false) // Set to add mode
           
-        console.log('Product info populated from UPC database')
       } else {
         showToast('Barcode "' + barcode + '" not found in UPC database', 'warning')
       }
@@ -319,8 +300,6 @@ const Inventory: React.FC = () => {
       try {
         // Find the current product to preserve fields not in the form
         const currentProduct = products.find(p => p.id === selectedProduct)
-        console.log('Current product before save:', currentProduct) // Debug
-        console.log('Current product imageUrl:', currentProduct?.imageUrl) // Debug
         
         const productData = {
           id: selectedProduct,
@@ -341,11 +320,9 @@ const Inventory: React.FC = () => {
           lastUpdated: new Date().toISOString()
         }
         
-        console.log('Saving product data:', productData) // Debug
         
         await ApiClient.put(`/products/${selectedProduct}`, productData)
         
-        console.log('Save successful') // Debug
         
         await loadProducts()
         setIsEditing(false)

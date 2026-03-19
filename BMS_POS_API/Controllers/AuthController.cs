@@ -207,16 +207,17 @@ namespace BMS_POS_API.Controllers
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecretHolder.Secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var role = employee.Role ?? (employee.IsManager ? "Manager" : "Cashier");
+            var roleString = employee.Role ?? (employee.IsManager ? "Manager" : "Cashier");
+            var roles = roleString.Split(',').Select(r => r.Trim()).Where(r => !string.IsNullOrEmpty(r));
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, employee.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.UniqueName, employee.EmployeeId),
                 new Claim(ClaimTypes.Name, employee.Name ?? employee.EmployeeId),
-                new Claim(ClaimTypes.Role, role),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
+            claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
             var token = new JwtSecurityToken(
                 claims: claims,
@@ -232,6 +233,12 @@ namespace BMS_POS_API.Controllers
         [EnableRateLimiting("auth")]
         public async Task<ActionResult<ValidateManagerResponse>> ValidateManager(ValidateManagerRequest request)
         {
+            const string lockoutKey = "manager_pin_global";
+            const int maxAttempts = 5;
+
+            if (await _lockoutService.IsLockedOutAsync(lockoutKey))
+                return Ok(new ValidateManagerResponse { Success = false, Message = "Too many failed attempts. Please wait before trying again." });
+
             // Find managers and verify PIN with hashing support
             var managers = await _context.Employees
                 .Where(e => (e.Role.Contains("Manager") || e.IsManager == true) && e.IsActive)
@@ -242,6 +249,7 @@ namespace BMS_POS_API.Controllers
 
             if (manager == null)
             {
+                await _lockoutService.RecordFailedAttemptAsync(lockoutKey, maxAttempts);
                 return Ok(new ValidateManagerResponse
                 {
                     Success = false,
@@ -249,6 +257,7 @@ namespace BMS_POS_API.Controllers
                 });
             }
 
+            await _lockoutService.ResetAttemptsAsync(lockoutKey);
             return Ok(new ValidateManagerResponse
             {
                 Success = true,

@@ -76,6 +76,7 @@ namespace BMS_POS_API.Controllers
 
         // PUT: api/AdminSettings
         [HttpPut]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<ApiResponse<AdminSettings>>> UpdateAdminSettings(AdminSettings adminSettings)
         {
             try
@@ -132,6 +133,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/AdminSettings/test-connection
         [HttpPost("test-connection")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<ApiResponse<object>>> TestDatabaseConnection()
         {
             try
@@ -214,6 +216,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/AdminSettings/backup/create
         [HttpPost("backup/create")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<ApiResponse<object>>> CreateDatabaseBackup()
         {
             try
@@ -275,6 +278,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/AdminSettings/backup/restore
         [HttpPost("backup/restore")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<ApiResponse<object>>> RestoreDatabaseBackup([FromForm] IFormFile backupFile, [FromForm] string? newConnectionString = null)
         {
             try
@@ -481,6 +485,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/AdminSettings/clear-database
         [HttpPost("clear-database")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<ApiResponse<object>>> ClearDatabase([FromBody] ClearDatabaseRequest request)
         {
             // Require a typed confirmation phrase to prevent accidental data loss

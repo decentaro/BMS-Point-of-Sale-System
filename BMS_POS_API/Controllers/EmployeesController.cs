@@ -55,6 +55,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/employees
         [HttpPost]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<Employee>> CreateEmployee(Employee employee)
         {
             // Validate EmployeeId
@@ -125,6 +126,7 @@ namespace BMS_POS_API.Controllers
 
         // PUT: api/employees/5
         [HttpPut("{id}")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> UpdateEmployee(int id, Employee employee)
         {
             if (id != employee.Id)
@@ -209,6 +211,7 @@ namespace BMS_POS_API.Controllers
 
         // PUT: api/employees/5/deactivate
         [HttpPut("{id}/deactivate")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> DeactivateEmployee(int id)
         {
             var employee = await _context.Employees.FindAsync(id);
@@ -248,6 +251,7 @@ namespace BMS_POS_API.Controllers
 
         // PUT: api/employees/5/activate
         [HttpPut("{id}/activate")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> ActivateEmployee(int id)
         {
             var employee = await _context.Employees.FindAsync(id);
@@ -287,6 +291,7 @@ namespace BMS_POS_API.Controllers
 
         // PUT: api/employees/5/reset-pin
         [HttpPut("{id}/reset-pin")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> ResetEmployeePin(int id, ResetPinRequest request)
         {
             var employee = await _context.Employees.FindAsync(id);

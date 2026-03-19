@@ -102,6 +102,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/products/5/batches
         [HttpPost("{productId}/batches")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<ProductBatch>> CreateProductBatch(int productId, CreateProductBatchRequest request)
         {
             var product = await _context.Products.FindAsync(productId);
@@ -179,6 +180,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/products
         [HttpPost]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<Product>> CreateProduct(Product product)
         {
             // Validate Barcode
@@ -253,6 +255,7 @@ namespace BMS_POS_API.Controllers
 
         // PUT: api/products/5
         [HttpPut("{id}")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> UpdateProduct(int id, Product product)
         {
             if (id != product.Id)
@@ -406,6 +409,7 @@ namespace BMS_POS_API.Controllers
 
         // DELETE: api/products/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
             var product = await _context.Products.FindAsync(id);
@@ -449,6 +453,7 @@ namespace BMS_POS_API.Controllers
 
         // POST: api/products/{id}/image
         [HttpPost("{id}/image")]
+        [Authorize(Roles = "Manager")]
         [RequestSizeLimit(5_242_880)] // 5 MB
         public async Task<IActionResult> UploadProductImage(int id, IFormFile image)
         {
