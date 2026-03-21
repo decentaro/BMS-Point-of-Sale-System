@@ -36,6 +36,7 @@ namespace BMS_POS_API.Controllers
             if (offset < 0) offset = 0;
 
             var query = _context.Returns
+                .AsNoTracking()
                 .Include(r => r.OriginalSale)
                 .Include(r => r.ProcessedByEmployee)
                 .Include(r => r.ApprovedByEmployee)
@@ -75,6 +76,7 @@ namespace BMS_POS_API.Controllers
             };
 
             var returnsQuery = _context.Returns
+                .AsNoTracking()
                 .Include(r => r.ReturnItems)
                 .Where(r => r.Status == "Completed");
 
@@ -125,6 +127,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<Return>> GetReturn(int id)
         {
             var returnRecord = await _context.Returns
+                .AsNoTracking()
                 .Include(r => r.OriginalSale)
                 .Include(r => r.ProcessedByEmployee)
                 .Include(r => r.ApprovedByEmployee)

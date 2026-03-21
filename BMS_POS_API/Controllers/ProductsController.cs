@@ -25,7 +25,7 @@ namespace BMS_POS_API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
         {
-            return await _context.Products.Where(p => p.IsActive).OrderBy(p => p.Name).ToListAsync();
+            return await _context.Products.AsNoTracking().Where(p => p.IsActive).OrderBy(p => p.Name).ToListAsync();
         }
 
         // GET: api/products/5
@@ -46,7 +46,7 @@ namespace BMS_POS_API.Controllers
         [HttpGet("barcode/{barcode}")]
         public async Task<ActionResult<Product>> GetProductByBarcode(string barcode)
         {
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.Barcode == barcode && p.IsActive);
+            var product = await _context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Barcode == barcode && p.IsActive);
 
             if (product == null)
             {
@@ -61,6 +61,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<IEnumerable<Product>>> GetLowStockProducts()
         {
             return await _context.Products
+                .AsNoTracking()
                 .Where(p => p.IsActive && p.StockQuantity <= p.MinStockLevel)
                 .OrderBy(p => p.StockQuantity)
                 .ToListAsync();
@@ -74,8 +75,9 @@ namespace BMS_POS_API.Controllers
             var cutoffDate = currentTime.AddDays(days);
             
             return await _context.ProductBatches
+                .AsNoTracking()
                 .Include(pb => pb.Product)
-                .Where(pb => pb.ExpirationDate != null && 
+                .Where(pb => pb.ExpirationDate != null &&
                            pb.ExpirationDate <= cutoffDate && 
                            pb.Quantity > 0 &&
                            !pb.IsExpired &&
@@ -95,6 +97,7 @@ namespace BMS_POS_API.Controllers
             }
 
             return await _context.ProductBatches
+                .AsNoTracking()
                 .Where(pb => pb.ProductId == productId && pb.Quantity > 0)
                 .OrderBy(pb => pb.ExpirationDate ?? DateTime.MaxValue)
                 .ToListAsync();

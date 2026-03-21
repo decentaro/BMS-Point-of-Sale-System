@@ -94,17 +94,20 @@ namespace BMS_POS_API.Controllers
             // so check both to avoid missing sessions after the timezone fix.
             var utcMidnight = DateTime.SpecifyKind(reportDate.ToLocalTime().Date, DateTimeKind.Utc);
             var session = await _context.CashSessions
+                .AsNoTracking()
                 .Include(cs => cs.OpenedByEmployee)
                 .Include(cs => cs.ClosedByEmployee)
                 .FirstOrDefaultAsync(cs => cs.SessionDate == reportDate || cs.SessionDate == utcMidnight);
 
             // Load all completed sales for this date
             var sales = await _context.Sales
+                .AsNoTracking()
                 .Where(s => s.SaleDate >= reportDate && s.SaleDate < nextDay && s.Status == "Completed")
                 .ToListAsync();
 
             // Load all returns for this date
             var returns = await _context.Returns
+                .AsNoTracking()
                 .Where(r => r.ReturnDate >= reportDate && r.ReturnDate < nextDay && r.Status == "Completed")
                 .ToListAsync();
 

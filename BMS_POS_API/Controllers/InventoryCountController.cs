@@ -27,6 +27,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<IEnumerable<InventoryCount>>> GetInventoryCounts()
         {
             return await _context.InventoryCounts
+                .AsNoTracking()
                 .Include(ic => ic.StartedByEmployee)
                 .Include(ic => ic.CompletedByEmployee)
                 .OrderByDescending(ic => ic.StartedDate)
@@ -38,6 +39,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<InventoryCount>> GetInventoryCount(int id)
         {
             var inventoryCount = await _context.InventoryCounts
+                .AsNoTracking()
                 .Include(ic => ic.StartedByEmployee)
                 .Include(ic => ic.CompletedByEmployee)
                 .Include(ic => ic.CountItems)
@@ -339,6 +341,7 @@ namespace BMS_POS_API.Controllers
             }
 
             return await _context.InventoryCountItems
+                .AsNoTracking()
                 .Include(ci => ci.Product)
                 .Include(ci => ci.ProductBatch)
                 .Include(ci => ci.CountedByEmployee)
@@ -413,7 +416,7 @@ namespace BMS_POS_API.Controllers
             if (endDate.HasValue)
                 query = query.Where(ic => ic.StartedDate <= endDate.Value);
 
-            var counts = await query.ToListAsync();
+            var counts = await query.AsNoTracking().ToListAsync();
 
             var summary = new InventoryCountSummary
             {

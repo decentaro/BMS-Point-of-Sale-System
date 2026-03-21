@@ -28,6 +28,7 @@ namespace BMS_POS_API.Controllers
             [FromQuery] string? status = null)
         {
             var query = _context.CashSessions
+                .AsNoTracking()
                 .Include(cs => cs.OpenedByEmployee)
                 .Include(cs => cs.ClosedByEmployee)
                 .AsQueryable();
@@ -50,6 +51,7 @@ namespace BMS_POS_API.Controllers
             var today = DateTime.SpecifyKind(DateTime.Today.ToUniversalTime(), DateTimeKind.Utc);
 
             var session = await _context.CashSessions
+                .AsNoTracking()
                 .Include(cs => cs.OpenedByEmployee)
                 .Include(cs => cs.ClosedByEmployee)
                 .FirstOrDefaultAsync(cs => cs.SessionDate == today);
@@ -65,6 +67,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<CashSessionResponse>> GetSession(int id)
         {
             var session = await _context.CashSessions
+                .AsNoTracking()
                 .Include(cs => cs.OpenedByEmployee)
                 .Include(cs => cs.ClosedByEmployee)
                 .FirstOrDefaultAsync(cs => cs.Id == id);

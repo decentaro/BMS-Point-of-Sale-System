@@ -27,6 +27,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<IEnumerable<Sale>>> GetSales([FromQuery] int? days = null)
         {
             var query = _context.Sales
+                .AsNoTracking()
                 .Include(s => s.Employee)
                 .Include(s => s.SaleItems)
                 .ThenInclude(si => si.Product)
@@ -56,6 +57,7 @@ namespace BMS_POS_API.Controllers
             var term = transactionId.Trim();
 
             var sale = await _context.Sales
+                .AsNoTracking()
                 .Include(s => s.Employee)
                 .Include(s => s.SaleItems)
                     .ThenInclude(si => si.Product)
@@ -75,6 +77,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<Sale>> GetSale(int id)
         {
             var sale = await _context.Sales
+                .AsNoTracking()
                 .Include(s => s.Employee)
                 .Include(s => s.SaleItems)
                 .ThenInclude(si => si.Product)
@@ -259,6 +262,7 @@ namespace BMS_POS_API.Controllers
             var tomorrow = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(),  DateTimeKind.Utc);
 
             var todaySales = await _context.Sales
+                .AsNoTracking()
                 .Where(s => s.SaleDate >= today && s.SaleDate < tomorrow && s.Status == "Completed")
                 .Include(s => s.Employee)
                 .Include(s => s.SaleItems)
@@ -286,6 +290,7 @@ namespace BMS_POS_API.Controllers
             var startOfWeek = DateTime.SpecifyKind(localToday.AddDays(-(int)localToday.DayOfWeek + 1).ToUniversalTime(), DateTimeKind.Utc);
 
             var weekSales = await _context.Sales
+                .AsNoTracking()
                 .Where(s => s.SaleDate >= startOfWeek && s.SaleDate < endOfDay)
                 .ToListAsync();
 
@@ -310,6 +315,7 @@ namespace BMS_POS_API.Controllers
             var startOfMonth = DateTime.SpecifyKind(new DateTime(localToday.Year, localToday.Month, 1).ToUniversalTime(), DateTimeKind.Utc);
 
             var monthSales = await _context.Sales
+                .AsNoTracking()
                 .Where(s => s.SaleDate >= startOfMonth && s.SaleDate < endOfDay)
                 .ToListAsync();
 
@@ -333,6 +339,7 @@ namespace BMS_POS_API.Controllers
             var cutoffDate = currentTime.AddDays(-days);
             
             var topProducts = await _context.SaleItems
+                .AsNoTracking()
                 .Include(si => si.Product)
                 .Where(si => si.Sale.SaleDate >= cutoffDate)
                 .GroupBy(si => new { si.ProductId, si.ProductName })
@@ -377,6 +384,7 @@ namespace BMS_POS_API.Controllers
             }
             
             var paymentBreakdown = await _context.Sales
+                .AsNoTracking()
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
                 .GroupBy(s => s.PaymentMethod)
                 .Select(g => new PaymentMethodSummary
@@ -421,6 +429,7 @@ namespace BMS_POS_API.Controllers
             }
             
             var sales = await _context.Sales
+                .AsNoTracking()
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
                 .ToListAsync();
 
@@ -457,6 +466,7 @@ namespace BMS_POS_API.Controllers
             }
             
             var employeePerformance = await _context.Sales
+                .AsNoTracking()
                 .Include(s => s.Employee)
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
                 .GroupBy(s => new { s.EmployeeId, s.Employee.Name, EmployeeCode = s.Employee.EmployeeId })

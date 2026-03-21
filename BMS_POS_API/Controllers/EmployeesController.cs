@@ -28,7 +28,7 @@ namespace BMS_POS_API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Employee>>> GetEmployees([FromQuery] bool includeInactive = false)
         {
-            var query = _context.Employees.AsQueryable();
+            var query = _context.Employees.AsNoTracking().AsQueryable();
             
             if (!includeInactive)
             {

@@ -26,6 +26,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<IEnumerable<StockAdjustment>>> GetStockAdjustments([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate, [FromQuery] int? productId)
         {
             var query = _context.StockAdjustments
+                .AsNoTracking()
                 .Include(sa => sa.Product)
                 .Include(sa => sa.AdjustedByEmployee)
                 .Include(sa => sa.ApprovedByEmployee)
@@ -48,6 +49,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<StockAdjustment>> GetStockAdjustment(int id)
         {
             var stockAdjustment = await _context.StockAdjustments
+                .AsNoTracking()
                 .Include(sa => sa.Product)
                 .Include(sa => sa.AdjustedByEmployee)
                 .Include(sa => sa.ApprovedByEmployee)
@@ -66,6 +68,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<IEnumerable<StockAdjustment>>> GetPendingAdjustments()
         {
             return await _context.StockAdjustments
+                .AsNoTracking()
                 .Include(sa => sa.Product)
                 .Include(sa => sa.AdjustedByEmployee)
                 .Where(sa => sa.RequiresApproval && !sa.IsApproved)
@@ -266,6 +269,7 @@ namespace BMS_POS_API.Controllers
             }
 
             return await _context.StockAdjustments
+                .AsNoTracking()
                 .Include(sa => sa.AdjustedByEmployee)
                 .Include(sa => sa.ApprovedByEmployee)
                 .Where(sa => sa.ProductId == productId)

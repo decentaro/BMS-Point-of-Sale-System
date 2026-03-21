@@ -40,8 +40,8 @@ namespace BMS_POS_API.Controllers
         {
             try
             {
-                var settings = await _context.AdminSettings.FirstOrDefaultAsync();
-                
+                var settings = await _context.AdminSettings.AsNoTracking().FirstOrDefaultAsync();
+
                 if (settings == null)
                 {
                     // Create default admin settings if none exist

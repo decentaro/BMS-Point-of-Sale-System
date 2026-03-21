@@ -27,7 +27,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<TaxSettings>> GetTaxSettings()
         {
             // Get the single tax settings record (should only be one per business)
-            var settings = await _context.TaxSettings.FirstOrDefaultAsync();
+            var settings = await _context.TaxSettings.AsNoTracking().FirstOrDefaultAsync();
             
             if (settings == null)
             {
