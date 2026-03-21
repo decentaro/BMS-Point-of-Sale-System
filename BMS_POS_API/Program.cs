@@ -48,7 +48,19 @@ builder.Services.AddDbContext<BmsPosDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     var processedConnectionString = secureConfig.ProcessConnectionString(connectionString!);
-    options.UseNpgsql(processedConnectionString);
+
+    // Apply pool tuning on top of whatever the base connection string specifies
+    var csb = new Npgsql.NpgsqlConnectionStringBuilder(processedConnectionString)
+    {
+        MaxPoolSize = 50,   // cap concurrent DB connections per process
+        MinPoolSize = 2,    // keep a couple warm to avoid cold-start latency
+        ConnectionIdleLifetime = 300  // recycle idle connections after 5 min
+    };
+
+    options.UseNpgsql(csb.ConnectionString, npgsql =>
+    {
+        npgsql.CommandTimeout(60);   // cancel queries running longer than 60 s
+    });
 });
 
 
