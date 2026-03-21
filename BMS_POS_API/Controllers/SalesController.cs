@@ -33,6 +33,8 @@ namespace BMS_POS_API.Controllers
             if (limit > 500) limit = 500;
             if (offset < 0) offset = 0;
 
+            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
+
             var query = _context.Sales
                 .AsNoTracking()
                 .Include(s => s.Employee)
@@ -40,11 +42,12 @@ namespace BMS_POS_API.Controllers
                 .ThenInclude(si => si.Product)
                 .Where(s => s.Status == "Completed");
 
-            // Apply date filter if days parameter is provided
+            if (!string.IsNullOrEmpty(tid))
+                query = query.Where(s => s.TerminalId == tid);
+
             if (days.HasValue)
             {
-                var currentTime = DateTime.UtcNow;
-                var cutoffDate = currentTime.AddDays(-days.Value);
+                var cutoffDate = DateTime.UtcNow.AddDays(-days.Value);
                 query = query.Where(s => s.SaleDate >= cutoffDate);
             }
 
@@ -271,10 +274,16 @@ namespace BMS_POS_API.Controllers
             var localToday = DateTime.Today;
             var today    = DateTime.SpecifyKind(localToday.ToUniversalTime(),             DateTimeKind.Utc);
             var tomorrow = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(),  DateTimeKind.Utc);
+            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
 
-            var todaySales = await _context.Sales
+            var query = _context.Sales
                 .AsNoTracking()
-                .Where(s => s.SaleDate >= today && s.SaleDate < tomorrow && s.Status == "Completed")
+                .Where(s => s.SaleDate >= today && s.SaleDate < tomorrow && s.Status == "Completed");
+
+            if (!string.IsNullOrEmpty(tid))
+                query = query.Where(s => s.TerminalId == tid);
+
+            var todaySales = await query
                 .Include(s => s.Employee)
                 .Include(s => s.SaleItems)
                 .ToListAsync();
@@ -299,10 +308,14 @@ namespace BMS_POS_API.Controllers
             var localToday  = DateTime.Today;
             var endOfDay    = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
             var startOfWeek = DateTime.SpecifyKind(localToday.AddDays(-(int)localToday.DayOfWeek + 1).ToUniversalTime(), DateTimeKind.Utc);
+            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
 
-            var agg = await _context.Sales
-                .AsNoTracking()
-                .Where(s => s.SaleDate >= startOfWeek && s.SaleDate < endOfDay)
+            var baseQuery = _context.Sales.AsNoTracking()
+                .Where(s => s.SaleDate >= startOfWeek && s.SaleDate < endOfDay);
+            if (!string.IsNullOrEmpty(tid))
+                baseQuery = baseQuery.Where(s => s.TerminalId == tid);
+
+            var agg = await baseQuery
                 .GroupBy(s => 1)
                 .Select(g => new {
                     Count    = g.Count(),
@@ -331,10 +344,14 @@ namespace BMS_POS_API.Controllers
             var localToday   = DateTime.Today;
             var endOfDay     = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
             var startOfMonth = DateTime.SpecifyKind(new DateTime(localToday.Year, localToday.Month, 1).ToUniversalTime(), DateTimeKind.Utc);
+            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
 
-            var agg = await _context.Sales
-                .AsNoTracking()
-                .Where(s => s.SaleDate >= startOfMonth && s.SaleDate < endOfDay)
+            var baseQuery = _context.Sales.AsNoTracking()
+                .Where(s => s.SaleDate >= startOfMonth && s.SaleDate < endOfDay);
+            if (!string.IsNullOrEmpty(tid))
+                baseQuery = baseQuery.Where(s => s.TerminalId == tid);
+
+            var agg = await baseQuery
                 .GroupBy(s => 1)
                 .Select(g => new {
                     Count    = g.Count(),
@@ -360,13 +377,17 @@ namespace BMS_POS_API.Controllers
         [HttpGet("top-products")]
         public async Task<ActionResult<List<TopProductResponse>>> GetTopProducts([FromQuery] int days = 7)
         {
-            var currentTime = DateTime.UtcNow;
-            var cutoffDate = currentTime.AddDays(-days);
-            
-            var topProducts = await _context.SaleItems
+            var cutoffDate = DateTime.UtcNow.AddDays(-days);
+            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
+
+            var query = _context.SaleItems
                 .AsNoTracking()
                 .Include(si => si.Product)
-                .Where(si => si.Sale.SaleDate >= cutoffDate)
+                .Where(si => si.Sale.SaleDate >= cutoffDate && si.Sale.Status == "Completed");
+            if (!string.IsNullOrEmpty(tid))
+                query = query.Where(si => si.Sale.TerminalId == tid);
+
+            var topProducts = await query
                 .GroupBy(si => new { si.ProductId, si.ProductName })
                 .Select(g => new TopProductResponse
                 {
@@ -408,9 +429,13 @@ namespace BMS_POS_API.Controllers
                     break;
             }
             
-            var paymentBreakdown = await _context.Sales
-                .AsNoTracking()
-                .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
+            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
+            var paymentBaseQuery = _context.Sales.AsNoTracking()
+                .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed");
+            if (!string.IsNullOrEmpty(tid))
+                paymentBaseQuery = paymentBaseQuery.Where(s => s.TerminalId == tid);
+
+            var paymentBreakdown = await paymentBaseQuery
                 .GroupBy(s => s.PaymentMethod)
                 .Select(g => new PaymentMethodSummary
                 {
@@ -453,9 +478,13 @@ namespace BMS_POS_API.Controllers
                     break;
             }
             
-            var agg = await _context.Sales
-                .AsNoTracking()
-                .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
+            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
+            var taxBaseQuery = _context.Sales.AsNoTracking()
+                .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed");
+            if (!string.IsNullOrEmpty(tid))
+                taxBaseQuery = taxBaseQuery.Where(s => s.TerminalId == tid);
+
+            var agg = await taxBaseQuery
                 .GroupBy(s => 1)
                 .Select(g => new {
                     Count      = g.Count(),
@@ -497,10 +526,14 @@ namespace BMS_POS_API.Controllers
                     break;
             }
             
-            var employeePerformance = await _context.Sales
-                .AsNoTracking()
+            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
+            var empBaseQuery = _context.Sales.AsNoTracking()
                 .Include(s => s.Employee)
-                .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
+                .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed");
+            if (!string.IsNullOrEmpty(tid))
+                empBaseQuery = empBaseQuery.Where(s => s.TerminalId == tid);
+
+            var employeePerformance = await empBaseQuery
                 .GroupBy(s => new { s.EmployeeId, s.Employee.Name, EmployeeCode = s.Employee.EmployeeId })
                 .Select(g => new EmployeePerformanceResponse
                 {
