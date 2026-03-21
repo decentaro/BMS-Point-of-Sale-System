@@ -57,8 +57,7 @@ namespace BMS_POS_API.Models
         [Column("recall_reason")]
         public string? RecallReason { get; set; }
 
-        [Column("days_until_expiry")]
-        public int? DaysUntilExpiry 
+        public int? DaysUntilExpiry
         { 
             get 
             {
@@ -68,7 +67,6 @@ namespace BMS_POS_API.Models
             }
         }
 
-        [Column("expiry_status")]
         public string ExpiryStatus
         {
             get

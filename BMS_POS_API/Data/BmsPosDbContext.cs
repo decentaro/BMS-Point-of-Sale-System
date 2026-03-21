@@ -64,12 +64,26 @@ namespace BMS_POS_API.Data
                 .HasFilter("idempotency_key IS NOT NULL");
 
             // Performance indexes for common query patterns
-            modelBuilder.Entity<Product>().HasIndex(p => p.Barcode);
+            modelBuilder.Entity<Product>().HasIndex(p => p.Barcode).IsUnique().HasFilter("barcode IS NOT NULL");
             modelBuilder.Entity<Product>().HasIndex(p => p.IsActive);
             modelBuilder.Entity<Sale>().HasIndex(s => new { s.SaleDate, s.Status });
             modelBuilder.Entity<Sale>().HasIndex(s => s.EmployeeId);
             modelBuilder.Entity<Return>().HasIndex(r => r.ReturnDate);
+            modelBuilder.Entity<Return>().HasIndex(r => r.Status);
+            modelBuilder.Entity<Return>().HasIndex(r => r.OriginalSaleId);
+            modelBuilder.Entity<Return>().HasIndex(r => r.ProcessedByEmployeeId);
             modelBuilder.Entity<UserActivity>().HasIndex(ua => ua.UserId);
+
+            // Foreign key indexes for join performance
+            modelBuilder.Entity<SaleItem>().HasIndex(si => si.SaleId);
+            modelBuilder.Entity<SaleItem>().HasIndex(si => si.ProductId);
+            modelBuilder.Entity<ReturnItem>().HasIndex(ri => ri.ReturnId);
+            modelBuilder.Entity<ReturnItem>().HasIndex(ri => ri.OriginalSaleItemId);
+            modelBuilder.Entity<StockAdjustment>().HasIndex(sa => sa.ProductId);
+            modelBuilder.Entity<ProductBatch>().HasIndex(pb => pb.ProductId);
+            modelBuilder.Entity<CashSession>().HasIndex(cs => cs.SessionDate);
+            modelBuilder.Entity<InventoryCount>().HasIndex(ic => ic.Status);
+            modelBuilder.Entity<Employee>().HasIndex(e => e.EmployeeId).IsUnique().HasFilter("employee_id IS NOT NULL");
         }
 
         public override int SaveChanges()
