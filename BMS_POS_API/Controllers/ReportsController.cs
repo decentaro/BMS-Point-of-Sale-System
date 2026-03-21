@@ -54,13 +54,38 @@ namespace BMS_POS_API.Controllers
             if ((end - start).TotalDays > 90)
                 return BadRequest("Date range cannot exceed 90 days.");
 
+            // Bulk fetch for the entire range: 3 queries instead of N*3
+            var rangeEnd = end.AddDays(1);
+
+            var sessions = await _context.CashSessions
+                .AsNoTracking()
+                .Include(cs => cs.OpenedByEmployee)
+                .Include(cs => cs.ClosedByEmployee)
+                .Where(cs => cs.SessionDate >= start && cs.SessionDate < rangeEnd)
+                .ToListAsync();
+
+            var allSales = await _context.Sales
+                .AsNoTracking()
+                .Where(s => s.SaleDate >= start && s.SaleDate < rangeEnd && s.Status == "Completed")
+                .ToListAsync();
+
+            var allReturns = await _context.Returns
+                .AsNoTracking()
+                .Where(r => r.ReturnDate >= start && r.ReturnDate < rangeEnd && r.Status == "Completed")
+                .ToListAsync();
+
             var results = new List<ZReportSummaryRow>();
             var current = start;
 
             while (current <= end)
             {
                 var nextDay = current.AddDays(1);
-                var report = await BuildZReport(current, nextDay);
+                var utcMidnight = DateTime.SpecifyKind(current.ToLocalTime().Date, DateTimeKind.Utc);
+                var session = sessions.FirstOrDefault(cs => cs.SessionDate == current || cs.SessionDate == utcMidnight);
+                var daySales = allSales.Where(s => s.SaleDate >= current && s.SaleDate < nextDay).ToList();
+                var dayReturns = allReturns.Where(r => r.ReturnDate >= current && r.ReturnDate < nextDay).ToList();
+
+                var report = ComputeZReport(current, session, daySales, dayReturns);
                 results.Add(new ZReportSummaryRow
                 {
                     Date = report.Date,
@@ -99,18 +124,25 @@ namespace BMS_POS_API.Controllers
                 .Include(cs => cs.ClosedByEmployee)
                 .FirstOrDefaultAsync(cs => cs.SessionDate == reportDate || cs.SessionDate == utcMidnight);
 
-            // Load all completed sales for this date
             var sales = await _context.Sales
                 .AsNoTracking()
                 .Where(s => s.SaleDate >= reportDate && s.SaleDate < nextDay && s.Status == "Completed")
                 .ToListAsync();
 
-            // Load all returns for this date
             var returns = await _context.Returns
                 .AsNoTracking()
                 .Where(r => r.ReturnDate >= reportDate && r.ReturnDate < nextDay && r.Status == "Completed")
                 .ToListAsync();
 
+            return ComputeZReport(reportDate, session, sales, returns);
+        }
+
+        private static ZReportResponse ComputeZReport(
+            DateTime reportDate,
+            CashSession? session,
+            List<Sale> sales,
+            List<Return> returns)
+        {
             // Payment breakdown from sales
             var paymentBreakdown = sales
                 .GroupBy(s => s.PaymentMethod)
@@ -126,20 +158,20 @@ namespace BMS_POS_API.Controllers
             // Sale.Subtotal = pre-discount, pre-tax item total (set by POS from cart totals).
             // Gross = raw item prices before any deductions.
             // Net   = what was earned after discounts, before tax (Total already has tax baked in).
-            var grossSales = sales.Sum(s => s.Subtotal);
-            var netSales   = sales.Sum(s => s.Total - s.TaxAmount);
+            var grossSales     = sales.Sum(s => s.Subtotal);
+            var netSales       = sales.Sum(s => s.Total - s.TaxAmount);
             var totalDiscounts = sales.Sum(s => s.DiscountAmount);
-            var totalTax = sales.Sum(s => s.TaxAmount);
-            var cashSales = sales.Where(s => s.PaymentMethod == "Cash").Sum(s => s.Total);
-            var cardSales = sales.Where(s => s.PaymentMethod != "Cash").Sum(s => s.Total);
+            var totalTax       = sales.Sum(s => s.TaxAmount);
+            var cashSales      = sales.Where(s => s.PaymentMethod == "Cash").Sum(s => s.Total);
+            var cardSales      = sales.Where(s => s.PaymentMethod != "Cash").Sum(s => s.Total);
 
             // Returns breakdown — cash refunds reduce expected closing cash
             var totalRefunds = returns.Sum(r => r.TotalRefundAmount);
             var cashRefunds  = totalRefunds; // simplified: all refunds treated as cash
 
-            var openingCash = session?.OpeningCash ?? 0;
+            var openingCash         = session?.OpeningCash ?? 0;
             var expectedClosingCash = openingCash + cashSales - cashRefunds;
-            decimal? cashVariance = session?.ClosingCash.HasValue == true
+            decimal? cashVariance   = session?.ClosingCash.HasValue == true
                 ? session.ClosingCash!.Value - expectedClosingCash
                 : null;
 

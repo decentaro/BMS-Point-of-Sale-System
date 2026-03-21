@@ -24,8 +24,15 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/sales
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Sale>>> GetSales([FromQuery] int? days = null)
+        public async Task<ActionResult<IEnumerable<Sale>>> GetSales(
+            [FromQuery] int? days = null,
+            [FromQuery] int limit = 100,
+            [FromQuery] int offset = 0)
         {
+            if (limit < 1) limit = 1;
+            if (limit > 500) limit = 500;
+            if (offset < 0) offset = 0;
+
             var query = _context.Sales
                 .AsNoTracking()
                 .Include(s => s.Employee)
@@ -43,6 +50,8 @@ namespace BMS_POS_API.Controllers
 
             return await query
                 .OrderByDescending(s => s.SaleDate)
+                .Skip(offset)
+                .Take(limit)
                 .ToListAsync();
         }
 
@@ -289,18 +298,25 @@ namespace BMS_POS_API.Controllers
             var endOfDay    = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
             var startOfWeek = DateTime.SpecifyKind(localToday.AddDays(-(int)localToday.DayOfWeek + 1).ToUniversalTime(), DateTimeKind.Utc);
 
-            var weekSales = await _context.Sales
+            var agg = await _context.Sales
                 .AsNoTracking()
                 .Where(s => s.SaleDate >= startOfWeek && s.SaleDate < endOfDay)
-                .ToListAsync();
+                .GroupBy(s => 1)
+                .Select(g => new {
+                    Count    = g.Count(),
+                    Revenue  = g.Sum(s => s.Total),
+                    Tax      = g.Sum(s => s.TaxAmount),
+                    Discount = g.Sum(s => s.DiscountAmount)
+                })
+                .FirstOrDefaultAsync();
 
             var response = new SalesSummaryResponse
             {
                 Period = $"Week of {localToday.AddDays(-(int)localToday.DayOfWeek + 1):MMM dd}",
-                TotalSales = weekSales.Count,
-                TotalRevenue = weekSales.Sum(s => s.Total),
-                TotalTax = weekSales.Sum(s => s.TaxAmount),
-                TotalDiscounts = weekSales.Sum(s => s.DiscountAmount)
+                TotalSales    = agg?.Count    ?? 0,
+                TotalRevenue  = agg?.Revenue  ?? 0,
+                TotalTax      = agg?.Tax      ?? 0,
+                TotalDiscounts = agg?.Discount ?? 0
             };
 
             return response;
@@ -314,18 +330,25 @@ namespace BMS_POS_API.Controllers
             var endOfDay     = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
             var startOfMonth = DateTime.SpecifyKind(new DateTime(localToday.Year, localToday.Month, 1).ToUniversalTime(), DateTimeKind.Utc);
 
-            var monthSales = await _context.Sales
+            var agg = await _context.Sales
                 .AsNoTracking()
                 .Where(s => s.SaleDate >= startOfMonth && s.SaleDate < endOfDay)
-                .ToListAsync();
+                .GroupBy(s => 1)
+                .Select(g => new {
+                    Count    = g.Count(),
+                    Revenue  = g.Sum(s => s.Total),
+                    Tax      = g.Sum(s => s.TaxAmount),
+                    Discount = g.Sum(s => s.DiscountAmount)
+                })
+                .FirstOrDefaultAsync();
 
             var response = new SalesSummaryResponse
             {
                 Period = new DateTime(localToday.Year, localToday.Month, 1).ToString("MMMM yyyy"),
-                TotalSales = monthSales.Count,
-                TotalRevenue = monthSales.Sum(s => s.Total),
-                TotalTax = monthSales.Sum(s => s.TaxAmount),
-                TotalDiscounts = monthSales.Sum(s => s.DiscountAmount)
+                TotalSales    = agg?.Count    ?? 0,
+                TotalRevenue  = agg?.Revenue  ?? 0,
+                TotalTax      = agg?.Tax      ?? 0,
+                TotalDiscounts = agg?.Discount ?? 0
             };
 
             return response;
@@ -428,18 +451,25 @@ namespace BMS_POS_API.Controllers
                     break;
             }
             
-            var sales = await _context.Sales
+            var agg = await _context.Sales
                 .AsNoTracking()
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed")
-                .ToListAsync();
+                .GroupBy(s => 1)
+                .Select(g => new {
+                    Count      = g.Count(),
+                    Revenue    = g.Sum(s => s.Total),
+                    Tax        = g.Sum(s => s.TaxAmount),
+                    AvgTaxRate = g.Average(s => s.TaxRate)
+                })
+                .FirstOrDefaultAsync();
 
             return new TaxSummaryResponse
             {
-                Period = periodLabel,
-                TotalSales = sales.Count,
-                TotalRevenue = sales.Sum(s => s.Total),
-                TotalTaxCollected = sales.Sum(s => s.TaxAmount),
-                AverageTaxRate = sales.Count > 0 ? sales.Average(s => s.TaxRate) : 0
+                Period            = periodLabel,
+                TotalSales        = agg?.Count      ?? 0,
+                TotalRevenue      = agg?.Revenue    ?? 0,
+                TotalTaxCollected = agg?.Tax        ?? 0,
+                AverageTaxRate    = agg?.AvgTaxRate ?? 0
             };
         }
 
