@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Database, ExternalLink, CheckCircle, XCircle, Loader2, RefreshCw, Monitor } from 'lucide-react'
+import { Database, ExternalLink, CheckCircle, XCircle, Loader2, Monitor } from 'lucide-react'
 import { ModalKeyboard } from './ModalKeyboard'
 import ApiClient from '../utils/ApiClient'
 
@@ -50,37 +50,6 @@ const StepRow: React.FC<{ num: string; label: string; active: boolean; done: boo
   </div>
 )
 
-// ─── Restart button (shows spinner while API boots) ───────────────────────────
-
-const RestartButton: React.FC = () => {
-  const [restarting, setRestarting] = useState(false)
-  const [elapsed, setElapsed]       = useState(0)
-
-  const handleRestart = () => {
-    setRestarting(true)
-    const t = setInterval(() => setElapsed(s => s + 1), 1000)
-    window.electronAPI.relaunchApp().finally(() => clearInterval(t))
-  }
-
-  return (
-    <>
-      <button
-        disabled={restarting}
-        onClick={handleRestart}
-        className="mt-3 h-10 w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-      >
-        {restarting
-          ? <><Loader2 className="w-4 h-4 animate-spin" /> Starting API… ({elapsed}s)</>
-          : <><RefreshCw className="w-4 h-4" /> Restart & Launch</>}
-      </button>
-      {restarting && (
-        <p className="text-[10px] text-slate-400 text-center mt-1">
-          Compiling — this may take up to a minute on first run.
-        </p>
-      )}
-    </>
-  )
-}
 
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
@@ -94,10 +63,13 @@ const SetupWizard: React.FC = () => {
   const [saveError, setSaveError]   = useState('')
 
   // Terminal identity
-  const [terminalId, setTerminalId]     = useState('')
-  const [terminalName, setTerminalName] = useState('')
-  const [terminalError, setTerminalError] = useState('')
+  const [terminalId, setTerminalId]         = useState('')
+  const [terminalName, setTerminalName]     = useState('')
+  const [terminalError, setTerminalError]   = useState('')
   const [terminalSaving, setTerminalSaving] = useState(false)
+
+  // Restarting state (shown after terminal save — auto-triggered)
+  const [restartElapsed, setRestartElapsed] = useState(0)
 
   // Touch keyboard
   const [kbOpen, setKbOpen]   = useState(false)
@@ -181,16 +153,19 @@ const SetupWizard: React.FC = () => {
       return
     }
 
-    if (!window.electronAPI?.setTerminalConfig) { setStep('done'); return }
-
     setTerminalSaving(true)
     try {
-      await window.electronAPI.setTerminalConfig({ terminalId: id, terminalName: name || null })
-      ApiClient.setTerminalId(id, name || null)
+      if (window.electronAPI?.setTerminalConfig) {
+        await window.electronAPI.setTerminalConfig({ terminalId: id, terminalName: name || null })
+        ApiClient.setTerminalId(id, name || null)
+      }
+      // Move to done and auto-trigger relaunch
       setStep('done')
+      setRestartElapsed(0)
+      const t = setInterval(() => setRestartElapsed(s => s + 1), 1000)
+      window.electronAPI.relaunchApp().finally(() => clearInterval(t))
     } catch (err: any) {
       setTerminalError(err?.message ?? 'Failed to save terminal identity.')
-    } finally {
       setTerminalSaving(false)
     }
   }
@@ -492,41 +467,35 @@ const SetupWizard: React.FC = () => {
           </div>
         )}
 
-        {/* ── STEP: Done ─────────────────────────────────────────────────── */}
+        {/* ── STEP: Done (auto-restarting) ───────────────────────────────── */}
         {step === 'done' && (
-          <div className="flex flex-col h-full">
-            <div className="flex items-center gap-3 mb-3">
-              <CheckCircle className="w-8 h-8 text-emerald-500 flex-shrink-0" />
-              <div>
-                <h2 className="text-sm font-bold text-slate-800">Setup complete!</h2>
-                <p className="text-xs text-slate-500">Configuration saved successfully.</p>
+          <div className="flex flex-col h-full items-center justify-center gap-4 text-center">
+            <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">Setup complete — starting up…</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Launching the API and restarting the app. This may take up to a minute on first run.
+              </p>
+            </div>
+
+            <div className="w-full bg-slate-50 rounded-xl border border-slate-200 p-3 text-xs space-y-1.5 text-left">
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Credentials saved</span>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Terminal identity saved — <span className="font-mono font-semibold">{terminalId}</span>{terminalName ? ` (${terminalName})` : ''}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600">
+                <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin text-emerald-600" />
+                <span>Starting API server… ({restartElapsed}s)</span>
               </div>
             </div>
 
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 text-xs text-slate-600 space-y-1 flex-1">
-              <p className="font-medium text-slate-700">What happens next:</p>
-              <ul className="space-y-1 text-slate-500">
-                <li>• The app will restart and connect to your database</li>
-                <li>• All tables will be created automatically</li>
-                <li>• A default admin account will be created</li>
-              </ul>
-              {terminalId && (
-                <div className="mt-2 pt-2 border-t border-slate-200">
-                  <p className="font-medium text-slate-700">Terminal identity</p>
-                  <p className="mt-0.5">
-                    ID: <span className="font-mono font-bold text-slate-800">{terminalId}</span>
-                    {terminalName && <> &nbsp;·&nbsp; Name: <span className="font-bold text-slate-800">{terminalName}</span></>}
-                  </p>
-                </div>
-              )}
-              <div className="mt-2 pt-2 border-t border-slate-200">
-                <p className="font-medium text-slate-700">Default admin credentials</p>
-                <p className="mt-0.5">Employee ID: <span className="font-mono font-bold text-slate-800">0001</span> &nbsp;·&nbsp; PIN: <span className="font-mono font-bold text-slate-800">1234</span></p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Change the PIN immediately after first login.</p>
-              </div>
-            </div>
-
-            <RestartButton />
+            <p className="text-[10px] text-slate-400">
+              Default admin — ID: <span className="font-mono font-bold">0001</span> &nbsp;·&nbsp; PIN: <span className="font-mono font-bold">1234</span>
+            </p>
           </div>
         )}
 

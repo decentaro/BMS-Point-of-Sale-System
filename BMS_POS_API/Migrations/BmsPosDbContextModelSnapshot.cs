@@ -129,11 +129,13 @@ namespace BMS_POS_API.Migrations
 
                     b.Property<string>("TerminalId")
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("terminal_id");
 
                     b.Property<string>("TerminalName")
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("terminal_name");
 
                     b.HasKey("Id");
 

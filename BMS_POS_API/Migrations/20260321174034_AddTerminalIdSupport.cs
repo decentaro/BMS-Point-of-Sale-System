@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -32,14 +32,14 @@ namespace BMS_POS_API.Migrations
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
-                name: "TerminalId",
+                name: "terminal_id",
                 table: "cash_sessions",
                 type: "character varying(50)",
                 maxLength: 50,
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
-                name: "TerminalName",
+                name: "terminal_name",
                 table: "cash_sessions",
                 type: "character varying(100)",
                 maxLength: 100,
@@ -56,14 +56,14 @@ namespace BMS_POS_API.Migrations
                 column: "terminal_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_cash_sessions_TerminalId",
+                name: "IX_cash_sessions_terminal_id",
                 table: "cash_sessions",
-                column: "TerminalId");
+                column: "terminal_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_cash_sessions_TerminalId_SessionDate",
+                name: "IX_cash_sessions_terminal_id_SessionDate",
                 table: "cash_sessions",
-                columns: new[] { "TerminalId", "SessionDate" },
+                columns: new[] { "terminal_id", "SessionDate" },
                 unique: true,
                 filter: "terminal_id IS NOT NULL");
         }
@@ -80,11 +80,11 @@ namespace BMS_POS_API.Migrations
                 table: "returns");
 
             migrationBuilder.DropIndex(
-                name: "IX_cash_sessions_TerminalId",
+                name: "IX_cash_sessions_terminal_id",
                 table: "cash_sessions");
 
             migrationBuilder.DropIndex(
-                name: "IX_cash_sessions_TerminalId_SessionDate",
+                name: "IX_cash_sessions_terminal_id_SessionDate",
                 table: "cash_sessions");
 
             migrationBuilder.DropColumn(
@@ -100,11 +100,11 @@ namespace BMS_POS_API.Migrations
                 table: "returns");
 
             migrationBuilder.DropColumn(
-                name: "TerminalId",
+                name: "terminal_id",
                 table: "cash_sessions");
 
             migrationBuilder.DropColumn(
-                name: "TerminalName",
+                name: "terminal_name",
                 table: "cash_sessions");
         }
     }
