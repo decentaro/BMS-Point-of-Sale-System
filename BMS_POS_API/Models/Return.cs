@@ -34,6 +34,11 @@ namespace BMS_POS_API.Models
         [Column("idempotency_key")]
         public string? IdempotencyKey { get; set; }
 
+        // Terminal that processed this return (e.g. "T01", "T02")
+        [Column("terminal_id")]
+        [StringLength(50)]
+        public string? TerminalId { get; set; }
+
         // Navigation property
         public List<ReturnItem> ReturnItems { get; set; } = new List<ReturnItem>();
     }

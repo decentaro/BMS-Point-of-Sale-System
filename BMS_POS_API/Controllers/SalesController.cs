@@ -169,6 +169,7 @@ namespace BMS_POS_API.Controllers
                     }
                 }
 
+                var terminalId = Request.Headers["X-Terminal-Id"].FirstOrDefault();
                 var sale = new Sale
                 {
                     TransactionId = transactionId,
@@ -185,7 +186,8 @@ namespace BMS_POS_API.Controllers
                     PaymentMethod = request.PaymentMethod,
                     Status = "Completed",
                     Notes = request.Notes,
-                    IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey
+                    IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey,
+                    TerminalId = string.IsNullOrEmpty(terminalId) ? null : terminalId
                 };
 
                 _context.Sales.Add(sale);

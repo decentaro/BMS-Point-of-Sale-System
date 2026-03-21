@@ -29,5 +29,13 @@ namespace BMS_POS_API.Models
         public string Status { get; set; } = "Open"; // Open, Closed
 
         public string? Notes { get; set; }
+
+        // Terminal that owns this session (e.g. "T01", "T02")
+        [StringLength(50)]
+        public string? TerminalId { get; set; }
+
+        // Human-readable terminal name (e.g. "Register 1")
+        [StringLength(100)]
+        public string? TerminalName { get; set; }
     }
 }

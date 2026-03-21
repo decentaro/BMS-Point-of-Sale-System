@@ -271,6 +271,7 @@ namespace BMS_POS_API.Controllers
                 var randomHex = Random.Shared.Next(0, int.MaxValue).ToString("X8");
                 var returnId = $"RET-{timestamp}-{randomHex}";
 
+                var terminalId = Request.Headers["X-Terminal-Id"].FirstOrDefault();
                 // Create return record
                 var returnRecord = new Return
                 {
@@ -283,7 +284,8 @@ namespace BMS_POS_API.Controllers
                     ApprovedByEmployeeId = approvingManager?.Id,
                     ManagerApprovalRequired = needsManagerApproval,
                     Notes = request.Notes,
-                    IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey
+                    IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey,
+                    TerminalId = string.IsNullOrEmpty(terminalId) ? null : terminalId
                 };
 
                 _context.Returns.Add(returnRecord);

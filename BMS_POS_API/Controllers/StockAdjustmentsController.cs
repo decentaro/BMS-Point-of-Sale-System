@@ -147,6 +147,7 @@ namespace BMS_POS_API.Controllers
                                  Math.Abs(request.QuantityChange * product.Cost) > costThreshold ||
                                  request.AdjustmentType == "THEFT";
 
+            var terminalId = Request.Headers["X-Terminal-Id"].FirstOrDefault();
             // Create stock adjustment
             var stockAdjustment = new StockAdjustment
             {
@@ -163,7 +164,8 @@ namespace BMS_POS_API.Controllers
                 ReferenceNumber = request.ReferenceNumber,
                 RequiresApproval = requiresApproval,
                 IsApproved = !requiresApproval,
-                IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey
+                IdempotencyKey = string.IsNullOrEmpty(idempotencyKey) ? null : idempotencyKey,
+                TerminalId = string.IsNullOrEmpty(terminalId) ? null : terminalId
             };
 
             _context.StockAdjustments.Add(stockAdjustment);

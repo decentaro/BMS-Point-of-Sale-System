@@ -153,6 +153,10 @@ export interface ElectronAPI {
   getApiConfig: () => Promise<{ baseUrl: string; timeout?: number }>
   setApiConfig: (config: { baseUrl: string }) => Promise<void>
 
+  // Terminal identity
+  getTerminalConfig: () => Promise<{ terminalId: string | null; terminalName: string | null }>
+  setTerminalConfig: (config: { terminalId: string | null; terminalName: string | null }) => Promise<{ terminalId: string | null; terminalName: string | null }>
+
   // Setup wizard
   checkSetup: () => Promise<{ configured: boolean; reason?: string }>
   saveEnv: (credentials: {

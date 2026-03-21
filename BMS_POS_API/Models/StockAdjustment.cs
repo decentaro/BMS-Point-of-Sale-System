@@ -79,5 +79,10 @@ namespace BMS_POS_API.Models
         [Column("idempotency_key")]
         [StringLength(100)]
         public string? IdempotencyKey { get; set; }
+
+        // Terminal that created this adjustment (e.g. "T01", "T02")
+        [Column("terminal_id")]
+        [StringLength(50)]
+        public string? TerminalId { get; set; }
     }
 }

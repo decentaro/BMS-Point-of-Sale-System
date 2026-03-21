@@ -49,5 +49,10 @@ namespace BMS_POS_API.Models
         // Deduplication key — prevents duplicate records if the same request is retried
         [Column("idempotency_key")]
         public string? IdempotencyKey { get; set; }
+
+        // Terminal that processed this sale (e.g. "T01", "T02")
+        [Column("terminal_id")]
+        [StringLength(50)]
+        public string? TerminalId { get; set; }
     }
 }

@@ -28,6 +28,14 @@ class ApiClient {
   static online: boolean = true
   static setOnline(online: boolean) { ApiClient.online = online }
 
+  // Set once at startup from Electron terminal config — injected on every request
+  static terminalId: string | null = null
+  static terminalName: string | null = null
+  static setTerminalId(id: string | null, name: string | null = null) {
+    ApiClient.terminalId = id
+    ApiClient.terminalName = name
+  }
+
   private static readonly DEFAULT_CONFIG: RetryConfig = {
     maxRetries: 3,
     baseDelay: 1000,
@@ -102,6 +110,14 @@ class ApiClient {
     const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       ...headers
+    }
+
+    // Inject terminal identity so the backend can scope sessions, sales, and reports
+    if (ApiClient.terminalId) {
+      requestHeaders['X-Terminal-Id'] = ApiClient.terminalId
+    }
+    if (ApiClient.terminalName) {
+      requestHeaders['X-Terminal-Name'] = ApiClient.terminalName
     }
 
     // Add authentication headers if required

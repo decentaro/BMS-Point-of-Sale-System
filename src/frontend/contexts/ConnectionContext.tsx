@@ -241,6 +241,14 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Initial state + queue count + initial cache warm
   useEffect(() => {
     const init = async () => {
+      // Load terminal identity so every API request carries X-Terminal-Id
+      if (window.electronAPI?.getTerminalConfig) {
+        const terminalConfig = await window.electronAPI.getTerminalConfig()
+        if (terminalConfig?.terminalId) {
+          ApiClient.setTerminalId(terminalConfig.terminalId, terminalConfig.terminalName ?? null)
+        }
+      }
+
       if (window.electronAPI?.getConnectivity) {
         const { online } = await window.electronAPI.getConnectivity()
         setIsOnline(online)
@@ -286,11 +294,11 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => window.removeEventListener('bms:logged-in', onLogin)
   }, [])
 
-  // Refresh cache every 30 minutes while online
+  // Refresh cache every 2 minutes while online so stock changes from other terminals propagate quickly
   useEffect(() => {
     const interval = setInterval(() => {
       if (ApiClient.online) CacheService.warmAll()
-    }, 30 * 60 * 1000)
+    }, 2 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
 

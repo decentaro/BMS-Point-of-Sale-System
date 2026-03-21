@@ -68,6 +68,48 @@ class ApiConfigManager {
 
 const apiConfigManager = new ApiConfigManager()
 
+// Terminal Configuration — persists terminal identity across restarts
+class TerminalConfigManager {
+    constructor() {
+        this.config = { terminalId: null, terminalName: null }
+        this.loadConfig()
+    }
+
+    loadConfig() {
+        try {
+            const configPath = path.join(app.getPath('userData'), 'terminal-config.json')
+            const fs = require('fs')
+            if (fs.existsSync(configPath)) {
+                this.config = { ...this.config, ...JSON.parse(fs.readFileSync(configPath, 'utf8')) }
+                console.log('Loaded terminal config:', this.config)
+            }
+        } catch (error) {
+            console.warn('Failed to load terminal config:', error.message)
+        }
+    }
+
+    saveConfig() {
+        try {
+            const configPath = path.join(app.getPath('userData'), 'terminal-config.json')
+            require('fs').writeFileSync(configPath, JSON.stringify(this.config, null, 2))
+        } catch (error) {
+            console.error('Failed to save terminal config:', error.message)
+        }
+    }
+
+    getConfig() { return { ...this.config } }
+
+    updateConfig(newConfig) {
+        if (newConfig.terminalId !== undefined && typeof newConfig.terminalId !== 'string')
+            throw new Error('terminalId must be a string')
+        this.config = { ...this.config, ...newConfig }
+        this.saveConfig()
+        return this.getConfig()
+    }
+}
+
+const terminalConfigManager = new TerminalConfigManager()
+
 // Enable hot reload for development
 if (process.argv.includes('--dev')) {
     require('electron-reload')(path.join(__dirname, '..'), {
@@ -251,7 +293,7 @@ const connectivityMonitor = createConnectivityMonitor(bmsApp)
 require('./ipc/filesystem').register(ipcMain, bmsApp)
 require('./ipc/hardware').register(ipcMain, apiConfigManager)
 require('./ipc/setup').register(ipcMain)
-require('./ipc/config').register(ipcMain, apiConfigManager)
+require('./ipc/config').register(ipcMain, apiConfigManager, terminalConfigManager)
 require('./ipc/offline-queue').register(ipcMain)
 
 // Connectivity IPC (needs monitor reference)

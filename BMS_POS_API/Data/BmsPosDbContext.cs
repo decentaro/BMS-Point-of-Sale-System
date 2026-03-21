@@ -84,6 +84,18 @@ namespace BMS_POS_API.Data
             modelBuilder.Entity<CashSession>().HasIndex(cs => cs.SessionDate);
             modelBuilder.Entity<InventoryCount>().HasIndex(ic => ic.Status);
             modelBuilder.Entity<Employee>().HasIndex(e => e.EmployeeId).IsUnique().HasFilter("employee_id IS NOT NULL");
+
+            // Multi-terminal: per-terminal unique session per day
+            // (NULL terminal_id rows are excluded so legacy single-terminal sessions are unaffected)
+            modelBuilder.Entity<CashSession>()
+                .HasIndex(cs => new { cs.TerminalId, cs.SessionDate })
+                .IsUnique()
+                .HasFilter("terminal_id IS NOT NULL");
+
+            // Multi-terminal: index terminal columns for fast per-terminal queries
+            modelBuilder.Entity<Sale>().HasIndex(s => s.TerminalId);
+            modelBuilder.Entity<Return>().HasIndex(r => r.TerminalId);
+            modelBuilder.Entity<CashSession>().HasIndex(cs => cs.TerminalId);
         }
 
         public override int SaveChanges()

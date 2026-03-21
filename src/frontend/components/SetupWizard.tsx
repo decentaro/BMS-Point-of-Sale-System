@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { Database, ExternalLink, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react'
+import { Database, ExternalLink, CheckCircle, XCircle, Loader2, RefreshCw, Monitor } from 'lucide-react'
 import { ModalKeyboard } from './ModalKeyboard'
+import ApiClient from '../utils/ApiClient'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,7 +13,7 @@ interface Credentials {
   dbName: string
 }
 
-type Step = 'instructions' | 'credentials' | 'testing' | 'saving' | 'done' | 'error'
+type Step = 'instructions' | 'credentials' | 'testing' | 'saving' | 'terminal' | 'done' | 'error'
 
 // ─── Connection string parser ─────────────────────────────────────────────────
 
@@ -92,18 +93,29 @@ const SetupWizard: React.FC = () => {
   const [testError, setTestError]   = useState('')
   const [saveError, setSaveError]   = useState('')
 
+  // Terminal identity
+  const [terminalId, setTerminalId]     = useState('')
+  const [terminalName, setTerminalName] = useState('')
+  const [terminalError, setTerminalError] = useState('')
+  const [terminalSaving, setTerminalSaving] = useState(false)
+
   // Touch keyboard
   const [kbOpen, setKbOpen]   = useState(false)
-  const [kbField, setKbField] = useState<'uri' | 'dbHost' | 'dbUser' | 'dbPassword' | null>(null)
-  const kbInitial = kbField === 'uri' ? connString : kbField ? creds[kbField] : ''
+  const [kbField, setKbField] = useState<'uri' | 'dbHost' | 'dbUser' | 'dbPassword' | 'terminalId' | 'terminalName' | null>(null)
+  const kbInitial = kbField === 'uri' ? connString
+    : kbField === 'terminalId' ? terminalId
+    : kbField === 'terminalName' ? terminalName
+    : kbField ? creds[kbField as keyof Credentials] : ''
   const openKb = (field: typeof kbField) => { setKbField(field); setKbOpen(true) }
   const submitKb = (val: string) => {
     if (kbField === 'uri') setConnString(val)
+    else if (kbField === 'terminalId') setTerminalId(val.toUpperCase())
+    else if (kbField === 'terminalName') setTerminalName(val)
     else if (kbField) setCreds(prev => ({ ...prev, [kbField]: val }))
     setKbOpen(false)
   }
 
-  const stepIndex = { instructions: 0, credentials: 1, testing: 2, saving: 2, done: 3, error: 2 }[step]
+  const stepIndex = { instructions: 0, credentials: 1, testing: 2, saving: 2, error: 2, terminal: 3, done: 4 }[step]
 
   const handleCredentialsNext = async () => {
     setParseError('')
@@ -147,7 +159,7 @@ const SetupWizard: React.FC = () => {
     try {
       const result = await window.electronAPI.saveEnv(resolved)
       if (result.success) {
-        setStep('done')
+        setStep('terminal')
       } else {
         setSaveError(result.error || 'Failed to save configuration.')
         setStep('error')
@@ -155,6 +167,31 @@ const SetupWizard: React.FC = () => {
     } catch (err: any) {
       setSaveError(err?.message || 'Unexpected error while saving.')
       setStep('error')
+    }
+  }
+
+  const handleTerminalNext = async () => {
+    const id = terminalId.trim()
+    const name = terminalName.trim()
+    setTerminalError('')
+
+    if (!id) { setTerminalError('Terminal ID is required.'); return }
+    if (!/^[A-Za-z0-9_-]{1,20}$/.test(id)) {
+      setTerminalError('Use only letters, numbers, hyphens or underscores (max 20 characters).')
+      return
+    }
+
+    if (!window.electronAPI?.setTerminalConfig) { setStep('done'); return }
+
+    setTerminalSaving(true)
+    try {
+      await window.electronAPI.setTerminalConfig({ terminalId: id, terminalName: name || null })
+      ApiClient.setTerminalId(id, name || null)
+      setStep('done')
+    } catch (err: any) {
+      setTerminalError(err?.message ?? 'Failed to save terminal identity.')
+    } finally {
+      setTerminalSaving(false)
     }
   }
 
@@ -181,10 +218,11 @@ const SetupWizard: React.FC = () => {
 
           {/* Steps */}
           <div className="space-y-0.5">
-            <StepRow num="1" label="Introduction"   active={stepIndex === 0} done={stepIndex > 0} />
-            <StepRow num="2" label="Credentials"    active={stepIndex === 1} done={stepIndex > 1} />
-            <StepRow num="3" label="Connect & Save" active={stepIndex === 2} done={stepIndex > 2} />
-            <StepRow num="4" label="Done"           active={stepIndex === 3} done={false} />
+            <StepRow num="1" label="Introduction"     active={stepIndex === 0} done={stepIndex > 0} />
+            <StepRow num="2" label="Credentials"      active={stepIndex === 1} done={stepIndex > 1} />
+            <StepRow num="3" label="Connect & Save"   active={stepIndex === 2} done={stepIndex > 2} />
+            <StepRow num="4" label="Terminal Identity" active={stepIndex === 3} done={stepIndex > 3} />
+            <StepRow num="5" label="Done"             active={stepIndex === 4} done={false} />
           </div>
         </div>
 
@@ -371,6 +409,89 @@ const SetupWizard: React.FC = () => {
           </div>
         )}
 
+        {/* ── STEP: Terminal Identity ─────────────────────────────────────── */}
+        {step === 'terminal' && (
+          <div className="flex flex-col h-full">
+            <div className="flex items-center gap-2.5 mb-1">
+              <Monitor className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              <h2 className="text-base font-bold text-slate-800">Identify this terminal</h2>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              If you run multiple registers on this database, each one needs a unique ID so sales, cash sessions, and Z-reports stay separate.
+            </p>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4 flex-1">
+              {/* Terminal ID */}
+              <div>
+                <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">
+                  Terminal ID <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={terminalId}
+                    onChange={e => setTerminalId(e.target.value.toUpperCase())}
+                    onClick={() => openKb('terminalId')}
+                    placeholder="e.g. T01"
+                    className="w-full h-9 px-3 text-sm font-mono border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  Short unique code for this register — letters, numbers, - or _ (max 20). Examples: T01, COUNTER-1, POS-MAIN
+                </p>
+              </div>
+
+              {/* Terminal Name */}
+              <div>
+                <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">
+                  Terminal Name <span className="text-slate-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={terminalName}
+                  onChange={e => setTerminalName(e.target.value)}
+                  onClick={() => openKb('terminalName')}
+                  placeholder="e.g. Front Counter"
+                  className="w-full h-9 px-3 text-sm border-2 border-slate-200 rounded-lg focus:border-emerald-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-0.5">Human-readable label shown in reports</p>
+              </div>
+
+              {/* Preview */}
+              {terminalId.trim() && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                  <CheckCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-emerald-600" />
+                  <div>
+                    Session codes will look like: <span className="font-mono font-semibold">CS-20260321-{terminalId.trim()}-0001</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Only 1 terminal note */}
+              <div className="text-[10px] text-slate-400 border-t border-slate-100 pt-3">
+                Only one terminal? You still need an ID — use <span className="font-mono">T01</span> or <span className="font-mono">MAIN</span>.
+              </div>
+            </div>
+
+            {terminalError && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
+                <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700">{terminalError}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleTerminalNext}
+              disabled={terminalSaving}
+              className="mt-3 h-10 w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              {terminalSaving
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                : 'Save & Continue →'}
+            </button>
+          </div>
+        )}
+
         {/* ── STEP: Done ─────────────────────────────────────────────────── */}
         {step === 'done' && (
           <div className="flex flex-col h-full">
@@ -389,6 +510,15 @@ const SetupWizard: React.FC = () => {
                 <li>• All tables will be created automatically</li>
                 <li>• A default admin account will be created</li>
               </ul>
+              {terminalId && (
+                <div className="mt-2 pt-2 border-t border-slate-200">
+                  <p className="font-medium text-slate-700">Terminal identity</p>
+                  <p className="mt-0.5">
+                    ID: <span className="font-mono font-bold text-slate-800">{terminalId}</span>
+                    {terminalName && <> &nbsp;·&nbsp; Name: <span className="font-bold text-slate-800">{terminalName}</span></>}
+                  </p>
+                </div>
+              )}
               <div className="mt-2 pt-2 border-t border-slate-200">
                 <p className="font-medium text-slate-700">Default admin credentials</p>
                 <p className="mt-0.5">Employee ID: <span className="font-mono font-bold text-slate-800">0001</span> &nbsp;·&nbsp; PIN: <span className="font-mono font-bold text-slate-800">1234</span></p>
@@ -435,8 +565,15 @@ const SetupWizard: React.FC = () => {
       <ModalKeyboard
         open={kbOpen}
         type="qwerty"
-        title={kbField === 'uri' ? 'Connection String' : kbField === 'dbPassword' ? 'Password' : kbField === 'dbHost' ? 'Database Host' : 'Database User'}
-        initialValue={kbInitial}
+        title={
+          kbField === 'uri'          ? 'Connection String' :
+          kbField === 'dbPassword'   ? 'Password' :
+          kbField === 'dbHost'       ? 'Database Host' :
+          kbField === 'terminalId'   ? 'Terminal ID' :
+          kbField === 'terminalName' ? 'Terminal Name' :
+                                       'Database User'
+        }
+        initialValue={kbInitial as string}
         masked={kbField === 'dbPassword'}
         onSubmit={submitKb}
         onClose={() => setKbOpen(false)}

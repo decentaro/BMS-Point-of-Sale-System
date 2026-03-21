@@ -55,8 +55,46 @@ const AdminPanel: React.FC = () => {
   const [restoreFile, setRestoreFile] = React.useState<File | null>(null)
   const [newConnectionString, setNewConnectionString] = React.useState<string>('')
   
+  // Terminal identity state
+  const [terminalId, setTerminalId] = React.useState<string>('')
+  const [terminalName, setTerminalName] = React.useState<string>('')
+  const [terminalSaving, setTerminalSaving] = React.useState<boolean>(false)
+
+  React.useEffect(() => {
+    if (window.electronAPI?.getTerminalConfig) {
+      window.electronAPI.getTerminalConfig().then((cfg: { terminalId: string | null, terminalName: string | null }) => {
+        setTerminalId(cfg.terminalId ?? '')
+        setTerminalName(cfg.terminalName ?? '')
+      })
+    }
+  }, [])
+
+  const handleSaveTerminal = async () => {
+    const id = terminalId.trim()
+    const name = terminalName.trim()
+    if (!id) { showToast('Terminal ID is required', 'error'); return }
+    if (!/^[A-Za-z0-9_-]{1,20}$/.test(id)) {
+      showToast('Terminal ID must be 1–20 characters: letters, numbers, - or _', 'error')
+      return
+    }
+    if (!window.electronAPI?.setTerminalConfig) {
+      showToast('Terminal config not available', 'error')
+      return
+    }
+    setTerminalSaving(true)
+    try {
+      await window.electronAPI.setTerminalConfig({ terminalId: id, terminalName: name || null })
+      ApiClient.setTerminalId(id, name || null)
+      showToast('Terminal identity saved', 'success')
+    } catch (err: any) {
+      showToast(err?.message ?? 'Failed to save terminal config', 'error')
+    } finally {
+      setTerminalSaving(false)
+    }
+  }
+
   // Modal keyboard state (following shared pattern)
-  type FormKeys = 'newConnectionString' | 'clearManagerPin'
+  type FormKeys = 'newConnectionString' | 'clearManagerPin' | 'terminalId' | 'terminalName'
   const [kbOpen, setKbOpen] = React.useState<boolean>(false)
   const [kbType, setKbType] = React.useState<KeyboardType>('qwerty')
   const [kbTitle, setKbTitle] = React.useState<string>('')
@@ -115,6 +153,8 @@ const AdminPanel: React.FC = () => {
   const applyKb = (val: string) => {
     if (kbTarget === 'newConnectionString') setNewConnectionString(val)
     else if (kbTarget === 'clearManagerPin') setClearManagerPin(val)
+    else if (kbTarget === 'terminalId') setTerminalId(val)
+    else if (kbTarget === 'terminalName') setTerminalName(val)
     setKbOpen(false)
   }
 
@@ -807,6 +847,71 @@ const AdminPanel: React.FC = () => {
                       </Button>
                       <Button variant="outline" size="sm" onClick={openLogFolder} className="gap-1.5 text-xs">
                         <FolderOpen className="w-3.5 h-3.5" /> Open Folder
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ── Terminal Identity ─────────────────────────────────── */}
+              <Card className="border-slate-200 shadow-sm overflow-hidden">
+                <CardContent className="p-5">
+                  <SectionHeader icon={Settings2} label="Terminal Identity" color="navy" />
+
+                  <div className="space-y-4">
+                    <p className="text-xs text-slate-500">
+                      Identifies this register when sharing a database with other terminals.
+                      Each terminal must have a unique ID (e.g. T01, T02).
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-700">Terminal ID <span className="text-red-500">*</span></label>
+                        <div className="flex gap-2">
+                          <HybridInput
+                            type="text"
+                            placeholder="e.g. T01"
+                            value={terminalId}
+                            onChange={v => setTerminalId(v.toUpperCase())}
+                            onTouchKeyboard={() => openKb('terminalId', 'qwerty', 'Terminal ID')}
+                            className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(215,65%,30%)]"
+                          />
+                        </div>
+                        <p className="text-xs text-slate-400">Letters, numbers, - or _ (max 20)</p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-700">Terminal Name <span className="text-slate-400">(optional)</span></label>
+                        <HybridInput
+                          type="text"
+                          placeholder="e.g. Front Counter"
+                          value={terminalName}
+                          onChange={setTerminalName}
+                          onTouchKeyboard={() => openKb('terminalName', 'qwerty', 'Terminal Name')}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(215,65%,30%)]"
+                        />
+                        <p className="text-xs text-slate-400">Human-readable label for reports</p>
+                      </div>
+                    </div>
+
+                    {terminalId && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[hsl(215,65%,30%)]/5 border border-[hsl(215,65%,30%)]/20 text-xs text-[hsl(215,65%,30%)]">
+                        <Info className="w-3.5 h-3.5 flex-shrink-0" />
+                        Session code will include terminal: <span className="font-mono font-semibold ml-1">CS-20260321-{terminalId}-0001</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={handleSaveTerminal}
+                        disabled={terminalSaving}
+                        className="bg-[hsl(215,65%,30%)] hover:bg-[hsl(215,65%,25%)] text-white gap-2"
+                        size="sm"
+                      >
+                        {terminalSaving
+                          ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
+                          : <><Save className="w-3.5 h-3.5" /> Save Terminal</>
+                        }
                       </Button>
                     </div>
                   </div>

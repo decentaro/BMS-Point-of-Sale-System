@@ -200,6 +200,10 @@ const electronAPI = {
     // API Configuration methods
     getApiConfig: () => ipcRenderer.invoke('get-api-config'),
     setApiConfig: (config) => ipcRenderer.invoke('set-api-config', config),
+
+    // Terminal identity — set once per machine, sent as X-Terminal-Id on every request
+    getTerminalConfig: () => ipcRenderer.invoke('get-terminal-config'),
+    setTerminalConfig: (config) => ipcRenderer.invoke('set-terminal-config', config),
     
     // Setup wizard
     checkSetup: () => ipcRenderer.invoke('check-setup'),

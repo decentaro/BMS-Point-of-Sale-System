@@ -18,9 +18,11 @@ namespace BMS_POS_API.Controllers
             _context = context;
         }
 
-        // GET: api/reports/z-report?date=2026-03-17
+        // GET: api/reports/z-report?date=2026-03-17&terminalId=T01
         [HttpGet("z-report")]
-        public async Task<ActionResult<ZReportResponse>> GetZReport([FromQuery] string? date = null)
+        public async Task<ActionResult<ZReportResponse>> GetZReport(
+            [FromQuery] string? date = null,
+            [FromQuery] string? terminalId = null)
         {
             DateTime reportDate;
             if (string.IsNullOrEmpty(date))
@@ -31,14 +33,18 @@ namespace BMS_POS_API.Controllers
                 reportDate = DateTime.SpecifyKind(reportDate.Date.ToUniversalTime(), DateTimeKind.Utc);
             var nextDay = reportDate.AddDays(1);
 
-            return Ok(await BuildZReport(reportDate, nextDay));
+            // Fall back to request header if not in query string
+            var tid = terminalId ?? Request.Headers["X-Terminal-Id"].FirstOrDefault();
+
+            return Ok(await BuildZReport(reportDate, nextDay, tid));
         }
 
-        // GET: api/reports/z-report-range?startDate=2026-03-10&endDate=2026-03-17
+        // GET: api/reports/z-report-range?startDate=2026-03-10&endDate=2026-03-17&terminalId=T01
         [HttpGet("z-report-range")]
         public async Task<ActionResult<List<ZReportSummaryRow>>> GetZReportRange(
             [FromQuery] string startDate,
-            [FromQuery] string endDate)
+            [FromQuery] string endDate,
+            [FromQuery] string? terminalId = null)
         {
             if (!DateTime.TryParse(startDate, out var start))
                 return BadRequest("Invalid startDate format. Use yyyy-MM-dd.");
@@ -54,25 +60,34 @@ namespace BMS_POS_API.Controllers
             if ((end - start).TotalDays > 90)
                 return BadRequest("Date range cannot exceed 90 days.");
 
+            // Fall back to request header if not in query string
+            var tid = terminalId ?? Request.Headers["X-Terminal-Id"].FirstOrDefault();
+
             // Bulk fetch for the entire range: 3 queries instead of N*3
             var rangeEnd = end.AddDays(1);
 
-            var sessions = await _context.CashSessions
+            var sessionsQuery = _context.CashSessions
                 .AsNoTracking()
                 .Include(cs => cs.OpenedByEmployee)
                 .Include(cs => cs.ClosedByEmployee)
-                .Where(cs => cs.SessionDate >= start && cs.SessionDate < rangeEnd)
-                .ToListAsync();
+                .Where(cs => cs.SessionDate >= start && cs.SessionDate < rangeEnd);
+            if (!string.IsNullOrEmpty(tid))
+                sessionsQuery = sessionsQuery.Where(cs => cs.TerminalId == tid);
+            var sessions = await sessionsQuery.ToListAsync();
 
-            var allSales = await _context.Sales
+            var salesQuery = _context.Sales
                 .AsNoTracking()
-                .Where(s => s.SaleDate >= start && s.SaleDate < rangeEnd && s.Status == "Completed")
-                .ToListAsync();
+                .Where(s => s.SaleDate >= start && s.SaleDate < rangeEnd && s.Status == "Completed");
+            if (!string.IsNullOrEmpty(tid))
+                salesQuery = salesQuery.Where(s => s.TerminalId == tid);
+            var allSales = await salesQuery.ToListAsync();
 
-            var allReturns = await _context.Returns
+            var returnsQuery = _context.Returns
                 .AsNoTracking()
-                .Where(r => r.ReturnDate >= start && r.ReturnDate < rangeEnd && r.Status == "Completed")
-                .ToListAsync();
+                .Where(r => r.ReturnDate >= start && r.ReturnDate < rangeEnd && r.Status == "Completed");
+            if (!string.IsNullOrEmpty(tid))
+                returnsQuery = returnsQuery.Where(r => r.TerminalId == tid);
+            var allReturns = await returnsQuery.ToListAsync();
 
             var results = new List<ZReportSummaryRow>();
             var current = start;
@@ -112,27 +127,34 @@ namespace BMS_POS_API.Controllers
             return Ok(results);
         }
 
-        private async Task<ZReportResponse> BuildZReport(DateTime reportDate, DateTime nextDay)
+        private async Task<ZReportResponse> BuildZReport(DateTime reportDate, DateTime nextDay, string? terminalId = null)
         {
             // Load cash session for this date.
             // Sessions may be stored as local-midnight UTC (new) or UTC midnight (legacy),
             // so check both to avoid missing sessions after the timezone fix.
             var utcMidnight = DateTime.SpecifyKind(reportDate.ToLocalTime().Date, DateTimeKind.Utc);
-            var session = await _context.CashSessions
+            var sessionQuery = _context.CashSessions
                 .AsNoTracking()
                 .Include(cs => cs.OpenedByEmployee)
                 .Include(cs => cs.ClosedByEmployee)
-                .FirstOrDefaultAsync(cs => cs.SessionDate == reportDate || cs.SessionDate == utcMidnight);
+                .Where(cs => cs.SessionDate == reportDate || cs.SessionDate == utcMidnight);
+            if (!string.IsNullOrEmpty(terminalId))
+                sessionQuery = sessionQuery.Where(cs => cs.TerminalId == terminalId);
+            var session = await sessionQuery.FirstOrDefaultAsync();
 
-            var sales = await _context.Sales
+            var salesQuery = _context.Sales
                 .AsNoTracking()
-                .Where(s => s.SaleDate >= reportDate && s.SaleDate < nextDay && s.Status == "Completed")
-                .ToListAsync();
+                .Where(s => s.SaleDate >= reportDate && s.SaleDate < nextDay && s.Status == "Completed");
+            if (!string.IsNullOrEmpty(terminalId))
+                salesQuery = salesQuery.Where(s => s.TerminalId == terminalId);
+            var sales = await salesQuery.ToListAsync();
 
-            var returns = await _context.Returns
+            var returnsQuery = _context.Returns
                 .AsNoTracking()
-                .Where(r => r.ReturnDate >= reportDate && r.ReturnDate < nextDay && r.Status == "Completed")
-                .ToListAsync();
+                .Where(r => r.ReturnDate >= reportDate && r.ReturnDate < nextDay && r.Status == "Completed");
+            if (!string.IsNullOrEmpty(terminalId))
+                returnsQuery = returnsQuery.Where(r => r.TerminalId == terminalId);
+            var returns = await returnsQuery.ToListAsync();
 
             return ComputeZReport(reportDate, session, sales, returns);
         }

@@ -25,8 +25,12 @@ namespace BMS_POS_API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CashSessionResponse>>> GetSessions(
             [FromQuery] int limit = 30,
-            [FromQuery] string? status = null)
+            [FromQuery] string? status = null,
+            [FromQuery] string? terminalId = null)
         {
+            // Fall back to header if not in query string
+            var tid = terminalId ?? Request.Headers["X-Terminal-Id"].FirstOrDefault();
+
             var query = _context.CashSessions
                 .AsNoTracking()
                 .Include(cs => cs.OpenedByEmployee)
@@ -35,6 +39,9 @@ namespace BMS_POS_API.Controllers
 
             if (!string.IsNullOrEmpty(status))
                 query = query.Where(cs => cs.Status == status);
+
+            if (!string.IsNullOrEmpty(tid))
+                query = query.Where(cs => cs.TerminalId == tid);
 
             var sessions = await query
                 .OrderByDescending(cs => cs.SessionDate)
@@ -49,12 +56,19 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<CashSessionResponse?>> GetTodaySession()
         {
             var today = DateTime.SpecifyKind(DateTime.Today.ToUniversalTime(), DateTimeKind.Utc);
+            var terminalId = Request.Headers["X-Terminal-Id"].FirstOrDefault();
 
-            var session = await _context.CashSessions
+            var query = _context.CashSessions
                 .AsNoTracking()
                 .Include(cs => cs.OpenedByEmployee)
                 .Include(cs => cs.ClosedByEmployee)
-                .FirstOrDefaultAsync(cs => cs.SessionDate == today);
+                .Where(cs => cs.SessionDate == today);
+
+            // Scope to terminal if provided; fall back to any session (single-terminal legacy)
+            if (!string.IsNullOrEmpty(terminalId))
+                query = query.Where(cs => cs.TerminalId == terminalId);
+
+            var session = await query.FirstOrDefaultAsync();
 
             if (session == null)
                 return Ok(null);
@@ -87,17 +101,25 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("Invalid employee ID.");
 
             var today = DateTime.SpecifyKind(DateTime.Today.ToUniversalTime(), DateTimeKind.Utc);
+            var terminalId = Request.Headers["X-Terminal-Id"].FirstOrDefault();
+            var terminalName = Request.Headers["X-Terminal-Name"].FirstOrDefault();
 
-            var existing = await _context.CashSessions
-                .FirstOrDefaultAsync(cs => cs.SessionDate == today);
+            // Enforce one session per terminal per day (or one global session for legacy terminals)
+            var existingQuery = _context.CashSessions.Where(cs => cs.SessionDate == today);
+            if (!string.IsNullOrEmpty(terminalId))
+                existingQuery = existingQuery.Where(cs => cs.TerminalId == terminalId);
+            else
+                existingQuery = existingQuery.Where(cs => cs.TerminalId == null);
+
+            var existing = await existingQuery.FirstOrDefaultAsync();
 
             if (existing != null)
                 return Conflict(new { message = "A session already exists for today.", session = MapToResponse(existing) });
 
-            // Generate session code: CS-YYYYMMDD-NNNN
-            var sessionCount = await _context.CashSessions
-                .CountAsync(cs => cs.SessionDate == today);
-            var sessionCode = $"CS-{today:yyyyMMdd}-{(sessionCount + 1):D4}";
+            // Generate session code: CS-YYYYMMDD-TID-NNNN (includes terminal prefix when available)
+            var sessionCount = await _context.CashSessions.CountAsync(cs => cs.SessionDate == today);
+            var terminalPrefix = !string.IsNullOrEmpty(terminalId) ? $"-{terminalId}" : "";
+            var sessionCode = $"CS-{today:yyyyMMdd}{terminalPrefix}-{(sessionCount + 1):D4}";
 
             var session = new CashSession
             {
@@ -107,7 +129,9 @@ namespace BMS_POS_API.Controllers
                 OpenedAt = DateTime.UtcNow,
                 OpeningCash = request.OpeningCash,
                 Status = "Open",
-                Notes = request.Notes
+                Notes = request.Notes,
+                TerminalId = string.IsNullOrEmpty(terminalId) ? null : terminalId,
+                TerminalName = string.IsNullOrEmpty(terminalName) ? null : terminalName
             };
 
             _context.CashSessions.Add(session);
@@ -186,7 +210,9 @@ namespace BMS_POS_API.Controllers
             OpeningCash = s.OpeningCash,
             ClosingCash = s.ClosingCash,
             Status = s.Status,
-            Notes = s.Notes
+            Notes = s.Notes,
+            TerminalId = s.TerminalId,
+            TerminalName = s.TerminalName
         };
     }
 
@@ -219,5 +245,7 @@ namespace BMS_POS_API.Controllers
         public decimal? ClosingCash { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Notes { get; set; }
+        public string? TerminalId { get; set; }
+        public string? TerminalName { get; set; }
     }
 }
