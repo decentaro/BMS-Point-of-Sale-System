@@ -19,7 +19,7 @@ namespace BMS_POS_API.Tests.Controllers
         public AuthControllerTests()
         {
             _mockLogger = new Mock<ILogger<AuthController>>();
-            _controller = new AuthController(Context, UserActivityService, PinSecurityService, MockMetricsService.Object, MockLockoutService.Object, JwtSecretHolder);
+            _controller = new AuthController(Context, UserActivityService, PinSecurityService, MockMetricsService.Object, MockLockoutService.Object, JwtSecretHolder, new TokenDenylistService());
             
             // Setup fake HttpContext
             var mockHttpContext = new Mock<HttpContext>();

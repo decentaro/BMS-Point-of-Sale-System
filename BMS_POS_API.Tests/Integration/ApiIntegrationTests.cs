@@ -41,15 +41,19 @@ namespace BMS_POS_API.Tests.Integration
                     }
                     services.AddHealthChecks();
 
-                    // Add DbContext using in-memory database with its own internal service provider
-                    // to avoid conflicts with the Npgsql provider already registered in the app's DI
+                    // Unique DB name per test instance prevents the shared in-memory store
+                    // from being accessed by conflicting EF Core service providers when all
+                    // test instances are created concurrently by xUnit.
+                    // UseInternalServiceProvider is required to avoid the Npgsql/InMemory
+                    // double-provider conflict in the global EF Core service provider.
+                    var dbName = $"InMemoryDb_{Guid.NewGuid():N}";
                     var inMemoryProvider = new ServiceCollection()
                         .AddEntityFrameworkInMemoryDatabase()
                         .BuildServiceProvider();
 
                     services.AddDbContext<BmsPosDbContext>(options =>
                     {
-                        options.UseInMemoryDatabase("InMemoryDbForTesting");
+                        options.UseInMemoryDatabase(dbName);
                         options.UseInternalServiceProvider(inMemoryProvider);
                     });
 

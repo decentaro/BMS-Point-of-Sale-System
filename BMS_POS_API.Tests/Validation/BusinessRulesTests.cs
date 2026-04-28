@@ -27,7 +27,7 @@ namespace BMS_POS_API.Tests.Validation
             
             _employeesController = new EmployeesController(Context, UserActivityService, PinSecurityService);
             _productsController = new ProductsController(Context, UserActivityService);
-            _authController = new AuthController(Context, UserActivityService, PinSecurityService, MockMetricsService.Object, MockLockoutService.Object, JwtSecretHolder);
+            _authController = new AuthController(Context, UserActivityService, PinSecurityService, MockMetricsService.Object, MockLockoutService.Object, JwtSecretHolder, new TokenDenylistService());
             
             // Setup fake HttpContext for all controllers with headers
             var mockHttpContext = new Mock<HttpContext>();
