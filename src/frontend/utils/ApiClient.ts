@@ -173,9 +173,15 @@ class ApiClient {
         
         // Handle authentication errors (don't retry these)
         if (response.status === 401) {
-          SessionManager.clearSession()
-          window.location.href = '#/login'
-          throw this.createApiError('Authentication failed. Please log in again.', 401, 'auth')
+          if (requireAuth) {
+            // Authenticated request got a 401 — session has expired or been revoked.
+            SessionManager.clearSession()
+            window.location.href = '#/login'
+            throw this.createApiError('Authentication failed. Please log in again.', 401, 'auth')
+          }
+          // Unauthenticated endpoint (e.g. /auth/login) returned 401 — let the
+          // response fall through so the caller can inspect the body (wrong credentials).
+          return response
         }
         
         // Handle client errors (don't retry these)
@@ -304,6 +310,12 @@ class ApiClient {
   static async postJson<T>(endpoint: string, data: any, requireAuth: boolean = true, options?: Partial<ApiRequestOptions>): Promise<T> {
     const response = await this.post(endpoint, data, requireAuth, options)
     if (!response.ok) {
+      // For unauthenticated endpoints (requireAuth=false) that return 401, the
+      // body is a structured { success, message } response (e.g. wrong credentials).
+      // Parse and return it so callers can inspect result.success / result.message.
+      if (response.status === 401 && !requireAuth) {
+        return response.json()
+      }
       const errorText = await response.text().catch(() => 'Unknown error')
       throw this.createApiError(errorText || `HTTP ${response.status}`, response.status, 'server')
     }

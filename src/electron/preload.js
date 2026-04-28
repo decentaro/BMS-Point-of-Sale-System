@@ -195,7 +195,7 @@ const electronAPI = {
     openCashDrawer: () => ipcRenderer.invoke('open-cash-drawer'),
     
     // Receipt printing
-    printReceipt: (receiptHtml, logoPath, businessName) => ipcRenderer.invoke('print-receipt', receiptHtml, logoPath, businessName),
+    printReceipt: (receiptHtml, logoPath, businessName, copies) => ipcRenderer.invoke('print-receipt', receiptHtml, logoPath, businessName, copies),
     
     // API Configuration methods
     getApiConfig: () => ipcRenderer.invoke('get-api-config'),

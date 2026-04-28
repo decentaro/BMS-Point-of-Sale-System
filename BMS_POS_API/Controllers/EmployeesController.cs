@@ -159,6 +159,12 @@ namespace BMS_POS_API.Controllers
             if (employee.HireDate.HasValue && employee.HireDate.Value.Kind == DateTimeKind.Unspecified)
                 employee.HireDate = DateTime.SpecifyKind(employee.HireDate.Value, DateTimeKind.Utc);
 
+            // Detach any locally-tracked instance with the same key before attaching the updated one,
+            // so EF Core doesn't throw on duplicate-key tracking (e.g. in unit test contexts).
+            var tracked = _context.Employees.Local.FirstOrDefault(e => e.Id == id);
+            if (tracked != null)
+                _context.Entry(tracked).State = EntityState.Detached;
+
             _context.Entry(employee).State = EntityState.Modified;
 
             try

@@ -8,10 +8,6 @@ export interface AdminSettings {
   // Security & Access
   requireStrongPins: boolean
   maxFailedLoginAttempts: number
-  // System Performance
-  logLevel: string
-  performanceMetricsEnabled: boolean
-  cacheEnabled: boolean
   // Database Connection (read-only display)
   databaseStatus: string
   lastBackup?: string

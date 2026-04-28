@@ -17,6 +17,7 @@ namespace BMS_POS_API.Services
         private readonly ILogger<SupabaseBackupService> _logger;
         private readonly IConfiguration _configuration;
         private readonly IUserActivityService _userActivityService;
+        private readonly string _backupsDir;
 
         public SupabaseBackupService(
             ILogger<SupabaseBackupService> logger,
@@ -26,6 +27,7 @@ namespace BMS_POS_API.Services
             _logger = logger;
             _configuration = configuration;
             _userActivityService = userActivityService;
+            _backupsDir = configuration["BackupsDirectory"] ?? "backups";
         }
 
         public async Task<BackupCapabilities> DetectPlanAndCapabilities()
@@ -70,7 +72,7 @@ namespace BMS_POS_API.Services
         {
             var businessTime = DateTime.UtcNow;
             var backupId = $"manual_{businessTime:yyyyMMdd_HHmmss}";
-            var backupDir = Path.Combine("backups", backupId);
+            var backupDir = Path.Combine(_backupsDir, backupId);
             
             try
             {
@@ -187,7 +189,7 @@ namespace BMS_POS_API.Services
         public async Task<List<LocalBackupInfo>> GetLocalBackups()
         {
             var backups = new List<LocalBackupInfo>();
-            var backupsDir = "backups";
+            var backupsDir = _backupsDir;
             
             try
             {
@@ -212,7 +214,7 @@ namespace BMS_POS_API.Services
                         var backup = new LocalBackupInfo
                         {
                             BackupId = Path.GetFileName(dir),
-                            Path = dir,
+                            Path = Path.GetFullPath(dir),
                             CreatedAt = manifest?.CreatedAt ?? Directory.GetCreationTime(dir),
                             Method = manifest?.Method ?? "Unknown",
                             Size = GetDirectorySize(dir),

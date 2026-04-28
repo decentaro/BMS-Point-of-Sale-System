@@ -9,13 +9,7 @@ namespace BMS_POS_API.Models
         // Regional Settings
         [Required]
         public string DateFormat { get; set; } = "MM/DD/YYYY";
-        
-        [Required]
-        public string DecimalSeparator { get; set; } = ".";
-        
-        [Required]
-        public string ThousandsSeparator { get; set; } = ",";
-        
+
         // POS Behavior Settings
         public int AutoLogoutMinutes { get; set; } = 30;
         
@@ -31,10 +25,8 @@ namespace BMS_POS_API.Models
         // Display Settings
         [Required]
         public string Theme { get; set; } = "light";
-        
-        public double FontScaling { get; set; } = 1.0;
-        
-        // Receipt & Printing Settings  
+
+        // Receipt & Printing Settings
         public string? ReceiptFooterText { get; set; }
         
         public string? StoreLocation { get; set; }
@@ -54,15 +46,7 @@ namespace BMS_POS_API.Models
         
         
         public bool ShowReceiptPreview { get; set; } = false;
-        
-        public bool EmailReceiptEnabled { get; set; } = false;
-        
-        public string? DefaultReceiptEmail { get; set; }
-        
-        
-        [Required]
-        public string ReceiptFontSize { get; set; } = "Normal"; // Small, Normal, Large
-        
+
         [Required]
         public string ReceiptTemplateLayout { get; set; } = "Standard"; // Compact, Standard, Detailed
         
@@ -70,9 +54,7 @@ namespace BMS_POS_API.Models
         
         // Returns Policy Settings
         public bool EnableReturns { get; set; } = true;
-        
-        public bool RequireReceiptForReturns { get; set; } = true;
-        
+
         public bool RequireManagerApprovalForReturns { get; set; } = false;
         
         public bool RestockReturnedItems { get; set; } = true;

@@ -11,7 +11,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "Manager")]
     public class AdminSettingsController : ControllerBase
     {
         private readonly BmsPosDbContext _context;
@@ -95,9 +95,6 @@ namespace BMS_POS_API.Controllers
                 // Update fields (excluding read-only ones)
                 existingSettings.RequireStrongPins = adminSettings.RequireStrongPins;
                 existingSettings.MaxFailedLoginAttempts = adminSettings.MaxFailedLoginAttempts;
-                existingSettings.LogLevel = adminSettings.LogLevel;
-                existingSettings.PerformanceMetricsEnabled = adminSettings.PerformanceMetricsEnabled;
-                existingSettings.CacheEnabled = adminSettings.CacheEnabled;
                 existingSettings.LastUpdated = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
@@ -107,7 +104,7 @@ namespace BMS_POS_API.Controllers
                     userId: null,
                     userName: "SYSTEM",
                     action: "Update Admin Settings",
-                    details: $"Updated admin settings: LogLevel={adminSettings.LogLevel}, PerformanceMetrics={adminSettings.PerformanceMetricsEnabled}"
+                    details: $"Updated admin settings: RequireStrongPins={adminSettings.RequireStrongPins}, MaxFailedLoginAttempts={adminSettings.MaxFailedLoginAttempts}"
                 );
 
                 _logger.LogInformation("Admin settings updated successfully");
@@ -181,7 +178,7 @@ namespace BMS_POS_API.Controllers
             {
                 var capabilities = await _backupService.DetectPlanAndCapabilities();
                 var localBackups = await _backupService.GetLocalBackups();
-                
+
                 var result = new
                 {
                     capabilities.Plan,
@@ -279,7 +276,7 @@ namespace BMS_POS_API.Controllers
         // POST: api/AdminSettings/backup/restore
         [HttpPost("backup/restore")]
         [Authorize(Roles = "Manager")]
-        public async Task<ActionResult<ApiResponse<object>>> RestoreDatabaseBackup([FromForm] IFormFile backupFile, [FromForm] string? newConnectionString = null)
+        public async Task<ActionResult<ApiResponse<object>>> RestoreDatabaseBackup([FromForm] IFormFile? backupFile, [FromForm] string? newConnectionString = null)
         {
             try
             {
@@ -378,6 +375,97 @@ namespace BMS_POS_API.Controllers
             }
         }
 
+        // POST: api/AdminSettings/backup/restore-local
+        // Restores from a backup that already exists in the server's local
+        // backups folder, skipping the upload round-trip. Used for the common
+        // "restore from a backup I made on this machine" flow, which dodges
+        // OS-specific native file dialog quirks and works post-packaging.
+        [HttpPost("backup/restore-local")]
+        [Authorize(Roles = "Manager")]
+        public async Task<ActionResult<ApiResponse<object>>> RestoreLocalBackup([FromBody] RestoreLocalBackupRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.BackupId))
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "backupId is required"
+                    });
+                }
+
+                // Allowlist the backupId to a safe pattern — blocks path traversal
+                // and any other funny business before we touch the filesystem.
+                if (!System.Text.RegularExpressions.Regex.IsMatch(request.BackupId, "^[A-Za-z0-9_\\-]+$"))
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Invalid backupId format"
+                    });
+                }
+
+                var backupsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "backups"));
+                var backupPath = Path.GetFullPath(Path.Combine(backupsRoot, request.BackupId));
+
+                // Defence-in-depth: ensure the resolved path is still inside the backups root.
+                if (!backupPath.StartsWith(backupsRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                    && backupPath != backupsRoot)
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Invalid backup path"
+                    });
+                }
+
+                if (!Directory.Exists(backupPath) && !System.IO.File.Exists(backupPath))
+                {
+                    return NotFound(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = $"Backup '{request.BackupId}' not found"
+                    });
+                }
+
+                _logger.LogInformation("Starting local restore from {BackupPath}", backupPath);
+                var restoreResult = await _backupService.RestoreFromBackupFile(backupPath, request.NewConnectionString);
+
+                if (restoreResult.Success)
+                {
+                    return Ok(new ApiResponse<object>
+                    {
+                        Success = true,
+                        Data = new
+                        {
+                            restoreResult.BackupFile,
+                            restoreResult.RestoredAt,
+                            restoreResult.Message
+                        },
+                        Message = "Database restored successfully"
+                    });
+                }
+
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = restoreResult.Error ?? "Restore failed",
+                    Data = new { restoreResult.Suggestion }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error restoring from local backup");
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Failed to restore from local backup",
+                    ErrorCode = "ADMIN_010"
+                });
+            }
+        }
+
         // GET: api/AdminSettings/backup/local
         [HttpGet("backup/local")]
         public async Task<ActionResult<ApiResponse<object>>> GetLocalBackups()
@@ -429,8 +517,8 @@ namespace BMS_POS_API.Controllers
         {
             try
             {
-                var logsPath = Path.Combine(Directory.GetCurrentDirectory(), "logs");
-                
+                var logsPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "logs"));
+
                 if (!Directory.Exists(logsPath))
                 {
                     return Task.FromResult<ActionResult<ApiResponse<object>>>(NotFound(new ApiResponse<object>
@@ -458,6 +546,7 @@ namespace BMS_POS_API.Controllers
 
                 var result = new
                 {
+                    filePath = fileInfo.FullName,
                     fileName = fileInfo.Name,
                     lastModified = fileInfo.LastWriteTime,
                     sizeBytes = fileInfo.Length,
@@ -648,10 +737,11 @@ namespace BMS_POS_API.Controllers
         {
             try
             {
-                var logsPath = Path.Combine(Directory.GetCurrentDirectory(), "logs");
-                
+                var logsPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "logs"));
+
                 var result = new
                 {
+                    folderPath = logsPath,
                     exists = Directory.Exists(logsPath),
                     fileCount = Directory.Exists(logsPath) ? Directory.GetFiles(logsPath, "*.json").Length : 0
                 };
@@ -695,5 +785,11 @@ namespace BMS_POS_API.Controllers
         public string? ManagerPin { get; set; }
         /// <summary>Must equal the literal string "CLEAR DATABASE" for the request to proceed.</summary>
         public string? ConfirmationPhrase { get; set; }
+    }
+
+    public class RestoreLocalBackupRequest
+    {
+        public string? BackupId { get; set; }
+        public string? NewConnectionString { get; set; }
     }
 }

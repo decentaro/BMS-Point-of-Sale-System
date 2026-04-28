@@ -430,7 +430,7 @@ const POS: React.FC = () => {
       } else if (systemSettings?.printReceiptAutomatically !== false) {
         // Auto-print fire-and-forget — don't block cart clear on printer response
         const receiptText = generateTextReceipt(previewSaleData, systemSettings!)
-        window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName)
+        window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName, systemSettings?.receiptCopies)
           .catch((err: unknown) => console.error('Auto-print error:', err))
         handlePaymentSuccess(sale.transactionId)
       } else {
@@ -442,7 +442,8 @@ const POS: React.FC = () => {
 
     } catch (err) {
       // Check if this is a network failure (offline)
-      const isNetworkErr = err instanceof TypeError || (err as any)?.message?.includes('fetch') || (err as any)?.message?.includes('network') || (err as any)?.message?.includes('Failed to fetch') || !isOnline
+      const errMsg = ((err as any)?.message ?? '').toLowerCase()
+      const isNetworkErr = err instanceof TypeError || errMsg.includes('fetch') || errMsg.includes('network') || !isOnline
 
       if (isNetworkErr || !isOnline) {
         // Queue the sale for later sync
@@ -472,7 +473,7 @@ const POS: React.FC = () => {
           setShowReceiptPreview(true)
         } else if (systemSettings?.printReceiptAutomatically !== false) {
           const receiptText = generateTextReceipt(offlineTransaction.receiptData, systemSettings!)
-          window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName).catch(() => {})
+          window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName, systemSettings?.receiptCopies).catch(() => {})
           handlePaymentSuccess(offlineId)
         } else {
           handlePaymentSuccess(offlineId)
@@ -505,7 +506,7 @@ const POS: React.FC = () => {
 
     // Fire-and-forget — clear cart immediately, print in background
     const receiptText = generateTextReceipt(completedSale, systemSettings)
-    window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName)
+    window.electronAPI.printReceipt(receiptText, systemSettings?.businessLogoPath, taxSettings?.businessName, systemSettings?.receiptCopies)
       .catch((err: unknown) => console.error('Print error:', err))
     handlePaymentSuccess(completedSale?.transactionId || 'Unknown')
   }

@@ -16,12 +16,7 @@ namespace BMS_POS_API.Models
         // Security & Access
         public bool RequireStrongPins { get; set; } = false;
         public int MaxFailedLoginAttempts { get; set; } = 5;
-        
-        // System Performance
-        public string LogLevel { get; set; } = "info"; // error, warning, info, debug
-        public bool PerformanceMetricsEnabled { get; set; } = true;
-        public bool CacheEnabled { get; set; } = true;
-        
+
         // Database Connection (read-only display)
         public string DatabaseStatus { get; set; } = "Connected";
         public DateTime? LastBackup { get; set; }

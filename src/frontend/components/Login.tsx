@@ -302,7 +302,7 @@ const Login: React.FC = () => {
 
             {/* Step indicator */}
             <div className="flex items-center gap-2 mb-5">
-              {(['new', 'confirm'] as const).map((step, i) => (
+              {(['new', 'confirm'] as const).map((step) => (
                 <React.Fragment key={step}>
                   <div className={`flex-1 h-1.5 rounded-full transition-colors ${
                     pinChangeStep === step || (step === 'new' && pinChangeStep === 'confirm')

@@ -64,7 +64,6 @@ interface SaleItem {
 
 interface SystemSettings {
   enableReturns: boolean
-  requireReceiptForReturns: boolean
   requireManagerApprovalForReturns: boolean
   restockReturnedItems: boolean
   allowDefectiveItemReturns: boolean
@@ -498,11 +497,6 @@ const Returns: React.FC = () => {
                         />
                       </div>
                       <div className="mt-1.5 flex flex-col gap-0.5">
-                        {systemSettings.requireReceiptForReturns && (
-                          <p className="text-xs text-amber-600 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3 flex-shrink-0" />Receipt required for returns
-                          </p>
-                        )}
                         <p className="text-xs text-slate-400 flex items-center gap-1">
                           <Info className="w-3 h-3 flex-shrink-0" />Enter the last 8 digits of the transaction ID from the receipt
                         </p>

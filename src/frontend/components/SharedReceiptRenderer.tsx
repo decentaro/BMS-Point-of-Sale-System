@@ -60,8 +60,6 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
 
   // Paper width styling - locked to 80mm
   const paperWidth = 'w-80' // Fixed for 80mm thermal printing
-  const fontSize = systemSettings.receiptFontSize === 'Small' ? 'text-xs' : 
-                   systemSettings.receiptFontSize === 'Large' ? 'text-base' : 'text-sm'
 
   // Render different layouts based on template selection
   const renderReceiptContent = () => {
@@ -77,7 +75,7 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
 
   // Compact Template - Minimal layout
   const renderCompactTemplate = () => (
-    <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-2 ${fontSize} font-mono`}>
+    <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-2 text-sm font-mono`}>
 
       {receiptData.isReturn && (
         <div className="text-center font-bold text-red-600 border border-red-400 p-1 mb-2 text-xs">
@@ -171,7 +169,7 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
 
   // Standard Template - Current layout
   const renderStandardTemplate = () => (
-    <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-3 ${fontSize} font-mono`}>
+    <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-3 text-sm font-mono`}>
 
       {receiptData.isReturn && (
         <div className="text-center font-bold text-red-600 border border-red-400 p-1 mb-2 text-xs">
@@ -347,7 +345,7 @@ const SharedReceiptRenderer: React.FC<SharedReceiptRendererProps> = ({
 
   // Detailed Template - Comprehensive layout
   const renderDetailedTemplate = () => (
-    <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-3 ${fontSize} font-mono`}>
+    <div className={`mx-auto ${paperWidth} border border-gray-300 bg-white p-3 text-sm font-mono`}>
 
       {receiptData.isReturn && (
         <div className="text-center font-bold text-red-600 border border-red-400 p-1 mb-2 text-xs">

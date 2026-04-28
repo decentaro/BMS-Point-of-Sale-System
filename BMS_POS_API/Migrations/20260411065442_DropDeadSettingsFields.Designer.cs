@@ -3,6 +3,7 @@ using System;
 using BMS_POS_API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BMS_POS_API.Migrations
 {
     [DbContext(typeof(BmsPosDbContext))]
-    partial class BmsPosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260411065442_DropDeadSettingsFields")]
+    partial class DropDeadSettingsFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -941,6 +944,10 @@ namespace BMS_POS_API.Migrations
 
                     b.Property<int>("ReceiptCopies")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ReceiptFontSize")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("ReceiptFooterText")
                         .HasColumnType("text");

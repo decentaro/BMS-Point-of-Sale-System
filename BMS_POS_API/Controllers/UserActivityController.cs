@@ -7,7 +7,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "Manager")]
     public class UserActivityController : ControllerBase
     {
         private readonly IUserActivityService _userActivityService;

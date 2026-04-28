@@ -239,7 +239,7 @@ namespace BMS_POS_API.Controllers
 
                 return CreatedAtAction(nameof(GetSale), new { id = sale.Id }, completeSale);
             }
-            catch (Exception ex) when (ex is Npgsql.PostgresException pg && pg.SqlState == "23505")
+            catch (Exception ex) when (GetPgException(ex)?.SqlState == "23505")
             {
                 // unique_violation — idempotency key already exists; return the committed sale
                 await tx.RollbackAsync();
@@ -253,7 +253,7 @@ namespace BMS_POS_API.Controllers
                 }
                 throw;
             }
-            catch (Exception ex) when (ex is Npgsql.PostgresException pg && pg.SqlState == "40001")
+            catch (Exception ex) when (GetPgException(ex)?.SqlState == "40001")
             {
                 // serialization_failure — a concurrent transaction won the race.
                 // Stock is validated inside the transaction, so the caller can simply retry.
@@ -269,6 +269,7 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/sales/today
         [HttpGet("today")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<SalesTodayResponse>> GetTodaySales()
         {
             var localToday = DateTime.Today;
@@ -303,6 +304,7 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/sales/this-week
         [HttpGet("this-week")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<SalesSummaryResponse>> GetThisWeekSummary()
         {
             var localToday  = DateTime.Today;
@@ -339,6 +341,7 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/sales/this-month
         [HttpGet("this-month")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<SalesSummaryResponse>> GetThisMonthSummary()
         {
             var localToday   = DateTime.Today;
@@ -375,6 +378,7 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/sales/top-products
         [HttpGet("top-products")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<List<TopProductResponse>>> GetTopProducts([FromQuery] int days = 7)
         {
             var cutoffDate = DateTime.UtcNow.AddDays(-days);
@@ -405,6 +409,7 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/sales/payment-breakdown
         [HttpGet("payment-breakdown")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<PaymentBreakdownResponse>> GetPaymentBreakdown([FromQuery] string period = "today")
         {
             var localToday = DateTime.Today;
@@ -454,6 +459,7 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/sales/tax-summary
         [HttpGet("tax-summary")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<TaxSummaryResponse>> GetTaxSummary([FromQuery] string period = "month")
         {
             var localToday = DateTime.Today;
@@ -506,6 +512,7 @@ namespace BMS_POS_API.Controllers
 
         // GET: api/sales/employee-performance
         [HttpGet("employee-performance")]
+        [Authorize(Roles = "Manager")]
         public async Task<ActionResult<List<EmployeePerformanceResponse>>> GetEmployeePerformance([FromQuery] string period = "month")
         {
             var localToday = DateTime.Today;
@@ -546,6 +553,16 @@ namespace BMS_POS_API.Controllers
                 .ToListAsync();
 
             return employeePerformance;
+        }
+
+        private static Npgsql.PostgresException? GetPgException(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (current is Npgsql.PostgresException pg)
+                    return pg;
+            }
+            return null;
         }
     }
 

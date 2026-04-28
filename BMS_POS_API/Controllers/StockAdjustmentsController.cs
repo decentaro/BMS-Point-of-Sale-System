@@ -9,7 +9,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "Manager,Inventory")]
     public class StockAdjustmentsController : ControllerBase
     {
         private readonly BmsPosDbContext _context;
@@ -197,6 +197,7 @@ namespace BMS_POS_API.Controllers
 
         // PUT: api/stockadjustments/5/approve
         [HttpPut("{id}/approve")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> ApproveAdjustment(int id, [FromBody] ApprovalRequest request)
         {
             var adjustment = await _context.StockAdjustments
@@ -218,20 +219,14 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("Adjustment does not require approval");
             }
 
-            // Get user info
+            // Get user info (X-User-Id / X-User-Name are populated from JWT claims
+            // by ClaimsEnforcementMiddleware, so they're always trusted here)
             var userIdHeader = Request.Headers["X-User-Id"].FirstOrDefault();
             var userNameHeader = Request.Headers["X-User-Name"].FirstOrDefault();
-            
+
             if (string.IsNullOrEmpty(userIdHeader) || !int.TryParse(userIdHeader, out int userId))
             {
                 return BadRequest("User authentication required");
-            }
-
-            // Check if user is manager
-            var employee = await _context.Employees.FindAsync(userId);
-            if (employee == null || !employee.Role.Split(',').Select(r => r.Trim()).Contains("Manager"))
-            {
-                return Forbid("Only managers can approve stock adjustments");
             }
 
             // Approve and apply the adjustment

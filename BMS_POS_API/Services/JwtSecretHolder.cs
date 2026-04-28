@@ -18,16 +18,20 @@ namespace BMS_POS_API.Services
 
         public string Secret { get; }
 
-        public JwtSecretHolder()
+        /// <param name="secretDirectory">
+        /// Override the directory where the secret file is stored.
+        /// Defaults to {ApplicationData}/BMS_POS. Primarily useful for testing.
+        /// </param>
+        public JwtSecretHolder(string? secretDirectory = null)
         {
-            Secret = LoadOrCreate();
+            Secret = LoadOrCreate(secretDirectory);
         }
 
-        private static string LoadOrCreate()
+        private static string LoadOrCreate(string? directory = null)
         {
             try
             {
-                var dir = Path.Combine(
+                var dir = directory ?? Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "BMS_POS");
 

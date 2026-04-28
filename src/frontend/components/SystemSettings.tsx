@@ -23,15 +23,12 @@ const NAVY = 'hsl(215,65%,30%)'
 interface SystemSettings {
   id: number
   dateFormat: string
-  decimalSeparator: string
-  thousandsSeparator: string
   autoLogoutMinutes: number
   defaultPaymentMethod: string
   availablePaymentMethods: string
   soundEffectsEnabled: boolean
   requireManagerApprovalForDiscount: boolean
   theme: string
-  fontScaling: number
   receiptFooterText?: string
   storeLocation?: string
   phoneNumber?: string
@@ -40,14 +37,10 @@ interface SystemSettings {
   receiptCopies: number
   receiptPaperSize: string
   showReceiptPreview: boolean
-  emailReceiptEnabled: boolean
-  defaultReceiptEmail?: string
-  receiptFontSize: string
   receiptTemplateLayout: string
   showReceiptBarcode: boolean
   // Returns Policy Settings
   enableReturns: boolean
-  requireReceiptForReturns: boolean
   requireManagerApprovalForReturns: boolean
   restockReturnedItems: boolean
   allowDefectiveItemReturns: boolean
@@ -73,7 +66,7 @@ const SystemSettings: React.FC = () => {
   const [showReceiptPreview, setShowReceiptPreview] = React.useState<boolean>(false)
 
   // Modal keyboard state
-  type FormKeys = 'autoLogoutMinutes' | 'fontScaling' | 'receiptFooterText' | 'storeLocation' | 'phoneNumber' | 'receiptHeaderText' | 'receiptCopies' | 'defaultReceiptEmail' | 'returnTimeLimitDays' | 'returnManagerApprovalAmount' | 'returnReasons' | 'availablePaymentMethods' | 'productCategories'
+  type FormKeys = 'autoLogoutMinutes' | 'receiptFooterText' | 'storeLocation' | 'phoneNumber' | 'receiptHeaderText' | 'receiptCopies' | 'returnTimeLimitDays' | 'returnManagerApprovalAmount' | 'returnReasons' | 'availablePaymentMethods' | 'productCategories'
   const [kbOpen, setKbOpen] = React.useState<boolean>(false)
   const [kbType, setKbType] = React.useState<KeyboardType>('qwerty')
   const [kbTitle, setKbTitle] = React.useState<string>('')
@@ -93,10 +86,10 @@ const SystemSettings: React.FC = () => {
       // Handle numeric fields with validation
       if (kbTarget === 'autoLogoutMinutes') {
         processedValue = Math.max(5, parseInt(val) || 5) // Minimum 5 minutes
-      } else if (kbTarget === 'receiptCopies' || kbTarget === 'returnTimeLimitDays') {
+      } else if (kbTarget === 'receiptCopies') {
+        processedValue = Math.min(5, Math.max(1, parseInt(val) || 1))
+      } else if (kbTarget === 'returnTimeLimitDays') {
         processedValue = parseInt(val) || 0
-      } else if (kbTarget === 'fontScaling') {
-        processedValue = parseFloat(val) || 1.0
       } else if (kbTarget === 'returnManagerApprovalAmount') {
         processedValue = parseFloat(val) || 0
       }
@@ -421,7 +414,7 @@ const SystemSettings: React.FC = () => {
                   {/* Printing Configuration */}
                   <div>
                     <SubHeader label="Printing Configuration" />
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <FieldLabel>Paper Size</FieldLabel>
                         <div className="px-3 py-2.5 border border-slate-200 rounded-lg bg-slate-100 text-sm text-slate-500">
@@ -430,21 +423,13 @@ const SystemSettings: React.FC = () => {
                         <p className="text-xs text-slate-400 mt-1">Locked for thermal printing</p>
                       </div>
                       <div>
-                        <FieldLabel>Font Size</FieldLabel>
-                        <StyledSelect value={settings.receiptFontSize} onChange={v => setSettings({ ...settings, receiptFontSize: v })}>
-                          <option value="Small">Small</option>
-                          <option value="Normal">Normal</option>
-                          <option value="Large">Large</option>
-                        </StyledSelect>
-                      </div>
-                      <div>
-                        <FieldLabel>Receipt Copies</FieldLabel>
+                        <FieldLabel>Sale Receipt Copies (1–5)</FieldLabel>
                         <HybridInput
                           type="decimal"
                           className={inputCls}
                           value={settings.receiptCopies.toString()}
-                          onChange={(value) => setSettings({ ...settings, receiptCopies: parseInt(value) || 0 })}
-                          onTouchKeyboard={() => openKb('receiptCopies', 'decimal', 'Number of Receipt Copies')}
+                          onChange={(value) => setSettings({ ...settings, receiptCopies: Math.min(5, Math.max(1, parseInt(value) || 1)) })}
+                          onTouchKeyboard={() => openKb('receiptCopies', 'decimal', 'Sale Receipt Copies (1–5)')}
                         />
                       </div>
                       <div className="col-span-2">
@@ -466,17 +451,6 @@ const SystemSettings: React.FC = () => {
                           </Button>
                         </div>
                       </div>
-                      <div>
-                        <FieldLabel>Default Email</FieldLabel>
-                        <HybridInput
-                          className={inputCls}
-                          value={settings.defaultReceiptEmail || ''}
-                          onChange={(value) => setSettings({ ...settings, defaultReceiptEmail: value })}
-                          placeholder="customer@example.com"
-                          onTouchKeyboard={() => openKb('defaultReceiptEmail', 'qwerty', 'Default Receipt Email')}
-                          disabled={!settings.emailReceiptEnabled}
-                        />
-                      </div>
                     </div>
                   </div>
 
@@ -497,13 +471,6 @@ const SystemSettings: React.FC = () => {
                         onChange={v => setSettings({ ...settings, showReceiptPreview: v })}
                         label="Show preview before printing"
                         sub="Display receipt on screen for confirmation first"
-                      />
-                      <ToggleRow
-                        id="emailReceiptEnabled"
-                        checked={settings.emailReceiptEnabled}
-                        onChange={v => setSettings({ ...settings, emailReceiptEnabled: v })}
-                        label="Enable email receipts"
-                        sub="Allow sending receipts to customer email addresses"
                       />
                       <ToggleRow
                         id="showReceiptBarcode"
@@ -563,13 +530,6 @@ const SystemSettings: React.FC = () => {
                       <div>
                         <SubHeader label="Return Policies" />
                         <div className="space-y-2">
-                          <ToggleRow
-                            id="requireReceiptForReturns"
-                            checked={settings.requireReceiptForReturns}
-                            onChange={v => setSettings({ ...settings, requireReceiptForReturns: v })}
-                            label="Require receipt for returns"
-                            sub="Customer must present original receipt"
-                          />
                           <ToggleRow
                             id="requireManagerApprovalForReturns"
                             checked={settings.requireManagerApprovalForReturns}
@@ -668,11 +628,9 @@ const SystemSettings: React.FC = () => {
                 title={kbTitle}
                 initialValue={
                   kbTarget === 'autoLogoutMinutes' ? settings.autoLogoutMinutes.toString() :
-                  kbTarget === 'fontScaling' ? settings.fontScaling.toString() :
                   kbTarget === 'receiptCopies' ? settings.receiptCopies.toString() :
                   kbTarget === 'receiptFooterText' ? settings.receiptFooterText || '' :
                   kbTarget === 'receiptHeaderText' ? settings.receiptHeaderText || '' :
-                  kbTarget === 'defaultReceiptEmail' ? settings.defaultReceiptEmail || '' :
                   kbTarget === 'storeLocation' ? settings.storeLocation || '' :
                   kbTarget === 'phoneNumber' ? settings.phoneNumber || '' :
                   kbTarget === 'returnTimeLimitDays' ? settings.returnTimeLimitDays.toString() :

@@ -144,7 +144,7 @@ export interface ElectronAPI {
     message: string
   }>
   
-  printReceipt: (receiptHtml: string, logoPath?: string, businessName?: string) => Promise<{
+  printReceipt: (receiptHtml: string, logoPath?: string, businessName?: string, copies?: number) => Promise<{
     success: boolean
     message: string
   }>

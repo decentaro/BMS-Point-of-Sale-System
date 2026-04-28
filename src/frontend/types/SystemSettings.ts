@@ -13,7 +13,6 @@ export interface SystemSettings {
   
   // Receipt Formatting
   receiptPaperSize: string        // '58mm' | '80mm'
-  receiptFontSize: string         // 'Small' | 'Medium' | 'Large'
   receiptTemplateLayout: string   // 'Compact' | 'Standard' | 'Detailed'
   showReceiptBarcode: boolean
   showReceiptPreview?: boolean
@@ -28,20 +27,14 @@ export interface SystemSettings {
   // Full system settings (optional properties for components that need them)
   id?: number
   dateFormat?: string
-  decimalSeparator?: string
-  thousandsSeparator?: string
   autoLogoutMinutes?: number
   defaultPaymentMethod?: string
   availablePaymentMethods?: string
   soundEffectsEnabled?: boolean
   requireManagerApprovalForDiscount?: boolean
   theme?: string
-  fontScaling?: number
   printReceiptAutomatically?: boolean
   receiptCopies?: number
-  emailReceiptEnabled?: boolean
-  defaultReceiptEmail?: string
-  requireReceiptForReturns?: boolean
   requireManagerApprovalForReturns?: boolean
   restockReturnedItems?: boolean
 }

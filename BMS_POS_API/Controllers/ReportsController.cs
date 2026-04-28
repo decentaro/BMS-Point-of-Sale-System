@@ -8,7 +8,7 @@ namespace BMS_POS_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "Manager")]
     public class ReportsController : ControllerBase
     {
         private readonly BmsPosDbContext _context;

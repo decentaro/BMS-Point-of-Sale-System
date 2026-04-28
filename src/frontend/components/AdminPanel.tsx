@@ -53,6 +53,7 @@ const AdminPanel: React.FC = () => {
   const [saving, setSaving] = React.useState<boolean>(false)
   const [backupLoading, setBackupLoading] = React.useState<boolean>(false)
   const [restoreFile, setRestoreFile] = React.useState<File | null>(null)
+  const [selectedLocalBackupId, setSelectedLocalBackupId] = React.useState<string>('')
   const [newConnectionString, setNewConnectionString] = React.useState<string>('')
   
   // Terminal identity state
@@ -386,20 +387,26 @@ const AdminPanel: React.FC = () => {
   }
 
   const handleRestoreBackup = () => {
-    if (!restoreFile) {
-      showToast('Please select a backup file to restore', 'warning')
+    if (!restoreFile && !selectedLocalBackupId) {
+      showToast('Please select a backup to restore', 'warning')
       return
     }
 
-    const fileSize = restoreFile.size ? (restoreFile.size / 1024 / 1024).toFixed(1) : 'Unknown'
-    const fileName = restoreFile.name
+    const isLocal = !!selectedLocalBackupId && !restoreFile
+    const localBackup = isLocal
+      ? backupCapabilities?.localBackups?.find(b => b.backupId === selectedLocalBackupId)
+      : undefined
+    const fileName = isLocal ? (localBackup?.backupId ?? selectedLocalBackupId) : (restoreFile?.name ?? '')
+    const fileSize = isLocal
+      ? (localBackup ? (localBackup.size / 1024 / 1024).toFixed(1) : 'Unknown')
+      : (restoreFile?.size ? (restoreFile.size / 1024 / 1024).toFixed(1) : 'Unknown')
 
     openConfirmModal(
       'Restore Database',
       <div className="space-y-3">
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs space-y-1 text-red-800">
           <p className="font-semibold text-red-700 uppercase tracking-wide text-[10px]">Warning — this will overwrite your current database</p>
-          <p><span className="font-medium">File:</span> {fileName}</p>
+          <p><span className="font-medium">{isLocal ? 'Backup' : 'File'}:</span> {fileName}</p>
           <p><span className="font-medium">Size:</span> {fileSize} MB</p>
         </div>
         <p className="text-sm text-slate-600">Make sure you have a recent backup before proceeding. This operation cannot be undone.</p>
@@ -409,52 +416,59 @@ const AdminPanel: React.FC = () => {
       async () => {
         setBackupLoading(true)
     try {
-      const formData = new FormData()
-      
-      // Handle both regular File objects and our mock file objects with paths
-      if ((restoreFile as ElectronFile).path) {
-        // This is a file selected through Electron dialog
-        // We need to read the file and create a proper File object
-        if (window.electronAPI?.readFile) {
-          try {
-            const fileBuffer = await window.electronAPI.readFile((restoreFile as ElectronFile).path)
-            const blob = new Blob([new Uint8Array(fileBuffer as unknown as ArrayBuffer)])
-            const file = new File([blob], restoreFile.name, { type: 'application/octet-stream' })
-            formData.append('backupFile', file)
-          } catch (err) {
-            console.error('Error reading file:', err)
-            showToast('Error reading the backup file. Please try again.', 'error')
+      let result: ApiResponse<any>
+
+      if (isLocal) {
+        // Local backup — server already has the files, no upload needed.
+        result = await ApiClient.postJson('/AdminSettings/backup/restore-local', {
+          backupId: selectedLocalBackupId,
+          newConnectionString: newConnectionString.trim() || null
+        })
+      } else {
+        // Imported file from native dialog — upload as multipart.
+        const formData = new FormData()
+
+        if (restoreFile && (restoreFile as ElectronFile).path) {
+          if (window.electronAPI?.readFile) {
+            try {
+              const fileBuffer = await window.electronAPI.readFile((restoreFile as ElectronFile).path)
+              const blob = new Blob([new Uint8Array(fileBuffer as unknown as ArrayBuffer)])
+              const file = new File([blob], restoreFile.name, { type: 'application/octet-stream' })
+              formData.append('backupFile', file)
+            } catch (err) {
+              console.error('Error reading file:', err)
+              showToast('Error reading the backup file. Please try again.', 'error')
+              return
+            }
+          } else {
+            showToast('File access not available. Use a standard file browser.', 'warning')
             return
           }
-        } else {
-          showToast('File access not available. Use a standard file browser.', 'warning')
-          return
+        } else if (restoreFile) {
+          formData.append('backupFile', restoreFile)
         }
-      } else {
-        // This is a regular File object from file input
-        formData.append('backupFile', restoreFile)
-      }
-      
-      if (newConnectionString.trim()) {
-        formData.append('newConnectionString', newConnectionString.trim())
+
+        if (newConnectionString.trim()) {
+          formData.append('newConnectionString', newConnectionString.trim())
+        }
+
+        const response = await ApiClient.request('/AdminSettings/backup/restore', {
+          method: 'POST',
+          body: formData,
+          headers: {}
+        })
+        result = await response.json()
       }
 
-      const response = await ApiClient.request('/AdminSettings/backup/restore', {
-        method: 'POST',
-        body: formData,
-        headers: {} // Let ApiClient handle FormData headers
-      })
-      
-      const result: ApiResponse<any> = await response.json()
-      
       if (result.success) {
         await loadAdminSettings()
         await loadBackupCapabilities()
-        showToast('Database restored successfully from ' + result.data.backupFile, 'success')
+        showToast('Database restored successfully from ' + (result.data?.backupFile ?? fileName), 'success')
         setRestoreFile(null)
+        setSelectedLocalBackupId('')
         setNewConnectionString('')
       } else {
-        showToast('Restore failed. Check the backup file and try again.', 'error')
+        showToast('Restore failed. Check the backup and try again.', 'error')
       }
     } catch (error) {
       console.error('Error restoring database:', error)
@@ -519,9 +533,12 @@ const AdminPanel: React.FC = () => {
   const handleSelectBackupFile = async () => {
     try {
       if (window.electronAPI?.showOpenDialog) {
+        // This path is only for importing a backup from somewhere else
+        // (another machine, a USB drive). Local backups are handled by the
+        // dropdown above, so we don't try to set a defaultPath here — GTK /
+        // xdg-desktop-portal ignores it inconsistently anyway.
         const result = await window.electronAPI.showOpenDialog({
           title: 'Select Backup File',
-          defaultPath: './BMS_POS_API/backups', // Start in the API backups folder (relative to project root)
           filters: [
             { name: 'Backup Files', extensions: ['backup', 'sql'] },
             { name: 'All Files', extensions: ['*'] }
@@ -790,30 +807,12 @@ const AdminPanel: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {/* ── System Performance ────────────────────────────────── */}
+              {/* ── Display ─────────────────────────────────────────────── */}
               <Card className="border-slate-200 shadow-sm overflow-hidden">
                 <CardContent className="p-5">
-                  <SectionHeader icon={Activity} label="System Performance" color="emerald" />
+                  <SectionHeader icon={Activity} label="Display" color="emerald" />
 
                   <div className="space-y-4">
-                    {/* Log level */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-500" />
-                        <label className="text-sm font-medium text-slate-700">Log Level</label>
-                      </div>
-                      <StyledSelect
-                        value={adminSettings.logLevel}
-                        onChange={v => setAdminSettings({...adminSettings, logLevel: v})}
-                        hint="Higher levels provide more detail but may affect performance"
-                      >
-                        <option value="error">Error — Critical errors only</option>
-                        <option value="warning">Warning — Errors and warnings</option>
-                        <option value="info">Info — Normal operation (recommended)</option>
-                        <option value="debug">Debug — Detailed diagnostics</option>
-                      </StyledSelect>
-                    </div>
-
                     {/* Toggles */}
                     <div className="space-y-3">
                       <ToggleRow
@@ -822,20 +821,6 @@ const AdminPanel: React.FC = () => {
                         onChange={toggleCursor}
                         label="Show Cursor"
                         sub="Enable mouse cursor — disable for touch-only terminals"
-                      />
-                      <ToggleRow
-                        id="performanceMetrics"
-                        checked={adminSettings.performanceMetricsEnabled}
-                        onChange={v => setAdminSettings({...adminSettings, performanceMetricsEnabled: v})}
-                        label="Performance Metrics"
-                        sub="Collect system-wide performance telemetry"
-                      />
-                      <ToggleRow
-                        id="cacheEnabled"
-                        checked={adminSettings.cacheEnabled}
-                        onChange={v => setAdminSettings({...adminSettings, cacheEnabled: v})}
-                        label="Data Caching"
-                        sub="Cache frequently accessed data to improve response times"
                       />
                     </div>
 
@@ -1035,7 +1020,29 @@ const AdminPanel: React.FC = () => {
                           <span className="text-sm font-semibold text-slate-700">Restore Database</span>
                         </div>
 
+                        {(backupCapabilities?.localBackups?.length ?? 0) > 0 && (
+                          <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1.5 block">Restore from local backup</label>
+                            <StyledSelect
+                              value={selectedLocalBackupId}
+                              onChange={v => {
+                                setSelectedLocalBackupId(v)
+                                if (v) setRestoreFile(null)
+                              }}
+                              hint="Backups created on this machine — no file upload needed"
+                            >
+                              <option value="">— Select a backup —</option>
+                              {backupCapabilities?.localBackups?.map(b => (
+                                <option key={b.backupId} value={b.backupId}>
+                                  {b.backupId} · {(b.size / 1024 / 1024).toFixed(1)} MB · {new Date(b.createdAt).toLocaleString()}
+                                </option>
+                              ))}
+                            </StyledSelect>
+                          </div>
+                        )}
+
                         <div>
+                          <label className="text-xs font-medium text-slate-600 mb-1.5 block">Or import a backup file</label>
                           <Button type="button" variant="outline" onClick={handleSelectBackupFile} className="gap-2 text-[hsl(215,65%,30%)] border-[hsl(215,65%,30%)]/30 hover:bg-slate-100">
                             <FolderOpen className="w-4 h-4" /> Browse Backup Files
                           </Button>
@@ -1046,7 +1053,7 @@ const AdminPanel: React.FC = () => {
                               {restoreFile.size > 0 && <span className="text-slate-400 flex-shrink-0">({(restoreFile.size / 1024 / 1024).toFixed(1)} MB)</span>}
                             </div>
                           ) : (
-                            <p className="text-xs text-slate-400 mt-1.5">Supports .backup and .sql files</p>
+                            <p className="text-xs text-slate-400 mt-1.5">Supports .backup and .sql files — for importing from another machine or USB</p>
                           )}
                         </div>
 
@@ -1066,7 +1073,7 @@ const AdminPanel: React.FC = () => {
                         <div className="flex gap-2 pt-1">
                           <Button
                             onClick={handleRestoreBackup}
-                            disabled={backupLoading || !restoreFile}
+                            disabled={backupLoading || (!restoreFile && !selectedLocalBackupId)}
                             className="bg-red-600 hover:bg-red-700 text-white gap-2"
                           >
                             {backupLoading
@@ -1074,8 +1081,8 @@ const AdminPanel: React.FC = () => {
                               : <><ArchiveRestore className="w-4 h-4" /> Restore Database</>
                             }
                           </Button>
-                          {restoreFile && (
-                            <Button variant="outline" size="sm" onClick={() => { setRestoreFile(null); setNewConnectionString('') }}>
+                          {(restoreFile || selectedLocalBackupId) && (
+                            <Button variant="outline" size="sm" onClick={() => { setRestoreFile(null); setSelectedLocalBackupId(''); setNewConnectionString('') }}>
                               Clear
                             </Button>
                           )}

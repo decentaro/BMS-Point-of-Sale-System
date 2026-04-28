@@ -3,6 +3,7 @@ using System;
 using BMS_POS_API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BMS_POS_API.Migrations
 {
     [DbContext(typeof(BmsPosDbContext))]
-    partial class BmsPosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260411055241_DropAdminSettingsDeadToggles")]
+    partial class DropAdminSettingsDeadToggles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -58,6 +61,10 @@ namespace BMS_POS_API.Migrations
 
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LogLevel")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int>("MaxFailedLoginAttempts")
                         .HasColumnType("integer");
@@ -923,12 +930,25 @@ namespace BMS_POS_API.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("DecimalSeparator")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("DefaultPaymentMethod")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("DefaultReceiptEmail")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EmailReceiptEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("EnableReturns")
                         .HasColumnType("boolean");
+
+                    b.Property<double>("FontScaling")
+                        .HasColumnType("double precision");
 
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("timestamp with time zone");
@@ -941,6 +961,10 @@ namespace BMS_POS_API.Migrations
 
                     b.Property<int>("ReceiptCopies")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ReceiptFontSize")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("ReceiptFooterText")
                         .HasColumnType("text");
@@ -960,6 +984,9 @@ namespace BMS_POS_API.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("RequireManagerApprovalForReturns")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequireReceiptForReturns")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("RestockReturnedItems")
@@ -994,6 +1021,10 @@ namespace BMS_POS_API.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Theme")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThousandsSeparator")
                         .IsRequired()
                         .HasColumnType("text");
 

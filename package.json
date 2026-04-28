@@ -15,7 +15,15 @@
     "display2": "npm run build-react && electron . --no-sandbox --display=2",
     "build": "npm run build-react && electron-builder",
     "pack": "npm run build-react && electron-builder --dir",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "E2E_HEADED=true playwright test",
+    "test:e2e:seed": "bash scripts/seed-e2e.sh",
+    "typecheck": "tsc --noEmit",
+    "generate-types": "bash scripts/generate-types.sh"
   },
   "keywords": [
     "pos",
@@ -26,14 +34,22 @@
   "author": "Marc",
   "license": "ISC",
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/postcss": "^4.1.12",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^4.1.4",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.0",
     "electron": "^37.3.0",
     "electron-reload": "^2.0.0-alpha.1",
+    "jsdom": "^29.0.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.12",
+    "vitest": "^4.1.4",
     "wait-on": "^8.0.4"
   },
   "dependencies": {

@@ -180,6 +180,13 @@ namespace BMS_POS_API.Controllers
                     return BadRequest("Returns system is disabled.");
                 }
 
+                // Enforce defective-return policy
+                if (!systemSettings.AllowDefectiveItemReturns &&
+                    request.ReturnItems.Any(i => string.Equals(i.Condition, "defective", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return BadRequest("Defective item returns are disabled in system settings.");
+                }
+
                 // Check return time limit
                 if (systemSettings.ReturnTimeLimitDays > 0)
                 {
@@ -365,7 +372,7 @@ namespace BMS_POS_API.Controllers
 
                 return CreatedAtAction(nameof(GetReturn), new { id = returnRecord.Id }, completedReturn);
             }
-            catch (PostgresException pg) when (pg.SqlState == "40001")
+            catch (Exception ex) when (GetPgException(ex)?.SqlState == "40001")
             {
                 return Conflict("Return could not be processed due to a concurrent update. Please try again.");
             }
@@ -373,6 +380,16 @@ namespace BMS_POS_API.Controllers
             {
                 return StatusCode(500, "An unexpected error occurred. Please try again.");
             }
+        }
+
+        private static Npgsql.PostgresException? GetPgException(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (current is Npgsql.PostgresException pg)
+                    return pg;
+            }
+            return null;
         }
     }
 
