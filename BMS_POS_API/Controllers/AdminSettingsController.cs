@@ -611,7 +611,7 @@ namespace BMS_POS_API.Controllers
                 
                 // Use the same secure configuration service that Program.cs uses
                 var secureConfig = new SecureConfigurationService();
-                var connectionStringTemplate = _configuration.GetConnectionString("DefaultConnection");
+                var connectionStringTemplate = _configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
                 var connectionString = secureConfig.ProcessConnectionString(connectionStringTemplate);
                 
                 _logger.LogInformation("Using secure configuration to process connection string for database clearing");

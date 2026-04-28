@@ -53,7 +53,7 @@ namespace BMS_POS_API.Tests.Services
             var userName = "Test User";
             var action = "Test Action";
             var actionType = "Test Type";
-            string details = null;
+            string? details = null;
             var ipAddress = "192.168.1.1";
 
             // Act
@@ -80,7 +80,7 @@ namespace BMS_POS_API.Tests.Services
             var action = "Test Action";
             var actionType = "Test Type";
             var details = "Test Details";
-            string ipAddress = null;
+            string? ipAddress = null;
 
             // Act
             await _service.LogActivityAsync(userId, userName, action, details, null, null, actionType, ipAddress);

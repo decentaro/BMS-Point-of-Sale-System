@@ -244,8 +244,8 @@ namespace BMS_POS_API.Tests.Integration
             // Assert
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
-            var employees = JsonSerializer.Deserialize<JsonElement[]>(content);
-            
+            var employees = JsonSerializer.Deserialize<JsonElement[]>(content)!;
+
             Assert.Equal(2, employees.Length);
             Assert.Contains(employees, e => 
                 e.TryGetProperty("employeeId", out var id) && 
@@ -313,8 +313,8 @@ namespace BMS_POS_API.Tests.Integration
             // Assert
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
-            var products = JsonSerializer.Deserialize<JsonElement[]>(content);
-            
+            var products = JsonSerializer.Deserialize<JsonElement[]>(content)!;
+
             Assert.Equal(2, products.Length);
             Assert.Contains(products, p => 
                 p.TryGetProperty("barcode", out var barcode) && 

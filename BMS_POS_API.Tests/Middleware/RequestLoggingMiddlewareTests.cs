@@ -55,7 +55,7 @@ namespace BMS_POS_API.Tests.Middleware
             await mw.InvokeAsync(ctx);
 
             ctx.Items["RequestId"].Should().NotBeNull();
-            ctx.Items["RequestId"].ToString().Should().HaveLength(8);
+            ctx.Items["RequestId"]!.ToString().Should().HaveLength(8);
         }
 
         [Fact]

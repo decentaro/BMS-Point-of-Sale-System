@@ -144,6 +144,7 @@ namespace BMS_POS_API.Tests.Controllers
 
             // Verify the employee was updated
             var employee = Context.Employees.Find(1);
+            Assert.NotNull(employee);
             Assert.Equal("Updated Test Manager", employee.Name);
             Assert.Equal("Manager", employee.Role);
 

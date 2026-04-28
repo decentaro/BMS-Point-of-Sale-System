@@ -54,7 +54,7 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'dotnet run --project BMS_POS_API --no-build',
+      command: 'dotnet run --project BMS_POS_API --no-build --configuration Release',
       url: 'http://localhost:5002/health/live',
       reuseExistingServer: true,
       timeout: 60_000,

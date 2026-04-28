@@ -52,7 +52,7 @@ namespace BMS_POS_API.Controllers
 
                 return Ok(response);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, "An unexpected error occurred. Please try again.");
             }
@@ -97,7 +97,7 @@ namespace BMS_POS_API.Controllers
 
                 return Ok(summary);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, "An unexpected error occurred. Please try again.");
             }

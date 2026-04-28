@@ -177,7 +177,7 @@ namespace BMS_POS_API.Controllers
                 var relativePath = $"/uploads/{fileName}";
                 return Ok(new { filePath = relativePath });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, "An unexpected error occurred. Please try again.");
             }
@@ -192,7 +192,7 @@ namespace BMS_POS_API.Controllers
                 var businessTime = DateTime.UtcNow;
                 return Ok(new { businessTime = businessTime.ToString("yyyy-MM-ddTHH:mm:ss.fff") });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, "An unexpected error occurred. Please try again.");
             }

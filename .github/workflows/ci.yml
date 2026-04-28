@@ -102,6 +102,16 @@ jobs:
           --configuration Release
           --filter "FullyQualifiedName~Integration.Postgres"
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=integration-results.trx"
+          --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: TestResults/integration-results.trx
+          retention-days: 7
 
   # ── 4. E2E tests (Playwright) ─────────────────────────────────────────────
   e2e:
