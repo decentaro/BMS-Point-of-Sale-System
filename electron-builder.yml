@@ -1,0 +1,54 @@
+appId: com.bms.pos
+productName: BMS Point of Sale
+copyright: Copyright © 2026 BMS
+
+directories:
+  buildResources: build
+  output: dist
+
+files:
+  - src/electron/**/*
+  - dist-react/**/*
+  - package.json
+
+# The .NET API runs as a separate process; only the Electron shell is packaged.
+extraResources: []
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+        - arm64
+  category: Office
+  icon: build/icon.png
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.icns
+  # hardenedRuntime disabled so the app can open USB device nodes directly
+  hardenedRuntime: false
+  gatekeeperAssess: false
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+dmg:
+  background: null
+  window:
+    width: 540
+    height: 380

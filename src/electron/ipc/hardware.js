@@ -40,6 +40,7 @@ function sanitizeForPrinter(text) {
  * Find the first available thermal printer device.
  * Linux/RPi: checks /dev/usb/lp* and /dev/lp* directly — zero config, no CUPS needed.
  * Windows:   queries installed printers via PowerShell, preferring known thermal/POS models.
+ * macOS:     queries CUPS via lpstat -v, preferring USB-attached printers.
  * Returns { device, name, platform } or null if nothing found.
  */
 function findPrinterDevice() {
@@ -74,6 +75,28 @@ function findPrinterDevice() {
         } catch { return null }
     }
 
+    if (process.platform === 'darwin') {
+        try {
+            const { execFileSync } = require('child_process')
+            // lpstat -v lists all CUPS queues with their device URIs
+            const out = execFileSync('lpstat', ['-v'], {
+                encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'ignore']
+            }).trim()
+            if (!out) return null
+            const thermalRe = /thermal|pos|receipt|epson|star|bixolon|citizen|tsp\d|tm-|srp-\d/i
+            const lines = out.split('\n').filter(l => l.trim())
+            // Prefer USB-attached printers, then fall back to any queue
+            const usbLine = lines.find(l => l.includes('usb://'))
+            const thermalLine = lines.find(l => thermalRe.test(l))
+            const chosen = thermalLine || usbLine || lines[0]
+            if (!chosen) return null
+            // "device for <queue-name>: usb://..." → extract queue name
+            const match = chosen.match(/device for ([^:]+):/)
+            const queueName = match ? match[1].trim() : chosen.split(':')[0].replace('device for ', '').trim()
+            return { device: queueName, name: queueName, platform: 'darwin' }
+        } catch { return null }
+    }
+
     return null
 }
 
@@ -81,6 +104,7 @@ function findPrinterDevice() {
  * Send raw ESC/POS bytes to a printer.
  * Linux/RPi: writes directly to the device file — no CUPS, no spooler, no queue.
  * Windows:   uses PowerShell + Win32 spooler RAW datatype (bypasses GDI rendering).
+ * macOS:     writes to a temp file and submits via `lpr -P <queue> -l` (raw/passthrough mode).
  */
 async function sendRawToPrinter(printerInfo, data) {
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data, 'binary')
@@ -96,6 +120,26 @@ async function sendRawToPrinter(printerInfo, data) {
                 setTimeout(() => reject(new Error(`Printer write timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
             ),
         ])
+        return
+    }
+
+    if (printerInfo.platform === 'darwin') {
+        // lpr -l sends the file without any filtering (raw passthrough), which
+        // preserves ESC/POS bytes exactly as written. CUPS queues the job and
+        // forwards it to the USB printer driver unchanged.
+        const tempFile = path.join(require('os').tmpdir(), `bms_print_${require('crypto').randomUUID()}.bin`)
+        try {
+            await fs.promises.writeFile(tempFile, buf)
+            await new Promise((resolve, reject) => {
+                require('child_process').execFile(
+                    'lpr', ['-P', printerInfo.device, '-l', tempFile],
+                    { timeout: 15000 },
+                    (err) => err ? reject(err) : resolve()
+                )
+            })
+        } finally {
+            try { await fs.promises.unlink(tempFile) } catch {}
+        }
         return
     }
 
@@ -178,6 +222,24 @@ function register(ipcMain, apiConfigManager) {
                 for (const name of devices) {
                     if (SCANNER_NAME_KEYWORDS.some(kw => (name || '').toLowerCase().includes(kw))) {
                         return { active: true, lastScan: new Date().toLocaleTimeString(), description: `Scanner: ${name}` }
+                    }
+                }
+                return { active: false, lastScan: null, description: 'No barcode scanner detected' }
+            }
+
+            if (process.platform === 'darwin') {
+                // system_profiler SPUSBDataType outputs a human-readable USB device tree
+                const out = await execAsync('system_profiler', ['SPUSBDataType'], {
+                    encoding: 'utf8', timeout: 8000, stdio: ['pipe', 'pipe', 'ignore']
+                })
+                for (const line of out.split('\n')) {
+                    const lower = line.toLowerCase()
+                    const vidMatch = line.match(/Vendor ID:\s*0x([0-9a-f]{4})/i)
+                    if (vidMatch && SCANNER_VENDOR_IDS.has(vidMatch[1].toLowerCase())) {
+                        return { active: true, lastScan: new Date().toLocaleTimeString(), description: `Scanner detected (VID: ${vidMatch[1]})` }
+                    }
+                    if (SCANNER_NAME_KEYWORDS.some(kw => lower.includes(kw))) {
+                        return { active: true, lastScan: new Date().toLocaleTimeString(), description: `Scanner: ${line.trim()}` }
                     }
                 }
                 return { active: false, lastScan: null, description: 'No barcode scanner detected' }
