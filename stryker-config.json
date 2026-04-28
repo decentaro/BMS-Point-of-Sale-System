@@ -1,0 +1,26 @@
+{
+  "$schema": "https://stryker-mutator.io/schemas/stryker-config.json",
+  "projectFile": "BMS_POS_API/BMS_POS_API.csproj",
+  "testRunner": "dotnet",
+  "solution": "BMS_POS_API.sln",
+  "reporters": ["html", "progress"],
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": 50
+  },
+  "targetFramework": "net8.0",
+  "mutate": [
+    "BMS_POS_API/Services/PinSecurityService.cs",
+    "BMS_POS_API/Services/LoginLockoutService.cs",
+    "BMS_POS_API/Services/UserActivityService.cs",
+    "BMS_POS_API/Services/JwtSecretHolder.cs",
+    "BMS_POS_API/Services/TokenDenylistService.cs"
+  ],
+  "testProjects": [
+    "BMS_POS_API.Tests/BMS_POS_API.Tests.csproj"
+  ],
+  "dotnet": {
+    "additionalArguments": "--filter FullyQualifiedName!~Integration.Postgres"
+  }
+}

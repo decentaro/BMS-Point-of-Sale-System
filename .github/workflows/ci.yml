@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── 1. Frontend unit tests + type check ───────────────────────────────────
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+  # ── 2. Backend unit tests (in-memory DB, no Postgres required) ────────────
+  backend-unit:
+    name: Backend — Unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore BMS_POS_API.Tests/BMS_POS_API.Tests.csproj
+
+      - name: Build
+        run: dotnet build BMS_POS_API.Tests/BMS_POS_API.Tests.csproj --no-restore --configuration Release
+
+      - name: Run unit + in-memory integration tests
+        # Excludes the Postgres-backed suite; everything else uses in-memory DB
+        run: >
+          dotnet test BMS_POS_API.Tests/
+          --no-build
+          --configuration Release
+          --filter "FullyQualifiedName!~Integration.Postgres"
+          --logger "console;verbosity=normal"
+
+  # ── 3. Backend integration tests (real Postgres) ──────────────────────────
+  backend-integration:
+    name: Backend — Integration (Postgres)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bms_test
+          POSTGRES_PASSWORD: bms_test
+          POSTGRES_DB: bms_pos_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      # PostgresFixture reads these to build its connection string
+      BMS_TEST_DB_HOST: localhost
+      BMS_TEST_DB_PORT: 5432
+      BMS_TEST_DB_USER: bms_test
+      BMS_TEST_DB_PASSWORD: bms_test
+      BMS_TEST_DB_NAME: bms_pos_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore BMS_POS_API.Tests/BMS_POS_API.Tests.csproj
+
+      - name: Build
+        run: dotnet build BMS_POS_API.Tests/BMS_POS_API.Tests.csproj --no-restore --configuration Release
+
+      - name: Run Postgres integration tests
+        run: >
+          dotnet test BMS_POS_API.Tests/
+          --no-build
+          --configuration Release
+          --filter "FullyQualifiedName~Integration.Postgres"
+          --logger "console;verbosity=normal"
+
+  # ── 4. E2E tests (Playwright) ─────────────────────────────────────────────
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    # Only run E2E when DB secrets are available (skip on forks without secrets)
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+
+    env:
+      BMS_DB_USER: ${{ secrets.BMS_DB_USER }}
+      BMS_DB_PASSWORD: ${{ secrets.BMS_DB_PASSWORD }}
+      BMS_DB_SERVER: ${{ secrets.BMS_DB_SERVER }}
+      BMS_DB_PORT: ${{ secrets.BMS_DB_PORT }}
+      BMS_DB_NAME: ${{ secrets.BMS_DB_NAME }}
+      E2E_START_SERVERS: 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build API
+        run: dotnet build BMS_POS_API/BMS_POS_API.csproj --configuration Release
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          # Headed mode off in CI; screenshots/traces saved on failure
+          E2E_HEADED: 'false'
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
