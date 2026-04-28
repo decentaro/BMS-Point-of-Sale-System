@@ -458,3 +458,6 @@ logs/
 
 # Installation scripts
 dotnet-install.sh
+# Playwright
+test-results/
+playwright-report/
