@@ -39,14 +39,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: .NET info
-        run: dotnet --info
-
       - name: Restore
         run: dotnet restore BMS_POS_API.Tests/BMS_POS_API.Tests.csproj
 
       - name: Build
-        run: dotnet build BMS_POS_API.Tests/BMS_POS_API.Tests.csproj --no-restore --configuration Release --verbosity normal
+        run: dotnet build BMS_POS_API.Tests/BMS_POS_API.Tests.csproj --no-restore --configuration Release
 
       - name: Run unit + in-memory integration tests
         # Excludes the Postgres-backed suite; everything else uses in-memory DB
@@ -55,17 +52,7 @@ jobs:
           --no-build
           --configuration Release
           --filter "FullyQualifiedName!~Integration.Postgres"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=unit-results.trx"
-          --results-directory TestResults
-
-      - name: Upload unit test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results
-          path: TestResults/unit-results.trx
-          retention-days: 7
+          --logger "console;verbosity=normal"
 
   # ── 3. Backend integration tests (real Postgres) ──────────────────────────
   backend-integration:
@@ -94,9 +81,7 @@ jobs:
       BMS_TEST_DB_USER: bms_test
       BMS_TEST_DB_PASSWORD: bms_test
       BMS_TEST_DB_NAME: bms_pos_test
-      # PosApiFactory injects the connection string via ConfigureAppConfiguration, but
-      # Program.cs also reads it directly during health-check registration (before Build()).
-      # These env vars let ProcessConnectionString substitute correctly as a fallback.
+      # Also needed so Program.cs's ProcessConnectionString can substitute at startup
       BMS_DB_USER: bms_test
       BMS_DB_PASSWORD: bms_test
       BMS_DB_SERVER: localhost
@@ -110,10 +95,6 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Check Postgres connectivity
-        run: |
-          PGPASSWORD=bms_test psql -h localhost -U bms_test -d bms_pos_test -c "SELECT version();"
-
       - name: Restore
         run: dotnet restore BMS_POS_API.Tests/BMS_POS_API.Tests.csproj
 
@@ -126,17 +107,7 @@ jobs:
           --no-build
           --configuration Release
           --filter "FullyQualifiedName~Integration.Postgres"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=integration-results.trx"
-          --results-directory TestResults
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-results
-          path: TestResults/integration-results.trx
-          retention-days: 7
+          --logger "console;verbosity=normal"
 
   # ── 4. E2E tests (Playwright) ─────────────────────────────────────────────
   e2e:
