@@ -39,11 +39,14 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: .NET info
+        run: dotnet --info
+
       - name: Restore
         run: dotnet restore BMS_POS_API.Tests/BMS_POS_API.Tests.csproj
 
       - name: Build
-        run: dotnet build BMS_POS_API.Tests/BMS_POS_API.Tests.csproj --no-restore --configuration Release
+        run: dotnet build BMS_POS_API.Tests/BMS_POS_API.Tests.csproj --no-restore --configuration Release --verbosity normal
 
       - name: Run unit + in-memory integration tests
         # Excludes the Postgres-backed suite; everything else uses in-memory DB
@@ -52,7 +55,17 @@ jobs:
           --no-build
           --configuration Release
           --filter "FullyQualifiedName!~Integration.Postgres"
-          --logger "console;verbosity=normal"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=unit-results.trx"
+          --results-directory TestResults
+
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: TestResults/unit-results.trx
+          retention-days: 7
 
   # ── 3. Backend integration tests (real Postgres) ──────────────────────────
   backend-integration:
