@@ -94,6 +94,14 @@ jobs:
       BMS_TEST_DB_USER: bms_test
       BMS_TEST_DB_PASSWORD: bms_test
       BMS_TEST_DB_NAME: bms_pos_test
+      # PosApiFactory injects the connection string via ConfigureAppConfiguration, but
+      # Program.cs also reads it directly during health-check registration (before Build()).
+      # These env vars let ProcessConnectionString substitute correctly as a fallback.
+      BMS_DB_USER: bms_test
+      BMS_DB_PASSWORD: bms_test
+      BMS_DB_SERVER: localhost
+      BMS_DB_PORT: "5432"
+      BMS_DB_NAME: bms_pos_test
 
     steps:
       - uses: actions/checkout@v4
