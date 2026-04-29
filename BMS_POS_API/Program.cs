@@ -185,7 +185,7 @@ using (var scope = app.Services.CreateScope())
     var providerName = context.Database.ProviderName ?? "";
     if (!providerName.Contains("InMemory"))
     {
-        context.Database.Migrate(); // This applies pending migrations
+        await context.Database.MigrateAsync();
         await context.EnableRealTimeForAllTablesAsync();
     }
     else
