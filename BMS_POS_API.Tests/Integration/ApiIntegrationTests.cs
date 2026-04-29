@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Text;
@@ -29,6 +30,16 @@ namespace BMS_POS_API.Tests.Integration
                     {
                         services.Remove(service);
                     }
+
+                    // Remove the EF Core IDbContextOptionsConfiguration<BmsPosDbContext> registered by
+                    // Program.cs's AddDbContext call. That lambda creates a NpgsqlConnectionStringBuilder
+                    // that reads BMS_DB_PORT at request time — causing an ArgumentException (→ 400) if a
+                    // parallel test has temporarily cleared that env var.
+                    var optionsConfigs = services
+                        .Where(s => s.ServiceType == typeof(IDbContextOptionsConfiguration<BmsPosDbContext>))
+                        .ToList();
+                    foreach (var s in optionsConfigs)
+                        services.Remove(s);
 
                     // Remove all health check related services (including hosted publisher)
                     // then re-add a simple no-DB health check for tests
