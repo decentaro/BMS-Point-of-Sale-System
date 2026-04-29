@@ -102,6 +102,10 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Check Postgres connectivity
+        run: |
+          PGPASSWORD=bms_test psql -h localhost -U bms_test -d bms_pos_test -c "SELECT version();"
+
       - name: Restore
         run: dotnet restore BMS_POS_API.Tests/BMS_POS_API.Tests.csproj
 
@@ -114,7 +118,7 @@ jobs:
           --no-build
           --configuration Release
           --filter "FullyQualifiedName~Integration.Postgres"
-          --logger "console;verbosity=normal"
+          --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=integration-results.trx"
           --results-directory TestResults
 
@@ -165,10 +169,15 @@ jobs:
         run: dotnet build BMS_POS_API/BMS_POS_API.csproj --configuration Release
 
       - name: Run E2E tests
+        if: env.BMS_DB_SERVER != ''
         run: npm run test:e2e
         env:
           # Headed mode off in CI; screenshots/traces saved on failure
           E2E_HEADED: 'false'
+
+      - name: Skip notice (no DB secrets)
+        if: env.BMS_DB_SERVER == ''
+        run: echo "::warning::E2E tests skipped — BMS_DB_SERVER secret not configured in this repository."
 
       - name: Upload Playwright report
         if: always()
