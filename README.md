@@ -22,9 +22,13 @@ A full-stack Point-of-Sale system built for retail kiosks — Electron desktop a
 ![Employees](docs/screenshots/06-employees.png)
 *Add, edit, deactivate, and reset PINs — role badges for Manager / Cashier / Inventory*
 
+### Basic Inventory
+![Basic Inventory](docs/screenshots/07-basic-inventory.png)
+*Product catalogue — add, edit, pricing, stock levels, and images*
+
 ### Advanced Inventory
-![Inventory](docs/screenshots/07-inventory.png)
-*Stock adjustments, inventory counts, and batch tracking*
+![Advanced Inventory](docs/screenshots/08-advanced-inventory.png)
+*Stock adjustments, expiring products, and physical counting*
 
 ### Sales History
 ![Sales History](docs/screenshots/08-sales-history.png)
@@ -61,6 +65,22 @@ A full-stack Point-of-Sale system built for retail kiosks — Electron desktop a
 ### Hardware Status
 ![Hardware Status](docs/screenshots/16-hardware-status.png)
 *Live connectivity for barcode scanner, thermal printer, cash drawer, and database*
+
+### Manager Page
+![Manager Page](docs/screenshots/18-manager-page.png)
+*Manager home — quick access to all management and configuration screens*
+
+### Inventory Dashboard
+![Inventory Dashboard](docs/screenshots/19-inventory-dashboard.png)
+*Inventory role landing page — choose Basic or Advanced Inventory*
+
+### Cashier Dashboard
+![Cashier Dashboard](docs/screenshots/20-cashier-dashboard.png)
+*Cashier home — POS and sales history access*
+
+### Cashier Inventory
+![Cashier Inventory](docs/screenshots/21-cashier-inventory.png)
+*Inventory view for Cashier / Inventory roles*
 
 ---
 
