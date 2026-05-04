@@ -1,8 +1,9 @@
-const { app, BrowserWindow, Menu, screen, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, screen, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const fs = require('fs');
 const net = require('net');
+const { autoUpdater } = require('electron-updater');
 
 // API Configuration - Runtime configurable
 class ApiConfigManager {
@@ -213,6 +214,65 @@ class ApiProcessManager {
 
 const apiProcessManager = new ApiProcessManager()
 
+// ── Auto-updater ──────────────────────────────────────────────────────────────
+function setupAutoUpdater() {
+    if (!app.isPackaged) return  // skip in dev — no release channel to check
+
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+
+    autoUpdater.on('checking-for-update', () => {
+        console.log('[Updater] Checking for updates...')
+    })
+
+    autoUpdater.on('update-available', info => {
+        console.log('[Updater] Update available:', info.version)
+    })
+
+    autoUpdater.on('update-not-available', () => {
+        console.log('[Updater] Already up to date')
+    })
+
+    autoUpdater.on('download-progress', progress => {
+        console.log(`[Updater] Downloading... ${Math.round(progress.percent)}%`)
+    })
+
+    autoUpdater.on('update-downloaded', info => {
+        console.log('[Updater] Update downloaded:', info.version)
+        dialog.showMessageBox({
+            type: 'info',
+            title: 'Update Ready',
+            message: `BMS POS ${info.version} is ready to install.`,
+            detail: 'The update has been downloaded. Restart now to apply it, or wait until the next time you close the app.',
+            buttons: ['Restart Now', 'Later'],
+            defaultId: 0,
+            cancelId: 1,
+        }).then(({ response }) => {
+            if (response === 0) autoUpdater.quitAndInstall()
+        })
+    })
+
+    autoUpdater.on('error', err => {
+        console.error('[Updater] Error:', err.message)
+    })
+
+    // Check 10 seconds after launch so the window is fully loaded first,
+    // then every 4 hours while the app is running.
+    setTimeout(() => autoUpdater.checkForUpdates(), 10_000)
+    setInterval(() => autoUpdater.checkForUpdates(), 4 * 60 * 60 * 1000)
+}
+
+// ── Manual update check (IPC) ─────────────────────────────────────────────────
+ipcMain.handle('check-for-updates', async () => {
+    if (!app.isPackaged) return { message: 'Update checks disabled in dev mode' }
+    try {
+        await autoUpdater.checkForUpdates()
+        return { success: true }
+    } catch (err) {
+        return { success: false, error: err.message }
+    }
+})
+
 // Enable hot reload for development
 if (process.argv.includes('--dev')) {
     require('electron-reload')(path.join(__dirname, '..'), {
@@ -408,6 +468,7 @@ app.whenReady().then(async () => {
         Menu.setApplicationMenu(null);
     }
     apiProcessManager.start()
+    setupAutoUpdater()
     bmsApp.createWindow();
     connectivityMonitor.start()
 

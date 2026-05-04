@@ -58,25 +58,44 @@
       {
         "from": "resources/api",
         "to": "api",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["arm64", "x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
       "category": "Office",
       "icon": "build/icon.png"
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico"
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "icon": "build/icon.icns",
       "category": "public.app-category.business"
@@ -87,6 +106,11 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "BMS Point of Sale"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "decentaro",
+      "repo": "BMS-Point-of-Sale-System"
     }
   },
   "devDependencies": {
@@ -121,6 +145,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.3",
     "jsbarcode": "^3.12.1",
     "lucide-react": "^0.540.0",
     "node-fetch": "^3.3.2",

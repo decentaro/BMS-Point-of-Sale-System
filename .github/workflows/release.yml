@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # triggers on v1.0.0, v1.1.0, etc.
+
+jobs:
+  release-linux:
+    name: Build & Publish (Linux)
+    runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Publish .NET API (linux-arm64)
+        run: npm run build:api:linux-arm64
+
+      - name: Build & publish Linux AppImage
+        run: npm run build-react && npx electron-builder --linux --publish always
+
+  release-windows:
+    name: Build & Publish (Windows)
+    runs-on: windows-latest
+
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Publish .NET API (win-x64)
+        run: npm run build:api:win-x64
+
+      - name: Build & publish Windows NSIS installer
+        run: npm run build-react && npx electron-builder --win --publish always
