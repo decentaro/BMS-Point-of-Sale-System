@@ -1,69 +1,46 @@
-# Screen Optimization for 1024x640 Resolution
+# Screen Optimization
 
-## Window Configuration
-- **Fixed Size**: 1024x640 pixels (non-resizable)
-- **Content Area**: Uses `useContentSize: true` for precise sizing
-- **Frame**: Standard window frame included
+## Target Resolutions
 
-## Layout Optimizations
+The app is optimised for the following form factors:
 
-### Header Section
-- **Height**: 40px fixed
-- **Margins**: Reduced to 8px for tighter spacing
+| Target | Resolution | Notes |
+|--------|-----------|-------|
+| 10.1" kiosk | 1024 × 600 – 1366 × 768 | Primary deployment target |
+| Development desktop | Up to 1920 × 1080 | Windowed at 80% of display |
 
-### Main Content Grid
-- **Height**: `calc(100vh - 80px)` (accounts for header + status bar)
-- **Columns**: 
-  - Left panel: Flexible width for employee list
-  - Gap: 6px (reduced from 8px)
-  - Middle panel: 180px for employee form
-  - Gap: 6px 
-  - Right panel: 180px for keypad
+In production the Electron window fills the entire target display (fullscreen / kiosk mode). In development it opens at 80% of the display up to 1200 × 800, resizable, so you can inspect and test responsiveness.
 
-### Status Bar
-- **Height**: 24px fixed
-- **Margins**: 6px top margin
+## UI Stack
 
-## Panel-Specific Optimizations
+The frontend is built with **Tailwind CSS 4 + shadcn/ui (Radix UI)**. Layout adapts to the viewport using Tailwind utility classes rather than fixed pixel sizes. There are no hardcoded panel dimensions.
 
-### Employee List Panel
-- **Scroll Height**: `calc(100% - 80px)` for proper scrolling
-- **Row Spacing**: Compact 2px margins between rows
-- **Font Sizes**: 11px for data, 10px for dates
+Key layout decisions:
+- Navigation sidebar is fixed-width on large viewports and collapses on small ones.
+- Product grids use `grid-cols-*` responsive classes.
+- All interactive elements meet the 44 × 44 px minimum touch target requirement.
+- `user-select: none` and `-webkit-tap-highlight-color: transparent` are applied globally for touch use.
 
-### Employee Form Panel
-- **Input Spacing**: 6px margins between form groups
-- **Button Grid**: 4px gaps between buttons
-- **Current Field**: Compact 8px bottom margin
+## Touch Optimisation
 
-### Keypad Panel
-- **Grid**: 4x10 layout with 1px gaps
-- **Font Sizes**: 11px for optimal touch targets
-- **Button Spacing**: Minimal gaps for maximum usability
+- Minimum button size: **44 × 44 px**
+- All numpad / PIN keys are oversized for finger accuracy.
+- No hover-only interactions — every action is reachable by tap.
+- Scrollable areas use `overflow-y: auto` with momentum scrolling (`-webkit-overflow-scrolling: touch`).
 
-### Login Page
-- **Card Width**: 360px (fits comfortably in 1024px)
-- **Keypad Height**: 160px (compact but usable)
-- **Button Sizes**: 14px font for keypad, 12px for actions
-- **Margins**: Reduced spacing throughout
+## Kiosk-Specific Settings (Production)
 
-## Touch Optimization
-- **Minimum Touch Targets**: 44px+ for all interactive elements
-- **Button Padding**: Optimized for finger taps
-- **Visual Feedback**: Hover/active states for all buttons
-
-## Responsive Behavior
-- **Fixed Layout**: No responsive breakpoints needed
-- **Overflow Handling**: Scrollable employee list only
-- **Content Clipping**: Prevented with proper sizing
+See [`KIOSK_MODE.md`](KIOSK_MODE.md) for the full configuration. In summary:
+- `frame: false` — no title bar
+- `fullscreen: true` / `kiosk: true` — fills the display
+- `alwaysOnTop: true` — prevents other windows from appearing on top
+- F12 / DevTools disabled
 
 ## Testing Checklist
-- [ ] All content visible without scrolling (except employee list)
-- [ ] Touch targets adequately sized
-- [ ] Text readable at all font sizes
-- [ ] No horizontal overflow
-- [ ] Consistent spacing throughout
-- [ ] Status messages fully visible
-- [ ] Form inputs properly sized
 
-This optimization ensures the BMS POS application fits perfectly on 1024x640 screens commonly used in POS environments and kiosks.
+- [ ] All content visible without horizontal scroll at 1024 × 600
+- [ ] Touch targets ≥ 44 px on every interactive element
+- [ ] Text readable at kiosk viewing distance (arm's length)
+- [ ] No overflow or clipping in product grid, employee list, receipt preview
+- [ ] POS numpad usable with finger — no keys cramped or overlapping
+- [ ] Modal dialogs centered and fully visible at minimum resolution

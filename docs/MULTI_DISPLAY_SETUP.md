@@ -1,112 +1,43 @@
-# Multi-Display Setup Guide
+# Multi-Display Setup
 
-## 🖥️ Your Detected Displays
+The app automatically selects the best display at startup and supports manual overrides for multi-monitor environments.
 
-Based on the console output, your system has **3 displays**:
+## Automatic Display Selection
 
-1. **Display 0**: 2654×1111 (Large monitor)
-2. **Display 1**: 2962×1666 (Primary large monitor) 
-3. **Display 2**: 790×495 (10.1" touch screen) ⭐ **AUTO-SELECTED**
+On startup, Electron scans all connected displays and picks one in this priority order:
 
-The app automatically chose **Display 2** (790×495) as it's the smallest and most likely your touch screen.
+1. `--display=N` command-line argument — overrides everything
+2. Smallest display ≤ 1366 × 768 — treated as the kiosk / touch screen
+3. Any non-primary display
+4. Primary display (fallback)
 
-## 🎯 Moving the App to Your Touch Screen
+In **development mode** (`--dev` flag) the window opens resizable at 80% of the target display (capped at 1200 × 800). In **production** it goes fullscreen / kiosk on the target display.
 
-### Method 1: Automatic (Default)
-```bash
-npm start    # Automatically goes to smallest display (Display 2)
-```
-
-### Method 2: Manual Display Selection
-```bash
-npm run display0    # Force to Display 0 (2654×1111)
-npm run display1    # Force to Display 1 (2962×1666) 
-npm run display2    # Force to Display 2 (790×495) - Your touch screen
-```
-
-### Method 3: Keyboard Shortcut (While App is Running)
-- **Ctrl+Shift+M** - Cycle between displays
-- Press it to move the window from one display to another
-
-### Method 4: Custom Display
-```bash
-# Target specific display by number
-electron . --no-sandbox --display=2    # Your touch screen
-electron . --no-sandbox --display=0    # Large monitor 1
-electron . --no-sandbox --display=1    # Large monitor 2
-```
-
-## 🔧 Quick Commands for Your Setup
-
-### Development on Touch Screen
-```bash
-npm run dev --display=2
-```
-
-### Production on Touch Screen (Kiosk Mode)
-```bash
-npm run display2    # Full kiosk mode on 790×495 display
-```
-
-### If App Goes to Wrong Display
-1. **Press Ctrl+Shift+M** to cycle displays
-2. **Or restart with**: `npm run display2`
-3. **Or drag window** to correct display (dev mode only)
-
-## ⚙️ Display Detection Logic
-
-The app automatically selects displays in this priority:
-
-1. **Command line** - `--display=N` overrides everything
-2. **Touch screen detection** - Displays ≤1366×768 pixels 
-3. **Secondary display** - Any non-primary display
-4. **Primary display** - Fallback to main monitor
-
-Your 790×495 display is automatically detected as a touch screen due to its small size.
-
-## 🎛️ Advanced Options
-
-### Force Specific Display
-```javascript
-// In main.js, you can also hardcode:
-const targetDisplay = displays[2]; // Always use display 2
-```
-
-### Debug Display Info
-```bash
-npm run dev    # Check console for "Available displays" info
-```
-
-## 🔍 Troubleshooting
-
-### App Not Appearing on Touch Screen
-1. **Check console output** - Look for "Auto-detected touch screen display"
-2. **Try manual selection** - `npm run display2`
-3. **Use keyboard shortcut** - Ctrl+Shift+M while app is running
-
-### Wrong Display Selected
-1. **Override auto-detection** - Use `npm run display2`
-2. **Check display order** - May change when displays are disconnected/reconnected
-
-### Touch Screen Not Detected
-If your 790×495 display isn't auto-selected:
-1. **Force it**: `npm run display2`
-2. **Check display bounds** in console output
-3. **Verify it's connected** and showing up in display list
-
-## 📋 Summary for Your Setup
-
-**Your 10.1" touch screen is Display 2** - Use these commands:
+## npm Scripts
 
 ```bash
-# Development with hot reload on touch screen
-npm run dev --display=2
-
-# Production kiosk mode on touch screen  
-npm run display2
-
-# Quick switch while running
-Ctrl+Shift+M
+npm run display0    # Force to display index 0
+npm run display1    # Force to display index 1
+npm run display2    # Force to display index 2
 ```
 
-The app should automatically appear on your 790×495 touch screen by default! 🎯
+Display indices are assigned by the OS in the order Electron enumerates them. Run `npm run dev` and check the console for a "Available displays" log to see which index maps to which screen.
+
+## Keyboard Shortcut
+
+**Ctrl+Shift+M** — cycle the window through all connected displays while the app is running.
+
+## Troubleshooting
+
+**App opened on the wrong display**
+- Press **Ctrl+Shift+M** to cycle to the correct screen.
+- Or restart with `npm run display2` (or whichever index is your kiosk screen).
+
+**Touch screen not auto-detected**
+- The auto-detection picks the smallest display. If two displays are the same size, use `npm run displayN` to force the right one.
+- Check the console for "Available displays" output to confirm bounds.
+
+**Debug display info**
+```bash
+npm run dev    # Console prints all detected display bounds on startup
+```

@@ -1,196 +1,187 @@
 # BMS Point of Sale System
 
-A comprehensive, full-stack Point-of-Sale (POS) system with advanced inventory, sales, and employee management features, built with Electron and .NET 8.
+A full-stack Point-of-Sale system built for retail kiosks — Electron desktop app, React/TypeScript frontend, .NET 8 API, and PostgreSQL (Supabase).
 
-> **⚠️ Development Status**: This project is currently under active development. Features and functionality may change as development progresses.
+---
 
 ## Screenshots
 
 ### Sign In
-![Sign In](screenshots/Sign_in.png)
-*PIN-based authentication with role selection*
-
-### Point of Sale
-![Point of Sale](screenshots/Point_Of_Sale.png)
-*Product scanning, cart management, and checkout*
-
-![Point of Sale - Cart View](screenshots/Point_of_Sale-1.png)
-*Multiple items in cart with payment options*
-
-![Point of Sale - Transaction Complete](screenshots/Point_of_Sale-2.png)
-*Receipt generation and change calculation*
+![Sign In](docs/screenshots/01-login.png)
+*PIN-based authentication with live clock and system status*
 
 ### Manager Dashboard
-![Manager Dashboard](screenshots/Manager_Dashboard.png)
-*Sales overview and quick actions*
+![Manager Dashboard](docs/screenshots/03-manager-dashboard.png)
+*Quick-action tiles for every workflow — POS, Inventory, Reports, and more*
 
-### Inventory
-![Inventory](screenshots/Inventory.png)
-*Product catalog with stock management*
-
-![Inventory - Product Details](screenshots/Inventory-1.png)
-*Edit product information and pricing*
-
-### Advanced Inventory Management
-![Advanced Inventory Management](screenshots/Advanced_Inventory_Management.png)
-*Batch tracking, expiration monitoring, and inventory counts*
-
-![Advanced Inventory - Batch Management](screenshots/Advanced_Inventory_Management-1.png)
-*Manage product batches with lot numbers and expiration dates*
-
-![Advanced Inventory - Stock Adjustments](screenshots/Advanced_Inventory_Management-2.png)
-*Inventory counts and stock adjustment tracking*
+### Point of Sale
+![Point of Sale](docs/screenshots/04-pos-empty.png)
+*Product grid with real-time stock badges, barcode search, and cart*
 
 ### Employee Management
-![Employee Management](screenshots/Employee_Management.png)
-*Add, edit, and manage employee accounts*
+![Employees](docs/screenshots/06-employees.png)
+*Add, edit, deactivate, and reset PINs — role badges for Manager / Cashier / Inventory*
 
-### Sales Reports
-![Sales Reports](screenshots/Sales_Reports.png)
-*Analytics and business insights*
+### Advanced Inventory
+![Inventory](docs/screenshots/07-inventory.png)
+*Stock adjustments, inventory counts, and batch tracking*
 
 ### Sales History
-![Sales History](screenshots/Sales_History.png)
-*Complete transaction history with search and filters*
+![Sales History](docs/screenshots/08-sales-history.png)
+*Full transaction log with search, time-period filter, and receipt reprint*
 
-![Sales History - Transaction Details](screenshots/Sales_History-1.png)
-*Detailed view of individual sales with line items*
+### Returns & Refunds
+![Returns](docs/screenshots/09-returns.png)
+*Process returns by transaction ID with manager-approval workflow*
 
-### Returns and Refunds
-![Returns and Refunds](screenshots/Returns_and_Refunds.png)
-*Process returns with manager approval workflow*
-
-### System Settings
-![System Settings](screenshots/System_Settings.png)
-*Configure date formats, payment methods, and receipt templates*
-
-![System Settings - Receipt Configuration](screenshots/System_Settings-1.png)
-*Customize receipt headers, footers, and layout*
-
-![System Settings - Return Policies](screenshots/System_Settings-2.png)
-*Configure return policies and approval thresholds*
-
-### Tax Settings
-![Tax Settings](screenshots/Tax_Settings.png)
-*Business information and tax rate configuration*
-
-### User Activity
-![User Activity](screenshots/User_Activity.png)
-*Audit trail of all user actions*
+### Sales Reports
+![Reports](docs/screenshots/10-reports.png)
+*Today / this week / this month breakdowns — revenue, transactions, tax, discounts*
 
 ### Admin Panel
-![Admin Panel](screenshots/Admin_Panel.png)
-*Hardware status, updates, and database management*
+![Admin Panel](docs/screenshots/11-admin-panel.png)
+*Hardware status, backup, security settings, and terminal configuration*
 
-![Admin Panel - Security Settings](screenshots/Admin_Panel-1.png)
-*Configure PIN security and login controls*
+### System Settings
+![System Settings](docs/screenshots/12-system-settings.png)
+*Date format, auto-logout, payment methods, receipt template*
 
-![Admin Panel - Database Backup](screenshots/Admin_Panel-2.png)
-*Database backup and restore functionality*
+### Tax Settings
+![Tax Settings](docs/screenshots/13-tax-settings.png)
+*Business info, primary tax rate, optional secondary tax, exemptions*
+
+### User Activity
+![User Activity](docs/screenshots/14-user-activity.png)
+*Complete audit trail — every login, sale, and configuration change*
+
+### Cash Session
+![Cash Session](docs/screenshots/15-cash-session.png)
+*Open / close cash drawer, variance tracking, Z-Report reconciliation*
+
+### Hardware Status
+![Hardware Status](docs/screenshots/16-hardware-status.png)
+*Live connectivity for barcode scanner, thermal printer, cash drawer, and database*
+
+---
 
 ## Tech Stack
 
 ### Frontend
-- **React 19.1.1** with TypeScript 5.9.2
-- **Vite 7.1.4** - Fast build tool with hot reload
-- **Tailwind CSS 4.1.12** - Utility-first styling
-- **shadcn/ui** - Pre-built components with Radix UI
-- **Electron 37.3.0** - Cross-platform desktop app
-- **React Router 6.30.1** - Client-side routing
+| | |
+|---|---|
+| **Electron 37.3.0** | Desktop shell, hardware IPC |
+| **React 19.1.1 + TypeScript 5.9.2** | UI layer |
+| **Vite 7.1.4** | Build tool with hot reload |
+| **Tailwind CSS 4.1.12** | Utility-first styling |
+| **shadcn/ui + Radix UI** | Accessible component library |
+| **React Router 6.30.1** | Hash-based client routing |
 
 ### Backend
-- **.NET 8.0** with ASP.NET Core
-- **Entity Framework Core 9.0** - ORM with migrations
-- **PostgreSQL** via Supabase (Npgsql 9.0.4)
-- **Serilog 9.0** - Structured JSON logging
-- **BCrypt.Net** - Secure PIN hashing
-- **Swagger/OpenAPI** - API documentation
+| | |
+|---|---|
+| **.NET 8.0 / ASP.NET Core** | REST API |
+| **Entity Framework Core 9.0** | ORM with auto-migrations |
+| **PostgreSQL via Supabase** | Npgsql 9.0.4 |
+| **Serilog 9.0** | Structured JSON logging |
+| **BCrypt.Net** | Secure PIN hashing (work factor 12) |
+| **JWT Bearer** | Stateless auth with token denylist |
+
+---
 
 ## Features
 
-### Core POS Functionality
-- **PIN-Based Authentication** - Role-based access (Manager/Cashier/Inventory)
-- **Sales Processing** - Multi-item transactions with tax, discounts, and change calculation
-- **Multiple Payment Methods** - Cash, Card, ETF/Digital
-- **Receipt Generation** - Print or preview with configurable templates
-- **Barcode Scanning** - Quick product lookup
+### Core POS
+- PIN-based login with role-based access (Manager / Cashier / Inventory)
+- Multi-item transactions — tax, discounts, change calculation
+- Cash, Card, and Digital payment methods
+- Thermal receipt printing (ESC/POS) with customisable templates
+- Barcode scanner auto-detection
 
-### Inventory Management
-- **Product Catalog** - Full CRUD with pricing, categories, and images
-- **Batch Tracking** - Lot numbers, expiration dates, and supplier info
-- **Stock Adjustments** - Manual corrections with audit trail
-- **Inventory Counts** - Full, cycle, spot, and annual counts with variance tracking
-- **Low Stock Alerts** - Configurable minimum stock levels
-- **Expiration Tracking** - Automatic expiry status monitoring
+### Inventory
+- Full product CRUD — pricing, stock levels, images
+- Batch tracking with lot numbers, expiration dates, supplier info
+- Manual stock adjustments with audit trail
+- Inventory counts (full, cycle, spot) with variance tracking
+- Low-stock alerts with configurable minimums
 
 ### Returns & Refunds
-- **Return Processing** - Link to original sale with reason tracking
-- **Manager Approval** - Optional approval for high-value returns
-- **Automatic Restocking** - Update inventory on approved returns
-- **Return Reasons** - Defective, Wrong Size, Changed Mind, etc.
+- Returns linked to original sale by transaction ID
+- Optional manager-approval threshold
+- Automatic stock restoration on approved returns
 
-### Analytics & Reporting
-- **Sales Summaries** - Today, week, month with trends
-- **Top Products** - Best sellers by quantity and revenue
-- **Payment Breakdown** - Analysis by payment method
-- **Tax Reports** - Tax collected summaries
-- **Employee Performance** - Sales metrics per employee
+### Reporting
+- Daily / weekly / monthly sales summaries
+- Top products by quantity and revenue
+- Payment method breakdown
+- Z-Report / cash reconciliation
 
 ### Administration
-- **Employee Management** - Add/edit/deactivate users with PIN reset
-- **System Settings** - Date formats, auto-logout, payment methods
-- **Tax Configuration** - Primary + optional secondary tax rates
-- **Receipt Templates** - Customizable layouts and paper sizes
-- **Audit Logging** - Complete user activity tracking
-- **Multi-Display Support** - Configure for multiple monitors
+- Employee management — add, edit, deactivate, reset PIN
+- System settings — date format, auto-logout, receipt layout
+- Tax settings — primary + optional secondary rate, exemptions
+- Full audit log — every action with user, timestamp, and IP
+- Hardware status dashboard
+
+### Security
+- BCrypt PIN hashing (automatic upgrade from legacy plaintext on first login)
+- JWT tokens with per-token denylist (revoked on logout)
+- Login lockout after repeated failed attempts (DB-persisted, survives restarts)
+- Claims enforcement middleware — headers overwritten with verified JWT claims
+- Rate limiting — 10 auth requests / 5 min per IP; 300 global requests / min per IP
+- Localhost-only CORS (Electron renderer)
+- `X-Terminal-Id` header scopes multi-terminal reporting
+
+---
 
 ## Project Structure
 
 ```
-BMS_POS/
+BMS-Point-of-Sale-System/
 ├── src/
-│   ├── frontend/              # React + TypeScript application
-│   │   ├── components/        # 25+ feature components
-│   │   │   ├── Login.tsx
-│   │   │   ├── POS.tsx
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── Inventory.tsx
-│   │   │   ├── Manager.tsx
-│   │   │   ├── Returns.tsx
-│   │   │   ├── Reports.tsx
-│   │   │   └── ui/           # shadcn/ui components
-│   │   ├── contexts/         # React Context for state
-│   │   ├── utils/            # API client, session manager
-│   │   └── App.tsx           # Main routing
-│   │
-│   └── electron/             # Electron main process
-│       ├── main.js           # Multi-display support
-│       └── preload.js        # IPC bridge
+│   ├── frontend/              # React + TypeScript app
+│   │   ├── components/        # 30+ feature components
+│   │   ├── contexts/          # Auth, session, connectivity
+│   │   ├── utils/             # API client, cache, offline queue
+│   │   └── App.tsx            # Routes
+│   └── electron/
+│       ├── main.js            # Electron main — window, multi-display, hardware
+│       ├── preload.js         # IPC bridge (electronAPI)
+│       └── ipc/hardware.js    # Printer, scanner, cash drawer detection
 │
-├── BMS_POS_API/              # .NET Core REST API
-│   ├── Controllers/          # 11 API endpoints
-│   ├── Models/               # 14 database entities
-│   ├── Services/             # Business logic
-│   ├── Middleware/           # Logging & error handling
-│   ├── Migrations/           # EF Core migrations
-│   └── Program.cs            # Auto-migration on startup
+├── BMS_POS_API/               # .NET 8 REST API
+│   ├── Controllers/           # 13 controllers
+│   ├── Models/                # EF Core entities
+│   ├── Services/              # Business logic
+│   ├── Middleware/            # Auth, logging, error handling, security headers
+│   ├── Migrations/            # EF Core migrations (auto-applied on startup)
+│   └── Program.cs
 │
-├── scripts/
-│   └── dev.sh                # Start all services
+├── BMS_POS_API.Tests/         # Test suite
+│   ├── Controllers/           # Unit tests (Moq + InMemory DB)
+│   ├── Services/              # Service unit tests
+│   ├── Middleware/            # Middleware unit tests
+│   ├── Validation/            # Business rule tests
+│   └── Integration/
+│       ├── ApiIntegrationTests.cs        # In-memory API integration tests
+│       └── Postgres/                     # Real-Postgres integration tests (157 tests)
 │
-├── .env                      # Environment variables (not committed)
-├── .env.example              # Template for .env
+├── tests/e2e/                 # Playwright end-to-end tests
+├── docs/                      # Documentation and screenshots
+├── .github/workflows/ci.yml   # CI: Frontend + Backend Unit + Integration + E2E
+├── .env.example               # Environment variable template
 └── package.json
 ```
+
+---
 
 ## Installation & Setup
 
 ### Prerequisites
-- **Node.js 18+**
+- **Node.js 20+**
 - **.NET 8.0 SDK**
-- **PostgreSQL 13+** or Supabase account
+- **PostgreSQL 13+** or a [Supabase](https://supabase.com) project
 
-### 1. Clone Repository
+### 1. Clone
 ```bash
 git clone https://github.com/decentaro/BMS-Point-of-Sale-System.git
 cd BMS-Point-of-Sale-System
@@ -202,15 +193,12 @@ npm install
 ```
 
 ### 3. Configure Environment
-
-Create `.env` file from template:
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your database credentials:
+Edit `.env`:
 ```bash
-# Database Configuration
 BMS_DB_USER=your_postgres_user
 BMS_DB_PASSWORD=your_password
 BMS_DB_SERVER=your_supabase_host
@@ -218,219 +206,210 @@ BMS_DB_PORT=5432
 BMS_DB_NAME=postgres
 ```
 
-### 4. Run Development Environment
-
-Single command to start everything:
+### 4. Start Development
 ```bash
 ./dev.sh
 ```
 
-This automatically:
-- Starts .NET API on `http://localhost:5002`
-- Starts Vite dev server on `http://localhost:3001`
-- Launches Electron desktop app
-- Applies database migrations
-- Creates default manager account
+This starts the .NET API (`localhost:5002`), Vite dev server (`localhost:3001`), and the Electron app. Database migrations are applied automatically on first run and a default manager account is created.
 
-### 5. Login
+### 5. First Login
+```
+Employee ID: 0001
+PIN: 1234
+```
+You will be prompted to change the PIN on first login.
 
-Default manager account (created automatically):
-- **Employee ID**: `0001`
-- **PIN**: `1234`
+---
 
 ## Available Scripts
 
-### Development
 ```bash
+# Development
 ./dev.sh              # Start everything (recommended)
-npm run dev           # Electron with DevTools
+npm run dev           # Electron + DevTools
 npm run dev-vite      # Vite dev server only
-```
 
-### Production
-```bash
-npm start             # Run built application
+# Build & Package
 npm run build-react   # Build React app
-npm run build         # Package Electron app
-```
+npm run build         # Package Electron app (AppImage / NSIS / DMG)
+npm run build:linux   # Linux ARM64 AppImage (Raspberry Pi)
 
-### Multi-Display
-```bash
+# Multi-Display
 npm run display0      # Primary display
 npm run display1      # Secondary display
 npm run display2      # Tertiary display
-npm run dev-touch     # Touch-enabled display
+
+# Testing
+npm test                   # Vitest unit tests
+npm run test:e2e           # Playwright E2E tests
+dotnet test BMS_POS_API.Tests/   # All backend tests
 ```
 
-## API Endpoints
+---
+
+## API Reference
 
 ### Authentication
-- `POST /api/auth/login` - PIN-based login
-- `POST /api/auth/validate-manager` - Manager validation
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/login` | PIN login — returns JWT |
+| `POST` | `/api/auth/logout` | Revoke token |
+| `POST` | `/api/auth/validate-manager` | Validate manager PIN for approval flows |
 
 ### Employees
-- `GET /api/employees` - List all employees
-- `POST /api/employees` - Create employee
-- `PUT /api/employees/{id}` - Update employee
-- `PUT /api/employees/{id}/reset-pin` - Reset PIN
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/employees` | List employees |
+| `POST` | `/api/employees` | Create employee |
+| `PUT` | `/api/employees/{id}` | Update employee |
+| `DELETE` | `/api/employees/{id}` | Deactivate employee |
+| `PUT` | `/api/employees/{id}/reset-pin` | Reset PIN |
 
 ### Products
-- `GET /api/products` - List products
-- `GET /api/products/barcode/{barcode}` - Scan barcode
-- `GET /api/products/low-stock` - Low stock alerts
-- `GET /api/products/expiring?days=30` - Expiring products
-- `POST /api/products` - Create product
-- `PUT /api/products/{id}` - Update product
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/products` | List products |
+| `GET` | `/api/products/{id}` | Get product |
+| `GET` | `/api/products/barcode/{barcode}` | Lookup by barcode |
+| `GET` | `/api/products/low-stock` | Low-stock list |
+| `POST` | `/api/products` | Create product |
+| `PUT` | `/api/products/{id}` | Update product |
+| `DELETE` | `/api/products/{id}` | Soft-delete product |
 
 ### Sales
-- `GET /api/sales` - List sales
-- `GET /api/sales/today` - Today's summary
-- `GET /api/sales/top-products` - Best sellers
-- `POST /api/sales` - Create sale
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/sales` | List sales (paginated) |
+| `GET` | `/api/sales/today` | Today's summary |
+| `GET` | `/api/sales/top-products` | Best sellers |
+| `POST` | `/api/sales` | Create sale (idempotent via `X-Idempotency-Key`) |
 
 ### Returns
-- `GET /api/returns` - List returns
-- `POST /api/returns` - Process return
-- `PUT /api/returns/{id}/approve` - Approve return
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/returns` | List returns |
+| `GET` | `/api/returns/summary` | Returns summary |
+| `GET` | `/api/returns/{id}` | Get return |
+| `POST` | `/api/returns` | Process return (manager PIN validated inline) |
 
-### Inventory
-- `GET /api/inventorycount` - Inventory counts
-- `POST /api/inventorycount` - Start count
-- `PUT /api/inventorycount/{id}/complete` - Complete count
+### Cash Sessions
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/cashsessions/today` | Today's session |
+| `POST` | `/api/cashsessions` | Open session |
+| `PUT` | `/api/cashsessions/{id}/close` | Close session |
+
+### Stock Adjustments
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/stockadjustments` | List adjustments |
+| `POST` | `/api/stockadjustments` | Create adjustment |
+| `PUT` | `/api/stockadjustments/{id}/approve` | Approve adjustment |
+
+### Reports
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/reports/z-report` | Z-Report for a date |
+| `GET` | `/api/reports/z-report-range` | Z-Report range summary |
 
 ### Settings
-- `GET /api/tax-settings` - Tax configuration
-- `GET /api/system-settings` - System settings
-- `POST /api/system-settings` - Update settings
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET/PUT` | `/api/tax-settings` | Tax configuration |
+| `GET/PUT` | `/api/system-settings` | System configuration |
+| `GET/PUT` | `/api/admin-settings` | Admin configuration |
 
-### Audit
-- `GET /api/user-activity` - User activity logs
+### Audit & Health
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/user-activity` | Activity log |
+| `GET` | `/health` | API health |
+| `GET` | `/health/live` | Liveness probe |
+| `GET` | `/health/ready` | Readiness probe |
 
-### Health
-- `GET /health` - API health status
+---
+
+## Testing
+
+The project has four CI test stages:
+
+| Stage | What runs | Count |
+|-------|-----------|-------|
+| Frontend (Vitest) | Component + unit tests | 1 509 |
+| Backend — Unit | Controllers, services, middleware (InMemory DB) | 269 |
+| Backend — Integration | Full API against real PostgreSQL (Respawn) | 157 |
+| E2E (Playwright) | Full browser flows against live API | 20+ |
+
+```bash
+# Run backend unit tests
+dotnet test BMS_POS_API.Tests/ --filter "FullyQualifiedName!~Integration.Postgres"
+
+# Run Postgres integration tests (requires DB env vars)
+dotnet test BMS_POS_API.Tests/ --filter "FullyQualifiedName~Integration.Postgres"
+
+# Run E2E (requires running API + Vite)
+npm run test:e2e
+```
+
+---
 
 ## Database Schema
 
-### Core Tables
-- **employees** - User accounts with hashed PINs
-- **products** - Product catalog
-- **product_batches** - Batch tracking with expiration
-- **sales** / **sale_items** - Transaction records
-- **returns** / **return_items** - Return records
-- **inventory_counts** / **inventory_count_items** - Count sessions
-- **stock_adjustments** - Stock corrections
+| Table | Purpose |
+|-------|---------|
+| `employees` | User accounts with BCrypt-hashed PINs |
+| `products` | Product catalogue |
+| `product_batches` | Batch / lot / expiration tracking |
+| `sales` / `sale_items` | Transaction records |
+| `returns` / `return_items` | Return records |
+| `inventory_counts` / `inventory_count_items` | Count sessions |
+| `stock_adjustments` | Manual stock corrections |
+| `cash_sessions` | Cash drawer open/close records |
+| `tax_settings` | Tax rates and business info |
+| `system_settings` | System configuration |
+| `admin_settings` | Admin preferences |
+| `user_activities` | Full audit trail |
 
-### Configuration
-- **tax_settings** - Tax rates and business info
-- **system_settings** - System configuration
-- **admin_settings** - Admin preferences
+---
 
-### Audit
-- **user_activities** - Complete audit trail
+## Deployment
 
-## Security Features
+The app packages to:
+- **Linux ARM64 AppImage** — Raspberry Pi 4/5 (`npm run build:linux`)
+- **Windows NSIS installer** — x64
+- **macOS DMG** — x64 + Apple Silicon
 
-- **PIN Hashing** - BCrypt with automatic upgrade from legacy plaintext
-- **Role-Based Access** - Manager/Cashier/Inventory permissions
-- **Session Management** - Auto-logout after configurable timeout
-- **Audit Trail** - All CRUD operations logged with user/timestamp
-- **Price Change Alerts** - Major changes (>20%) flagged
-- **SSL/TLS** - Required for database connections
+The .NET API is a separate process started by the Electron main process. Credentials are read from environment variables — never hardcoded.
 
-## Configuration
+See [`docs/KIOSK_MODE.md`](docs/KIOSK_MODE.md) for kiosk/fullscreen deployment and [`docs/MULTI_DISPLAY_SETUP.md`](docs/MULTI_DISPLAY_SETUP.md) for multi-monitor configuration.
 
-### System Settings
-- Date format and regional settings
-- Auto-logout timeout (default: 30 minutes)
-- Payment methods (Cash/Card/Digital)
-- Receipt auto-print toggle
-- Theme and font scaling
-
-### Tax Settings
-- Business name and tax number
-- Primary tax rate (0-100%)
-- Optional secondary tax
-- Tax exemptions support
-
-### Return Policies
-- Require receipt for returns
-- Manager approval threshold
-- Auto-restock toggle
-- Return time limit (days)
-
-## Logging
-
-All API requests logged to `logs/comprehensive-{date}.json`:
-
-```json
-{
-  "@t": "2025-01-26T15:30:45Z",
-  "Application": "BMS_POS",
-  "Action": "LOGIN",
-  "UserId": 5,
-  "Details": "Successful login"
-}
-```
+---
 
 ## Troubleshooting
 
-### API Won't Start
+**API won't start**
 ```bash
-# Check logs
-cat logs/comprehensive-*.json
-
-# Verify database connection
-dotnet run --urls="http://localhost:5002"
-```
-
-### Frontend Connection Issues
-```bash
-# Verify API is running
+cat logs/comprehensive-*.json   # Check structured logs
 curl http://localhost:5002/health
-
-# Check environment variable
-echo $VITE_API_BASE_URL
 ```
 
-### Database Migration Issues
+**Database connection errors**
 ```bash
-cd BMS_POS_API
-dotnet ef migrations list
-dotnet ef database update
+# Verify env vars are set
+echo $BMS_DB_SERVER $BMS_DB_USER
+
+# Run migrations manually
+cd BMS_POS_API && dotnet ef database update
 ```
 
-## Development Workflow
-
-### Adding a New Feature
-1. Create model in `BMS_POS_API/Models/`
-2. Add DbSet to `BmsPosDbContext.cs`
-3. Create migration: `dotnet ef migrations add FeatureName`
-4. Create controller in `BMS_POS_API/Controllers/`
-5. Add React component in `src/frontend/components/`
-6. Add route to `App.tsx`
-
-### Creating Migrations
+**Frontend can't reach API**
 ```bash
-cd BMS_POS_API
-dotnet ef migrations add MigrationName
-dotnet ef database update
+curl http://localhost:5002/health/live
+# Should return: Healthy
 ```
 
-## Architecture Benefits
-
-- **Separation of Concerns** - Frontend, backend, and database layers
-- **Type Safety** - TypeScript on frontend, C# on backend
-- **Hot Reload** - Fast development with Vite
-- **Structured Logging** - JSON logs for analysis
-- **Real-time Database** - Supabase subscriptions enabled
-- **Offline-Ready** - Electron works without internet (API must be local)
-- **Cross-Platform** - Windows, macOS, Linux support
-
-## Support
-
-- **API Documentation**: `/swagger` endpoint (development mode)
-- **Health Check**: `/health` endpoint
-- **Logs**: `logs/comprehensive-{date}.json`
+---
 
 ## License
 

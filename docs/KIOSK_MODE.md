@@ -1,116 +1,60 @@
-# Kiosk Mode Configuration for 10.1" Touch Screens
+# Kiosk Mode
 
-## 🖥️ Kiosk Mode Features
+## Production vs Development
 
-### Production Mode (`npm start` or `npm run kiosk`)
-- ✅ **No Window Frame** - Removes title bar, borders, and window controls
-- ✅ **Fullscreen Mode** - Takes up entire screen space
-- ✅ **No Menu Bar** - File/Edit/View/Window/Help menus completely hidden
-- ✅ **No Context Menu** - Right-click disabled
-- ✅ **Always On Top** - Prevents other apps from covering the POS
-- ✅ **Hidden from Taskbar** - App doesn't show in taskbar
-- ✅ **DevTools Disabled** - F12 key disabled for security
+| | Production (`npm start`) | Development (`npm run dev`) |
+|---|---|---|
+| Window frame | None | Standard frame |
+| Fullscreen / kiosk | Yes | No — resizable at 80% |
+| DevTools (F12) | Disabled | Enabled |
+| Context menu | Disabled | Enabled |
+| Always on top | Yes | No |
+| Taskbar entry | Hidden | Shown |
+| Hot reload | No | Yes |
 
-### Development Mode (`npm run dev`)
-- 🔧 **Windowed Mode** - Normal window with frame for development
-- 🔧 **DevTools Available** - F12 key works, automatic DevTools opening
-- 🔧 **Menu Bar Visible** - Standard Electron menus available
-- 🔧 **Hot Reload Active** - Automatic refresh on file changes
+## Emergency Exit (Production)
 
-## 🔐 Security & Control
+- **Ctrl+Shift+Q** — quit the application
+- **F11** — toggle fullscreen off
+- **Ctrl+Alt+Del** — open Task Manager (Windows) as a last resort
 
-### Emergency Exit
-- **Ctrl+Shift+Q** - Quit application in kiosk mode
-- **F11** - Toggle fullscreen mode
-- **Alt+F4** - Standard Windows close (if available)
+## Electron Window Options (Production)
 
-### Disabled Features in Production
-- ❌ Right-click context menu
-- ❌ F12 DevTools
-- ❌ Window resizing/moving
-- ❌ Alt+Tab switching (minimized)
-- ❌ Standard menu shortcuts
-
-## 📱 Touch Optimization for 10.1" Screens
-
-### Touch Targets
-- **Minimum Size**: 44px × 44px for all interactive elements
-- **Button Spacing**: Adequate gaps to prevent mis-taps
-- **Large Keypad**: Easy-to-tap numeric and letter buttons
-- **No Hover Effects**: Optimized for touch-only interaction
-
-### Touch Behavior
-- **No Text Selection** - `user-select: none` prevents accidental text selection
-- **No Tap Highlights** - Removes blue highlight flashes on touch
-- **Touch Action** - `manipulation` for smooth scrolling and zooming
-- **No Cursor** - Default cursor for touch interface
-
-## 🚀 Deployment Scripts
-
-### For Development
-```bash
-npm run dev          # Windowed mode with hot reload
-```
-
-### For Production/Kiosk
-```bash
-npm start           # Standard production mode
-npm run kiosk       # Explicit kiosk mode (same as start)
-```
-
-## ⚙️ Advanced Configuration
-
-### Window Settings
-```javascript
+```js
 {
-    frame: false,                    // No title bar
-    resizable: false,                // Cannot resize
-    fullscreen: true,                // Takes full screen
-    kiosk: true,                     // True kiosk mode
-    alwaysOnTop: true,               // Stays above other windows
-    skipTaskbar: true,               // Hidden from taskbar
-    autoHideMenuBar: true,           // No menu visible
+  frame: false,
+  resizable: false,
+  fullscreen: true,
+  kiosk: true,
+  alwaysOnTop: true,
+  skipTaskbar: true,
+  autoHideMenuBar: true,
 }
 ```
 
-### Screen Resolution Handling
-- **Fixed Layout**: Designed for 1024×640 base resolution
-- **Scalable**: CSS automatically adapts to different screen sizes
-- **Touch-First**: All interactions optimized for finger input
-- **No Scrolling**: Everything fits on screen except employee list
+## Linux / Raspberry Pi Deployment
 
-## 📋 10.1" Touch Screen Checklist
+For headless kiosk deployment on Raspberry Pi or similar:
 
-- [ ] **Touch Targets**: All buttons ≥44px for easy tapping
-- [ ] **No Hover States**: All interactions work with touch only
-- [ ] **Proper Spacing**: Buttons have adequate gaps (6-8px)
-- [ ] **Text Size**: Readable fonts (11px+ for content, 10px+ for labels)
-- [ ] **Contrast**: High contrast for outdoor/bright environments
-- [ ] **Performance**: Smooth scrolling and animations
-
-## 🔧 Troubleshooting
-
-### If App Won't Start in Kiosk Mode
 ```bash
-# Check if running with correct flags
-electron . --no-sandbox --disable-gpu-sandbox
+# Build ARM64 AppImage
+npm run build:linux
+
+# Run without sandbox (required on some Linux kiosk setups)
+./BMS-POS-*.AppImage --no-sandbox
 ```
 
-### If Touch Not Working
-- Ensure screen drivers are installed
-- Check Windows touch calibration
-- Verify touch events in DevTools (dev mode)
+See the README for full installation steps.
 
-### If App is "Stuck" in Kiosk Mode
-- **Ctrl+Shift+Q** to quit
-- **Alt+Tab** then **Alt+F4** to force close
-- **Ctrl+Alt+Del** for Task Manager access
+## Touch Screen Configuration
 
-## 🎯 Perfect For
-- **POS Terminals** - Dedicated touch screen stations
-- **Kiosks** - Self-service customer interfaces  
-- **Tablets** - 10.1" Android/Windows tablets
-- **Industrial Screens** - Factory floor terminals
-- **Retail Displays** - In-store employee management
+- All interactive elements meet the **44 × 44 px** minimum touch target.
+- Right-click / context menu is disabled in production.
+- Text selection is disabled globally.
+- No hover-only interactions.
 
-The app is now fully configured for professional kiosk deployment on 10.1" touch screens!
+See [`SCREEN_OPTIMIZATION.md`](SCREEN_OPTIMIZATION.md) for detailed layout notes.
+
+## Multi-Display
+
+See [`MULTI_DISPLAY_SETUP.md`](MULTI_DISPLAY_SETUP.md) for targeting a specific display in a multi-monitor setup.
