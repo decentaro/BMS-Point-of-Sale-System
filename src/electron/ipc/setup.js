@@ -4,16 +4,19 @@ const { app } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
-const dotenvPath = path.join(app.getAppPath(), '.env')
+// In a packaged AppImage the app directory is read-only; credentials must live in userData.
+const getDotenvPath = () => app.isPackaged
+    ? path.join(app.getPath('userData'), '.env')
+    : path.join(app.getAppPath(), '.env')
 
-function register(ipcMain) {
+function register(ipcMain, apiProcessManager) {
     /** Returns whether the .env file exists and has real (non-placeholder) credentials. */
     ipcMain.handle('check-setup', async () => {
         try {
-            if (!fs.existsSync(dotenvPath)) {
+            if (!fs.existsSync(getDotenvPath())) {
                 return { configured: false, reason: 'No .env file found' }
             }
-            const content = fs.readFileSync(dotenvPath, 'utf8')
+            const content = fs.readFileSync(getDotenvPath(), 'utf8')
             const vars = {}
             for (const line of content.split('\n')) {
                 const match = line.match(/^([^#=\s][^=]*)=(.*)$/)
@@ -46,7 +49,7 @@ function register(ipcMain) {
                 `BMS_DB_PORT=${safe(dbPort || '5432')}`,
                 `BMS_DB_NAME=${safe(dbName || 'postgres')}`,
             ].join('\n') + '\n'
-            fs.writeFileSync(dotenvPath, content, { encoding: 'utf8', mode: 0o600 })
+            fs.writeFileSync(getDotenvPath(), content, { encoding: 'utf8', mode: 0o600 })
             return { success: true }
         } catch (error) {
             return { success: false, error: error.message }
@@ -88,47 +91,45 @@ function register(ipcMain) {
 
     /** Relaunch the Electron process and restart the API with the new .env credentials. */
     ipcMain.handle('relaunch-app', async () => {
-        const envVars = { ...process.env }
-        try {
-            const content = fs.readFileSync(dotenvPath, 'utf8')
-            for (const line of content.split('\n')) {
-                const match = line.match(/^([^#=\s][^=]*)=(.*)$/)
-                if (match) envVars[match[1].trim()] = match[2].trim()
+        if (app.isPackaged) {
+            // Packaged: ApiProcessManager owns the process — let it restart cleanly.
+            await apiProcessManager.restart()
+        } else {
+            // Dev mode: spawn dotnet run (dev.sh may not be running after a credential change).
+            const envVars = { ...process.env }
+            try {
+                const content = fs.readFileSync(getDotenvPath(), 'utf8')
+                for (const line of content.split('\n')) {
+                    const match = line.match(/^([^#=\s][^=]*)=(.*)$/)
+                    if (match) envVars[match[1].trim()] = match[2].trim()
+                }
+            } catch (e) {
+                console.warn('Could not read .env for API restart:', e.message)
             }
-        } catch (e) {
-            console.warn('Could not read .env for API restart:', e.message)
+            try {
+                require('child_process').execFileSync('fuser', ['-k', '5002/tcp'], { stdio: 'ignore' })
+            } catch {}
+            await new Promise(r => setTimeout(r, 1000))
+            const apiDir = path.join(app.getAppPath(), 'BMS_POS_API')
+            const cmd = `cd "${apiDir}" && nohup dotnet run --urls=http://localhost:5002 > /tmp/bms_api.log 2>&1 &`
+            const spawner = require('child_process').spawn('bash', ['-c', cmd], {
+                detached: true, stdio: 'ignore', env: envVars,
+            })
+            spawner.unref()
+            const net = require('net')
+            await new Promise(resolve => {
+                const deadline = Date.now() + 120000
+                const check = () => {
+                    const sock = net.createConnection(5002, '127.0.0.1')
+                    sock.on('connect', () => { sock.destroy(); resolve(true) })
+                    sock.on('error', () => {
+                        if (Date.now() < deadline) setTimeout(check, 3000)
+                        else resolve(false)
+                    })
+                }
+                setTimeout(check, 5000)
+            })
         }
-
-        try {
-            require('child_process').execFileSync('fuser', ['-k', '5002/tcp'], { stdio: 'ignore' })
-        } catch {}
-        await new Promise(r => setTimeout(r, 1000))
-
-        const apiDir = path.join(app.getAppPath(), 'BMS_POS_API')
-        const cmd = `cd "${apiDir}" && nohup dotnet run --urls=http://localhost:5002 > /tmp/bms_api.log 2>&1 &`
-        const spawner = require('child_process').spawn('bash', ['-c', cmd], {
-            detached: true,
-            stdio: 'ignore',
-            env: envVars,
-        })
-        spawner.unref()
-
-        const net = require('net')
-        const waitForApi = (maxMs = 120000) => new Promise((resolve) => {
-            const deadline = Date.now() + maxMs
-            const check = () => {
-                const sock = net.createConnection(5002, '127.0.0.1')
-                sock.on('connect', () => { sock.destroy(); resolve(true) })
-                sock.on('error',   () => {
-                    if (Date.now() < deadline) setTimeout(check, 3000)
-                    else resolve(false)
-                })
-            }
-            setTimeout(check, 5000)
-        })
-
-        await waitForApi()
-
         app.relaunch()
         app.exit(0)
     })

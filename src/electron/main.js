@@ -1,5 +1,8 @@
 const { app, BrowserWindow, Menu, screen, ipcMain } = require('electron');
 const path = require('path');
+const { spawn, execFileSync } = require('child_process');
+const fs = require('fs');
+const net = require('net');
 
 // API Configuration - Runtime configurable
 class ApiConfigManager {
@@ -109,6 +112,106 @@ class TerminalConfigManager {
 }
 
 const terminalConfigManager = new TerminalConfigManager()
+
+// Manages the .NET API child process in packaged mode
+class ApiProcessManager {
+    constructor() {
+        this.process = null
+    }
+
+    // Returns the path to the self-contained API binary bundled with the package.
+    getBinaryPath() {
+        const ext = process.platform === 'win32' ? '.exe' : ''
+        return path.join(process.resourcesPath, 'api', `BMS_POS_API${ext}`)
+    }
+
+    // Reads DB credentials from userData/.env (packaged) or appPath/.env (dev).
+    getEnvVars() {
+        const envVars = { ...process.env }
+        try {
+            const dotenvPath = app.isPackaged
+                ? path.join(app.getPath('userData'), '.env')
+                : path.join(app.getAppPath(), '.env')
+            if (fs.existsSync(dotenvPath)) {
+                for (const line of fs.readFileSync(dotenvPath, 'utf8').split('\n')) {
+                    const match = line.match(/^([^#=\s][^=]*)=(.*)$/)
+                    if (match) envVars[match[1].trim()] = match[2].trim()
+                }
+            }
+        } catch {}
+        return envVars
+    }
+
+    hasCredentials(envVars) {
+        const pw = envVars.BMS_DB_PASSWORD || ''
+        const sv = envVars.BMS_DB_SERVER   || ''
+        const isPlaceholder = s => !s || s.startsWith('your_')
+        return !isPlaceholder(pw) && !isPlaceholder(sv)
+    }
+
+    // Start the bundled API binary. No-op in dev mode (dev.sh handles it).
+    start() {
+        if (!app.isPackaged) return
+        const bin = this.getBinaryPath()
+        if (!fs.existsSync(bin)) {
+            console.warn('[API] Binary not found at', bin)
+            return
+        }
+        const envVars = this.getEnvVars()
+        if (!this.hasCredentials(envVars)) {
+            console.log('[API] No credentials yet — setup wizard will start the API after configuration')
+            return
+        }
+        // Ensure the binary is executable (AppImage may strip the bit)
+        try { fs.chmodSync(bin, 0o755) } catch {}
+        console.log('[API] Spawning', bin)
+        this.process = spawn(bin, ['--urls', 'http://localhost:5002'], {
+            env: envVars,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            detached: false,
+        })
+        this.process.stdout?.on('data', d => console.log('[API]', d.toString().trimEnd()))
+        this.process.stderr?.on('data', d => console.error('[API]', d.toString().trimEnd()))
+        this.process.on('exit', code => {
+            console.log(`[API] Exited with code ${code}`)
+            this.process = null
+        })
+    }
+
+    stop() {
+        if (this.process) {
+            console.log('[API] Stopping')
+            this.process.kill()
+            this.process = null
+        }
+    }
+
+    waitForReady(maxMs = 120000) {
+        return new Promise(resolve => {
+            const deadline = Date.now() + maxMs
+            const check = () => {
+                const sock = net.createConnection(5002, '127.0.0.1')
+                sock.on('connect', () => { sock.destroy(); resolve(true) })
+                sock.on('error', () => {
+                    if (Date.now() < deadline) setTimeout(check, 2000)
+                    else resolve(false)
+                })
+            }
+            setTimeout(check, 3000)
+        })
+    }
+
+    // Kill, clear port, restart, wait for ready. Used by setup wizard after credential save.
+    async restart() {
+        this.stop()
+        try { execFileSync('fuser', ['-k', '5002/tcp'], { stdio: 'ignore' }) } catch {}
+        await new Promise(r => setTimeout(r, 1000))
+        this.start()
+        return this.waitForReady()
+    }
+}
+
+const apiProcessManager = new ApiProcessManager()
 
 // Enable hot reload for development
 if (process.argv.includes('--dev')) {
@@ -292,7 +395,7 @@ const connectivityMonitor = createConnectivityMonitor(bmsApp)
 
 require('./ipc/filesystem').register(ipcMain, bmsApp)
 require('./ipc/hardware').register(ipcMain, apiConfigManager)
-require('./ipc/setup').register(ipcMain)
+require('./ipc/setup').register(ipcMain, apiProcessManager)
 require('./ipc/config').register(ipcMain, apiConfigManager, terminalConfigManager)
 require('./ipc/offline-queue').register(ipcMain)
 
@@ -304,6 +407,7 @@ app.whenReady().then(async () => {
     if (!process.argv.includes('--dev')) {
         Menu.setApplicationMenu(null);
     }
+    apiProcessManager.start()
     bmsApp.createWindow();
     connectivityMonitor.start()
 
@@ -321,5 +425,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+    apiProcessManager.stop()
     connectivityMonitor.stop()
 });

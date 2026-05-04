@@ -461,3 +461,10 @@ dotnet-install.sh
 # Playwright
 test-results/
 playwright-report/
+
+# Packaged app output
+release/
+
+# Published .NET API binaries (built by build:api:* scripts, not committed)
+resources/api/*
+!resources/api/.gitkeep

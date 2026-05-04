@@ -15,10 +15,14 @@
     "display2": "npm run build-react && electron . --no-sandbox --display=2",
     "build": "npm run build-react && electron-builder",
     "pack": "npm run build-react && electron-builder --dir",
-    "build:linux": "npm run build-react && electron-builder --linux",
-    "build:win": "npm run build-react && electron-builder --win",
-    "build:mac": "npm run build-react && electron-builder --mac",
+    "build:linux": "npm run build:api:linux-arm64 && npm run build-react && electron-builder --linux",
+    "build:win": "npm run build:api:win-x64 && npm run build-react && electron-builder --win",
+    "build:mac": "npm run build:api:osx-arm64 && npm run build-react && electron-builder --mac",
     "build:all": "npm run build-react && electron-builder --linux --win --mac",
+    "build:api:linux-arm64": "dotnet publish BMS_POS_API/BMS_POS_API.csproj -c Release -r linux-arm64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none -o resources/api",
+    "build:api:linux-x64": "dotnet publish BMS_POS_API/BMS_POS_API.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none -o resources/api",
+    "build:api:win-x64": "dotnet publish BMS_POS_API/BMS_POS_API.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none -o resources/api",
+    "build:api:osx-arm64": "dotnet publish BMS_POS_API/BMS_POS_API.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none -o resources/api",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -49,6 +53,13 @@
       "dist/**",
       "src/electron/**",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/api",
+        "to": "api",
+        "filter": ["**/*"]
+      }
     ],
     "linux": {
       "target": [
