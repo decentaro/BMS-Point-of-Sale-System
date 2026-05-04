@@ -9,36 +9,52 @@ If you discover a security vulnerability in BMS POS, please report it by emailin
 ### Authentication and Access Control
 
 **PIN Security**
-- Employee PINs are hashed using BCrypt with a work factor of 12
-- Legacy plaintext PINs are automatically upgraded to hashed versions on first login
+- Employee PINs are hashed using BCrypt (work factor 12)
+- Legacy plaintext PINs are automatically upgraded to BCrypt on first login
 - PIN verification uses constant-time comparison to prevent timing attacks
 
+**JWT Tokens**
+- Stateless JWT bearer tokens issued on login
+- Per-token denylist — tokens are revoked immediately on logout (DB-persisted)
+- Claims enforcement middleware overwrites any client-supplied role/ID headers with values from the verified JWT, so the frontend cannot escalate privileges by sending forged headers
+
 **Role-Based Access Control**
-- Employee and Manager roles with distinct permission levels
-- Session-based authentication with automatic logout
-- Failed login attempt tracking and account lockout protection
+- Three roles: **Manager**, **Cashier**, **Inventory** — each with distinct permission sets
+- Managers have all permissions; other roles have explicit allow-lists
+- Route-level guards on both the frontend (React) and the API (controller attributes)
+
+**Login Lockout**
+- Repeated failed PIN attempts trigger an account lockout
+- Lockout state is persisted in the database and survives API restarts
+
+**Rate Limiting**
+- Auth endpoints: 10 requests / 5 minutes per IP
+- Global: 300 requests / minute per IP
 
 ### Data Protection
 
 **Database Security**
-- Database credentials stored in environment variables, not in source code
-- Connection strings use parameterized queries to prevent SQL injection
-- Support for PostgreSQL/Supabase with SSL connections
+- Database credentials stored in environment variables, never in source code
+- EF Core parameterised queries throughout — no raw SQL string concatenation
+- PostgreSQL / Supabase with SSL connections supported
 
 **Environment Configuration**
-- Sensitive configuration values isolated in `.env` file
-- `.env` file excluded from version control via `.gitignore`
+- All secrets isolated in `.env` (excluded from version control via `.gitignore`)
 - Template `.env.example` provided for deployment setup
 
 ### Session Management
 
-- Secure session token generation and validation
-- Configurable auto-logout after inactivity period
-- Session data includes user context for audit trails
+- JWT tokens with short expiry; revoked immediately on logout via denylist
+- Configurable auto-logout after inactivity (default 30 minutes)
+- Full audit trail — every login, sale, return, and configuration change recorded with user, timestamp, and IP
+
+### Network Security
+
+- CORS restricted to `localhost` only (Electron renderer origin)
+- Security headers middleware applied to all responses
+- API binds to localhost only — not exposed to the network by default
 
 ## Environment Variables
-
-Required environment variables for deployment:
 
 | Variable | Description |
 |----------|-------------|
@@ -53,47 +69,29 @@ Required environment variables for deployment:
 ### Initial Setup
 
 1. Copy `.env.example` to `.env`
-2. Configure all required environment variables
-3. Ensure `.env` file permissions are restricted (chmod 600 on Linux/Mac)
-4. Never commit `.env` file to version control
+2. Fill in all required environment variables
+3. Restrict `.env` file permissions (`chmod 600` on Linux/Mac)
+4. Never commit `.env` to version control
 
-### JWT Secret File
+### JWT Secret
 
 The API generates a persistent JWT signing secret on first run, stored at:
 - **Linux/Mac:** `~/.config/BMS_POS/bms-jwt.secret`
 - **Windows:** `%APPDATA%\BMS_POS\bms-jwt.secret`
 
-File permissions are automatically set to owner read/write only (0600) on Unix.
-**Important:** If you copy or restore this file (e.g. backup/restore, Docker volume copy),
-verify permissions are preserved. A world-readable secret file allows JWT forgery.
-To rotate the secret (invalidates all active sessions), delete the file and restart the API.
+Permissions are automatically set to owner read/write only (0600) on Unix. To rotate the secret (invalidates all active sessions), delete the file and restart the API.
 
 ### Production Recommendations
 
-- Use strong, unique passwords for all database accounts
-- Enable SSL/TLS for database connections when available
-- Regularly update dependencies to patch security vulnerabilities
-- Configure automatic backups for disaster recovery
-- Restrict physical access to devices running the POS system
-- Use hardware security features when available (TPM, secure boot)
+- Use strong, unique database passwords
+- Enable SSL/TLS for database connections
+- Keep dependencies updated
+- Configure automatic database backups
+- Restrict physical access to POS devices
+- Use secure boot / TPM where available
 
 ## Known Limitations
 
-- Desktop application security model assumes physical device security
-- No built-in network encryption between Electron frontend and .NET backend (relies on localhost)
-- Session tokens stored in browser localStorage (appropriate for desktop kiosk mode)
-- Admin panel accessible to users with Manager role
-
-## Security Roadmap
-
-Future security improvements planned:
-
-- Two-factor authentication for Manager accounts
-- Enhanced audit logging with tamper protection
-- Database encryption at rest
-- Application code signing
-- Automated security scanning in CI/CD pipeline
-
-## Compliance
-
-This software is designed for small to medium business point-of-sale operations. Organizations with specific compliance requirements (PCI-DSS, HIPAA, etc.) should conduct their own security audit and implement additional controls as needed.
+- No network encryption between the Electron frontend and the .NET backend — both run on localhost, so in-transit encryption is not required, but network-exposed deployments would need a TLS proxy
+- Session tokens stored in Electron's renderer localStorage (appropriate for a locked-down kiosk)
+- Physical device security is assumed — a compromised device undermines all software-level controls
