@@ -304,14 +304,9 @@ describe('AdminPanel', () => {
       expect(screen.getByText('Show Cursor')).toBeTruthy()
     })
 
-    it('shows Latest Log button', async () => {
+    it('shows View Logs button', async () => {
       await renderAndWait()
-      expect(screen.getByRole('button', { name: /Latest Log/ })).toBeTruthy()
-    })
-
-    it('shows Open Folder button', async () => {
-      await renderAndWait()
-      expect(screen.getByRole('button', { name: /Open Folder/ })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /View Logs/ })).toBeTruthy()
     })
   })
 
@@ -621,20 +616,11 @@ describe('AdminPanel', () => {
   // ── Display section interaction ───────────────────────────────────────────
 
   describe('Display Section Actions', () => {
-    it('clicking Latest Log shows toast when API returns failure', async () => {
+    it('clicking View Logs shows toast when API returns no log files', async () => {
       await renderAndWait()
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Latest Log/ })) })
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /View Logs/ })) })
       await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to get log file'),
-        'error'
-      ))
-    })
-
-    it('clicking Open Folder shows toast when API returns failure', async () => {
-      await renderAndWait()
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Open Folder/ })) })
-      await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to get log folder'),
+        'No log files found.',
         'error'
       ))
     })
@@ -832,15 +818,10 @@ describe('AdminPanel', () => {
     })
   })
 
-  // ── Display: log file success paths ──────────────────────────────────────
+  // ── Display: log viewer modal ─────────────────────────────────────────────
 
-  describe('Display Section: log success paths', () => {
-    it('Latest Log calls openPath when electronAPI.openPath is present', async () => {
-      const openPath = vi.fn().mockResolvedValue({ success: true })
-      ;(window as any).electronAPI = {
-        ...(window as any).electronAPI,
-        openPath,
-      }
+  describe('Display Section: log viewer modal', () => {
+    it('clicking View Logs opens the log modal when API returns content', async () => {
       mockGetJson.mockImplementation((path: string) => {
         if (path === '/AdminSettings') {
           return Promise.resolve({ success: true, data: makeAdminSettings(), message: '' })
@@ -848,22 +829,17 @@ describe('AdminPanel', () => {
         if (path === '/AdminSettings/backup/capabilities') {
           return Promise.resolve({ success: true, data: makeBackupCapabilities(), message: '' })
         }
-        if (path === '/AdminSettings/logs/latest') {
-          return Promise.resolve({ success: true, data: { filePath: '/var/log/app.log', fileName: 'app.log' }, message: '' })
+        if (path.startsWith('/AdminSettings/logs/content')) {
+          return Promise.resolve({ success: true, data: { fileName: 'comprehensive-20260504.json', lines: [] }, message: '' })
         }
         return Promise.resolve({ success: false, message: 'not found' })
       })
       await act(async () => { render(<AdminPanel />) })
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Latest Log/ })) })
-      await waitFor(() => expect(openPath).toHaveBeenCalledWith('/var/log/app.log'))
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /View Logs/ })) })
+      await waitFor(() => expect(screen.getByText('System Logs')).toBeTruthy())
     })
 
-    it('Latest Log shows toast when openPath returns failure', async () => {
-      const openPath = vi.fn().mockResolvedValue({ success: false })
-      ;(window as any).electronAPI = {
-        ...(window as any).electronAPI,
-        openPath,
-      }
+    it('clicking View Logs shows error toast when API throws', async () => {
       mockGetJson.mockImplementation((path: string) => {
         if (path === '/AdminSettings') {
           return Promise.resolve({ success: true, data: makeAdminSettings(), message: '' })
@@ -871,85 +847,15 @@ describe('AdminPanel', () => {
         if (path === '/AdminSettings/backup/capabilities') {
           return Promise.resolve({ success: true, data: makeBackupCapabilities(), message: '' })
         }
-        if (path === '/AdminSettings/logs/latest') {
-          return Promise.resolve({ success: true, data: { filePath: '/var/log/app.log', fileName: 'app.log' }, message: '' })
-        }
-        return Promise.resolve({ success: false, message: 'not found' })
-      })
-      await act(async () => { render(<AdminPanel />) })
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Latest Log/ })) })
-      await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
-        'Failed to open log file.',
-        'error'
-      ))
-    })
-
-    it('Open Folder calls openPath when electronAPI.openPath is present', async () => {
-      const openPath = vi.fn().mockResolvedValue({ success: true })
-      ;(window as any).electronAPI = {
-        ...(window as any).electronAPI,
-        openPath,
-      }
-      mockGetJson.mockImplementation((path: string) => {
-        if (path === '/AdminSettings') {
-          return Promise.resolve({ success: true, data: makeAdminSettings(), message: '' })
-        }
-        if (path === '/AdminSettings/backup/capabilities') {
-          return Promise.resolve({ success: true, data: makeBackupCapabilities(), message: '' })
-        }
-        if (path === '/AdminSettings/logs/folder') {
-          return Promise.resolve({ success: true, data: { folderPath: '/var/log', fileCount: 5 }, message: '' })
-        }
-        return Promise.resolve({ success: false, message: 'not found' })
-      })
-      await act(async () => { render(<AdminPanel />) })
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Open Folder/ })) })
-      await waitFor(() => expect(openPath).toHaveBeenCalledWith('/var/log'))
-    })
-
-    it('Open Folder shows toast when no electronAPI.openPath', async () => {
-      ;(window as any).electronAPI = {
-        getTerminalConfig: vi.fn().mockResolvedValue({ terminalId: 'T01', terminalName: null }),
-        setTerminalConfig: vi.fn().mockResolvedValue(undefined),
-        // no openPath
-      }
-      mockGetJson.mockImplementation((path: string) => {
-        if (path === '/AdminSettings') {
-          return Promise.resolve({ success: true, data: makeAdminSettings(), message: '' })
-        }
-        if (path === '/AdminSettings/backup/capabilities') {
-          return Promise.resolve({ success: true, data: makeBackupCapabilities(), message: '' })
-        }
-        if (path === '/AdminSettings/logs/folder') {
-          return Promise.resolve({ success: true, data: { folderPath: '/var/log', fileCount: 5 }, message: '' })
-        }
-        return Promise.resolve({ success: false, message: 'not found' })
-      })
-      await act(async () => { render(<AdminPanel />) })
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Open Folder/ })) })
-      await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
-        expect.stringContaining('/var/log'),
-        'info'
-      ))
-    })
-
-    it('Open Folder shows error toast when API throws', async () => {
-      mockGetJson.mockImplementation((path: string) => {
-        if (path === '/AdminSettings') {
-          return Promise.resolve({ success: true, data: makeAdminSettings(), message: '' })
-        }
-        if (path === '/AdminSettings/backup/capabilities') {
-          return Promise.resolve({ success: true, data: makeBackupCapabilities(), message: '' })
-        }
-        if (path === '/AdminSettings/logs/folder') {
+        if (path.startsWith('/AdminSettings/logs/content')) {
           return Promise.reject(new Error('network'))
         }
         return Promise.resolve({ success: false, message: 'not found' })
       })
       await act(async () => { render(<AdminPanel />) })
-      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Open Folder/ })) })
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /View Logs/ })) })
       await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
-        'Failed to open log folder',
+        'Failed to load log content',
         'error'
       ))
     })
