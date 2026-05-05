@@ -179,6 +179,7 @@ namespace BMS_POS_API.Controllers
                 var capabilities = await _backupService.DetectPlanAndCapabilities();
                 var localBackups = await _backupService.GetLocalBackups();
 
+                var backupsFolder = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "backups"));
                 var result = new
                 {
                     capabilities.Plan,
@@ -189,7 +190,8 @@ namespace BMS_POS_API.Controllers
                     capabilities.Message,
                     LocalBackups = localBackups.Take(10), // Last 10 backups
                     TotalLocalBackups = localBackups.Count,
-                    TotalBackupSize = localBackups.Sum(b => b.Size)
+                    TotalBackupSize = localBackups.Sum(b => b.Size),
+                    BackupsFolder = backupsFolder
                 };
 
                 return Ok(new ApiResponse<object>
@@ -568,6 +570,61 @@ namespace BMS_POS_API.Controllers
                     Success = false,
                     Message = "Failed to retrieve latest log file",
                     ErrorCode = "ADMIN_005"
+                }));
+            }
+        }
+
+        // GET: api/AdminSettings/logs/content?lines=200
+        [HttpGet("logs/content")]
+        public Task<ActionResult<ApiResponse<object>>> GetLogFileContent([FromQuery] int lines = 200)
+        {
+            try
+            {
+                var logsPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "logs"));
+                if (!Directory.Exists(logsPath))
+                    return Task.FromResult<ActionResult<ApiResponse<object>>>(NotFound(new ApiResponse<object>
+                    {
+                        Success = false, Message = "Logs directory not found"
+                    }));
+
+                var logFiles = Directory.GetFiles(logsPath, "comprehensive-*.json")
+                    .OrderByDescending(f => new FileInfo(f).LastWriteTime)
+                    .ToArray();
+
+                if (logFiles.Length == 0)
+                    return Task.FromResult<ActionResult<ApiResponse<object>>>(NotFound(new ApiResponse<object>
+                    {
+                        Success = false, Message = "No log files found"
+                    }));
+
+                var latestFile = logFiles.First();
+                var fileInfo = new FileInfo(latestFile);
+
+                // Read last N lines — log files are NDJSON (one JSON object per line).
+                var allLines = System.IO.File.ReadAllLines(latestFile);
+                var tail = allLines.Length > lines
+                    ? allLines.Skip(allLines.Length - lines).ToArray()
+                    : allLines;
+
+                return Task.FromResult<ActionResult<ApiResponse<object>>>(Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Data = new
+                    {
+                        fileName = fileInfo.Name,
+                        lastModified = fileInfo.LastWriteTime,
+                        totalLines = allLines.Length,
+                        lines = tail
+                    },
+                    Message = "Log content retrieved"
+                }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reading log file content");
+                return Task.FromResult<ActionResult<ApiResponse<object>>>(StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false, Message = "Failed to read log file", ErrorCode = "ADMIN_008"
                 }));
             }
         }

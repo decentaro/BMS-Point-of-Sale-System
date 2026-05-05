@@ -112,6 +112,15 @@ const AdminPanel: React.FC = () => {
     window.dispatchEvent(new Event('bms:cursor-changed'))
   }
 
+  // Log viewer modal state
+  const [logModal, setLogModal] = React.useState<{
+    open: boolean
+    fileName: string
+    lines: string[]
+    loading: boolean
+    showAll: boolean
+  }>({ open: false, fileName: '', lines: [], loading: false, showAll: false })
+
   // Clear database modal state
   const [showClearModal, setShowClearModal] = React.useState<boolean>(false)
   const [clearConfirmPhrase, setClearConfirmPhrase] = React.useState<string>('')
@@ -257,26 +266,35 @@ const AdminPanel: React.FC = () => {
     })
   }
 
-  const openLogFolder = async () => {
+  const openLogViewer = async () => {
+    setLogModal({ open: true, fileName: '', lines: [], loading: true, showAll: false })
     try {
-      const result: ApiResponse<any> = await ApiClient.getJson('/AdminSettings/logs/folder')
-      
+      const result: ApiResponse<any> = await ApiClient.getJson('/AdminSettings/logs/content?lines=500')
       if (result.success && result.data) {
-        // Try to open the folder using Electron shell
-        if (window.electronAPI?.openPath) {
-          const openResult = await window.electronAPI.openPath(result.data.folderPath)
-          if (!openResult.success) {
-            showToast('Failed to open log folder.', 'error')
-          }
-        } else {
-          showToast('Log folder: ' + result.data.folderPath + ' (' + result.data.fileCount + ' files)', 'info')
-        }
+        setLogModal({ open: true, fileName: result.data.fileName, lines: result.data.lines ?? [], loading: false, showAll: false })
       } else {
-        showToast('Failed to get log folder.', 'error')
+        setLogModal(m => ({ ...m, loading: false }))
+        showToast('No log files found.', 'error')
       }
     } catch (error) {
-      console.error('Error opening log folder:', error)
-      showToast('Failed to open log folder', 'error')
+      console.error('Error loading log content:', error)
+      setLogModal(m => ({ ...m, loading: false }))
+      showToast('Failed to load log content', 'error')
+    }
+  }
+
+  const parseLogLine = (line: string) => {
+    try {
+      const obj = JSON.parse(line)
+      const level = (obj.Level || obj.level || 'Information') as string
+      const src = (obj.Properties?.SourceContext || '') as string
+      const isFrameworkNoise = src.startsWith('Microsoft.') || src.startsWith('System.')
+      const ts = obj.Timestamp || obj.timestamp || ''
+      const time = ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
+      const msg = (obj.RenderedMessage || obj.MessageTemplate || obj.message || line).split('\n')[0].slice(0, 200)
+      return { level, isFrameworkNoise, time, msg }
+    } catch {
+      return { level: 'Information', isFrameworkNoise: false, time: '', msg: line.slice(0, 200) }
     }
   }
 
@@ -295,28 +313,6 @@ const AdminPanel: React.FC = () => {
     return `${date}${methodText}${sizeText}`
   }
 
-  const viewLatestLog = async () => {
-    try {
-      const result: ApiResponse<any> = await ApiClient.getJson('/AdminSettings/logs/latest')
-      
-      if (result.success && result.data) {
-        // Try to open the log file using Electron shell
-        if (window.electronAPI?.openPath) {
-          const openResult = await window.electronAPI.openPath(result.data.filePath)
-          if (!openResult.success) {
-            showToast('Failed to open log file.', 'error')
-          }
-        } else {
-          showToast('Latest log: ' + result.data.fileName, 'info')
-        }
-      } else {
-        showToast('Failed to get log file.', 'error')
-      }
-    } catch (error) {
-      console.error('Error opening latest log file:', error)
-      showToast('Failed to open log file', 'error')
-    }
-  }
 
   const handleSave = async () => {
     if (!adminSettings) return
@@ -533,18 +529,18 @@ const AdminPanel: React.FC = () => {
   const handleSelectBackupFile = async () => {
     try {
       if (window.electronAPI?.showOpenDialog) {
-        // This path is only for importing a backup from somewhere else
-        // (another machine, a USB drive). Local backups are handled by the
-        // dropdown above, so we don't try to set a defaultPath here — GTK /
-        // xdg-desktop-portal ignores it inconsistently anyway.
-        const result = await window.electronAPI.showOpenDialog({
+        const dialogOptions: any = {
           title: 'Select Backup File',
           filters: [
             { name: 'Backup Files', extensions: ['backup', 'sql'] },
             { name: 'All Files', extensions: ['*'] }
           ],
           properties: ['openFile']
-        })
+        }
+        if (backupCapabilities?.backupsFolder) {
+          dialogOptions.defaultPath = backupCapabilities.backupsFolder
+        }
+        const result = await window.electronAPI.showOpenDialog(dialogOptions)
 
         if (!result.canceled && result.filePaths.length > 0) {
           // Create a File object from the selected path for compatibility with existing logic
@@ -827,11 +823,8 @@ const AdminPanel: React.FC = () => {
                     {/* Log file actions */}
                     <div className="flex items-center gap-3 pt-1">
                       <span className="text-xs text-slate-500 mr-auto">Log file access:</span>
-                      <Button variant="outline" size="sm" onClick={viewLatestLog} className="gap-1.5 text-xs">
-                        <FileText className="w-3.5 h-3.5" /> Latest Log
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={openLogFolder} className="gap-1.5 text-xs">
-                        <FolderOpen className="w-3.5 h-3.5" /> Open Folder
+                      <Button variant="outline" size="sm" onClick={openLogViewer} className="gap-1.5 text-xs">
+                        <FileText className="w-3.5 h-3.5" /> View Logs
                       </Button>
                     </div>
                   </div>
@@ -1129,6 +1122,104 @@ const AdminPanel: React.FC = () => {
             </div>
           )}
         </main>
+
+        {/* Log Viewer Modal */}
+        {logModal.open && (() => {
+          const parsed = logModal.lines.map(parseLogLine).reverse() // newest first
+          const isError = (l: string) => l === 'Error' || l === 'Fatal'
+          const isWarn  = (l: string) => l === 'Warning'
+          const filtered = logModal.showAll
+            ? parsed.filter(e => !e.isFrameworkNoise)
+            : parsed.filter(e => isError(e.level) || isWarn(e.level))
+          const errorCount = parsed.filter(e => isError(e.level)).length
+          const warnCount  = parsed.filter(e => isWarn(e.level)).length
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+              <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-2xl mx-4" style={{ maxHeight: '82vh' }}>
+                {/* Header */}
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 flex-shrink-0">
+                  <FileText className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-800 text-sm">System Logs</p>
+                    <p className="text-xs text-slate-400">{logModal.fileName || 'Today'}</p>
+                  </div>
+                  {/* summary badges */}
+                  {!logModal.loading && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {errorCount > 0 && (
+                        <span className="text-xs font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{errorCount} error{errorCount !== 1 ? 's' : ''}</span>
+                      )}
+                      {warnCount > 0 && (
+                        <span className="text-xs font-semibold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{warnCount} warning{warnCount !== 1 ? 's' : ''}</span>
+                      )}
+                      {errorCount === 0 && warnCount === 0 && (
+                        <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">All clear</span>
+                      )}
+                    </div>
+                  )}
+                  <button onClick={() => setLogModal(m => ({ ...m, open: false }))} className="text-slate-400 hover:text-slate-600 p-1 rounded flex-shrink-0">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Toggle */}
+                {!logModal.loading && (
+                  <div className="flex items-center gap-3 px-5 py-2 border-b border-slate-100 bg-slate-50 flex-shrink-0">
+                    <span className="text-xs text-slate-500 mr-auto">
+                      {logModal.showAll ? 'Showing all app messages (newest first)' : 'Showing errors & warnings only'}
+                    </span>
+                    <button
+                      onClick={() => setLogModal(m => ({ ...m, showAll: !m.showAll }))}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {logModal.showAll ? 'Show errors & warnings only' : 'Show all messages'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Body */}
+                <div className="overflow-y-auto flex-1 p-4 space-y-1.5">
+                  {logModal.loading ? (
+                    <p className="text-slate-400 text-center py-10 text-sm">Loading logs…</p>
+                  ) : filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                      </div>
+                      <p className="font-semibold text-slate-700">All clear — no issues found</p>
+                      <p className="text-xs text-slate-400">The system is running normally.</p>
+                      {!logModal.showAll && (
+                        <button onClick={() => setLogModal(m => ({ ...m, showAll: true }))} className="text-xs text-blue-600 hover:underline mt-1">
+                          View all messages
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    filtered.map((entry, i) => {
+                      const isErr = isError(entry.level)
+                      const isW   = isWarn(entry.level)
+                      return (
+                        <div key={i} className={`flex gap-2.5 rounded-lg px-3 py-2 text-sm ${
+                          isErr ? 'bg-red-50 border border-red-100' :
+                          isW   ? 'bg-yellow-50 border border-yellow-100' :
+                                  'bg-slate-50 border border-slate-100'
+                        }`}>
+                          {entry.time && <span className="text-xs text-slate-400 flex-shrink-0 pt-0.5 font-mono">{entry.time}</span>}
+                          <span className={`text-xs font-bold flex-shrink-0 pt-0.5 uppercase ${
+                            isErr ? 'text-red-600' : isW ? 'text-yellow-600' : 'text-slate-400'
+                          }`}>{entry.level.slice(0, 4)}</span>
+                          <span className={`break-words leading-snug ${isErr ? 'text-red-800' : isW ? 'text-yellow-800' : 'text-slate-600'}`}>
+                            {entry.msg}
+                          </span>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Clear Database Confirmation Modal */}
         {showClearModal && (

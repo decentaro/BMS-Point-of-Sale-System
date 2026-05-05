@@ -28,6 +28,7 @@ export interface BackupCapabilities {
   localBackups: LocalBackupInfo[]
   totalLocalBackups: number
   totalBackupSize: number
+  backupsFolder?: string
 }
 
 export interface LocalBackupInfo {
