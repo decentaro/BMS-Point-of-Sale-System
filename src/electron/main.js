@@ -165,9 +165,23 @@ class ApiProcessManager {
         }
         // Ensure the binary is executable (AppImage may strip the bit)
         try { fs.chmodSync(bin, 0o755) } catch {}
+
+        // CWD must be writable (logs/, uploads/ are created relative to it).
+        // AppImage mount is read-only, so use userData as the working directory.
+        // ASPNETCORE_CONTENTROOT tells ASP.NET Core where appsettings.json lives
+        // (the binary's directory inside the AppImage mount — read access is fine).
+        const apiRuntime = app.isPackaged
+            ? path.join(app.getPath('userData'), 'api-runtime')
+            : path.dirname(bin)
+        try { fs.mkdirSync(apiRuntime, { recursive: true }) } catch {}
+        envVars.ASPNETCORE_CONTENTROOT = path.dirname(bin)
+
         console.log('[API] Spawning', bin)
+        console.log('[API] CWD (writable):', apiRuntime)
+        console.log('[API] ContentRoot (appsettings):', path.dirname(bin))
         this.process = spawn(bin, ['--urls', 'http://localhost:5002'], {
             env: envVars,
+            cwd: apiRuntime,
             stdio: ['ignore', 'pipe', 'pipe'],
             detached: false,
         })
