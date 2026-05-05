@@ -4,6 +4,7 @@ import CacheService from '../utils/CacheService'
 
 interface ConnectionState {
   isOnline: boolean
+  isStartingUp: boolean
   queueCount: number
   adjustmentQueueCount: number
   returnQueueCount: number
@@ -27,6 +28,7 @@ interface ConnectionContextValue extends ConnectionState {
 
 const ConnectionContext = createContext<ConnectionContextValue>({
   isOnline: true,
+  isStartingUp: false,
   queueCount: 0,
   adjustmentQueueCount: 0,
   returnQueueCount: 0,
@@ -49,6 +51,8 @@ export const useConnection = () => useContext(ConnectionContext)
 
 export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isOnline, setIsOnline]                           = useState(true)
+  const [isStartingUp, setIsStartingUp]                   = useState(true)
+  const startupTimerRef                                   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [queueCount, setQueueCount]                       = useState(0)
   const [adjustmentQueueCount, setAdjustmentQueueCount]   = useState(0)
   const [returnQueueCount, setReturnQueueCount]           = useState(0)
@@ -249,11 +253,17 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
       }
 
+      // Give the API up to 25 seconds to start before showing the red offline banner.
+      startupTimerRef.current = setTimeout(() => setIsStartingUp(false), 25000)
+
       if (window.electronAPI?.getConnectivity) {
         const { online } = await window.electronAPI.getConnectivity()
         setIsOnline(online)
         ApiClient.setOnline(online)
         wasOnlineRef.current = online
+        // Don't clear isStartingUp here — getConnectivity returns the cached initial
+        // value (always true) before the first real check runs. Only clear it once a
+        // real connectivity-changed event confirms we're actually up.
         if (online) {
           setLastOnlineAt(new Date())
           CacheService.warmAll()
@@ -274,6 +284,8 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setIsOnline(online)
       ApiClient.setOnline(online)
       if (online) {
+        setIsStartingUp(false)
+        if (startupTimerRef.current) clearTimeout(startupTimerRef.current)
         setLastOnlineAt(new Date())
         if (!wasOnlineRef.current) {
           syncQueue()
@@ -304,7 +316,7 @@ export const ConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   return (
     <ConnectionContext.Provider value={{
-      isOnline, queueCount, adjustmentQueueCount, returnQueueCount, isSyncing, syncProgress, lastOnlineAt,
+      isOnline, isStartingUp, queueCount, adjustmentQueueCount, returnQueueCount, isSyncing, syncProgress, lastOnlineAt,
       failedSaleCount, failedAdjustmentCount, failedReturnCount,
       refreshQueueCount, refreshAdjustmentQueueCount, refreshReturnQueueCount, refreshFailedCount,
       clearFailedSales, clearFailedAdjustments, clearFailedReturns

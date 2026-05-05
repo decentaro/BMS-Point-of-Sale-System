@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { WifiOff, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react'
+import { WifiOff, RefreshCw, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react'
 import { useConnection } from '../../contexts/ConnectionContext'
 
 const OfflineBanner: React.FC = () => {
-  const { isOnline, queueCount, adjustmentQueueCount, returnQueueCount, isSyncing, syncProgress, failedSaleCount, failedAdjustmentCount, failedReturnCount, clearFailedSales, clearFailedAdjustments, clearFailedReturns } = useConnection()
+  const { isOnline, isStartingUp, queueCount, adjustmentQueueCount, returnQueueCount, isSyncing, syncProgress, failedSaleCount, failedAdjustmentCount, failedReturnCount, clearFailedSales, clearFailedAdjustments, clearFailedReturns } = useConnection()
   const [showDone, setShowDone] = useState(false)
 
   // Show "back online" briefly after sync completes
@@ -21,6 +21,16 @@ const OfflineBanner: React.FC = () => {
   const totalFailed = failedSaleCount + failedAdjustmentCount + failedReturnCount
 
   if (isOnline && !isSyncing && !showDone && totalQueued === 0 && totalFailed === 0) return null
+
+  // Neutral startup banner — shown while the API is still booting, before escalating to red
+  if (!isOnline && isStartingUp) {
+    return (
+      <div className="absolute bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-slate-600 text-white text-[11px] font-semibold py-1">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        Starting up — please wait…
+      </div>
+    )
+  }
 
   // Failed operations warning — persists until dismissed
   if (isOnline && !isSyncing && !showDone && totalQueued === 0 && totalFailed > 0) {
