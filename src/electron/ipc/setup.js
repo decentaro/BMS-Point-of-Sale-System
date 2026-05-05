@@ -1,6 +1,7 @@
 'use strict'
 
 const { app } = require('electron')
+const { spawn, execFileSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 
@@ -89,13 +90,22 @@ function register(ipcMain, apiProcessManager) {
         }
     })
 
-    /** Relaunch the Electron process and restart the API with the new .env credentials. */
+    /** Relaunch the Electron process so the API starts fresh with the saved .env credentials. */
     ipcMain.handle('relaunch-app', async () => {
         if (app.isPackaged) {
-            // Packaged: ApiProcessManager owns the process — let it restart cleanly.
-            await apiProcessManager.restart()
+            // Stop the current API so port 5002 is free when the new instance starts.
+            apiProcessManager.stop()
+            try { execFileSync('fuser', ['-k', '5002/tcp'], { stdio: 'ignore' }) } catch {}
+            await new Promise(r => setTimeout(r, 500))
+
+            // app.relaunch() is unreliable on Linux AppImages — spawn the new instance
+            // explicitly as a detached process and then exit.
+            const execPath = process.env.APPIMAGE || process.execPath
+            console.log('[Relaunch] Spawning:', execPath, process.argv.slice(1))
+            spawn(execPath, process.argv.slice(1), { detached: true, stdio: 'ignore' }).unref()
+            setTimeout(() => app.exit(0), 300)
         } else {
-            // Dev mode: spawn dotnet run (dev.sh may not be running after a credential change).
+            // Dev mode: restart dotnet run with the new credentials.
             const envVars = { ...process.env }
             try {
                 const content = fs.readFileSync(getDotenvPath(), 'utf8')
@@ -106,16 +116,11 @@ function register(ipcMain, apiProcessManager) {
             } catch (e) {
                 console.warn('Could not read .env for API restart:', e.message)
             }
-            try {
-                require('child_process').execFileSync('fuser', ['-k', '5002/tcp'], { stdio: 'ignore' })
-            } catch {}
+            try { execFileSync('fuser', ['-k', '5002/tcp'], { stdio: 'ignore' }) } catch {}
             await new Promise(r => setTimeout(r, 1000))
             const apiDir = path.join(app.getAppPath(), 'BMS_POS_API')
             const cmd = `cd "${apiDir}" && nohup dotnet run --urls=http://localhost:5002 > /tmp/bms_api.log 2>&1 &`
-            const spawner = require('child_process').spawn('bash', ['-c', cmd], {
-                detached: true, stdio: 'ignore', env: envVars,
-            })
-            spawner.unref()
+            spawn('bash', ['-c', cmd], { detached: true, stdio: 'ignore', env: envVars }).unref()
             const net = require('net')
             await new Promise(resolve => {
                 const deadline = Date.now() + 120000
@@ -129,9 +134,9 @@ function register(ipcMain, apiProcessManager) {
                 }
                 setTimeout(check, 5000)
             })
+            app.relaunch()
+            app.exit(0)
         }
-        app.relaunch()
-        app.exit(0)
     })
 }
 
