@@ -20,8 +20,14 @@ function register(ipcMain, bmsApp) {
             }
 
             const stat = fs.statSync(resolvedPath)
-            let result
 
+            // Exit fullscreen so the external window isn't hidden behind the app.
+            if (bmsApp.mainWindow?.isFullScreen()) {
+                bmsApp.mainWindow.setFullScreen(false)
+                await new Promise(r => setTimeout(r, 300))
+            }
+
+            let result
             if (stat.isDirectory()) {
                 result = await shell.openPath(resolvedPath)
             } else {
@@ -48,7 +54,13 @@ function register(ipcMain, bmsApp) {
                 const home = os.homedir()
                 const userData = app.getPath('userData')
                 if (resolved.startsWith(home) || resolved.startsWith(userData)) {
-                    options.defaultPath = resolved
+                    // Walk up to the nearest existing directory so GTK doesn't ignore it
+                    let dir = resolved
+                    while (dir && dir !== path.dirname(dir)) {
+                        if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) break
+                        dir = path.dirname(dir)
+                    }
+                    options.defaultPath = dir || resolved
                 } else {
                     delete options.defaultPath
                 }
