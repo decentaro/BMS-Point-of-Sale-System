@@ -169,6 +169,9 @@ export interface ElectronAPI {
   testDbConnection: (host: string, port?: string, user?: string, password?: string, database?: string) => Promise<{ reachable: boolean; error?: string }>
   relaunchApp: () => Promise<void>
   checkForUpdates: () => Promise<{ success?: boolean; message?: string; error?: string }>
+  getAppVersion: () => Promise<string>
+  installUpdate: () => Promise<void>
+  onUpdaterStatus: (callback: (data: { event: string; version?: string; percent?: number; message?: string }) => void) => () => void
 
   // JWT token management
   setAuthToken: (token: string) => void

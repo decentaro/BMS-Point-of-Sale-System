@@ -211,6 +211,13 @@ const electronAPI = {
     testDbConnection: (host, port, user, password, database) => ipcRenderer.invoke('test-db-connection', { host, port, user, password, database }),
     relaunchApp: () => ipcRenderer.invoke('relaunch-app'),
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    installUpdate: () => ipcRenderer.invoke('install-update'),
+    onUpdaterStatus: (callback) => {
+        const handler = (event, data) => callback(data)
+        ipcRenderer.on('updater-status', handler)
+        return () => ipcRenderer.removeListener('updater-status', handler)
+    },
 
     // Store JWT token for authenticated requests
     setAuthToken: (token) => { authToken = token; },

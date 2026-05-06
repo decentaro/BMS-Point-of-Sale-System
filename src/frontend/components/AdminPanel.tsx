@@ -60,6 +60,7 @@ const AdminPanel: React.FC = () => {
   const [terminalId, setTerminalId] = React.useState<string>('')
   const [terminalName, setTerminalName] = React.useState<string>('')
   const [terminalSaving, setTerminalSaving] = React.useState<boolean>(false)
+  const [appVersion, setAppVersion] = React.useState<string>('')
 
   React.useEffect(() => {
     if (window.electronAPI?.getTerminalConfig) {
@@ -68,6 +69,7 @@ const AdminPanel: React.FC = () => {
         setTerminalName(cfg.terminalName ?? '')
       })
     }
+    window.electronAPI?.getAppVersion?.().then((v: string) => setAppVersion(v))
   }, [])
 
   const handleSaveTerminal = async () => {
@@ -207,47 +209,36 @@ const AdminPanel: React.FC = () => {
     }
   }
 
+  // Listen for real auto-updater events from main process
+  React.useEffect(() => {
+    if (!window.electronAPI?.onUpdaterStatus) return
+    return window.electronAPI.onUpdaterStatus(({ event, version, percent }) => {
+      setAdminSettings(prev => {
+        if (!prev) return prev
+        switch (event) {
+          case 'checking':    return { ...prev, updateStatus: 'checking' }
+          case 'available':   return { ...prev, updateStatus: 'available', availableVersion: version ?? prev.availableVersion }
+          case 'up-to-date':  return { ...prev, updateStatus: 'up-to-date' }
+          case 'downloading': return { ...prev, updateStatus: 'downloading' }
+          case 'ready':       return { ...prev, updateStatus: 'ready', availableVersion: version ?? prev.availableVersion }
+          case 'error':       return { ...prev, updateStatus: 'error' }
+          default:            return prev
+        }
+      })
+    })
+  }, [])
+
   // Update check functions
   const checkForUpdates = async () => {
     if (!adminSettings) return
-    
-    setAdminSettings({...adminSettings, updateStatus: 'checking'})
-    
-    try {
-      // Simulate checking for updates (this would be a real API call in production)
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Simulate finding an update (or not)
-      const hasUpdate = Math.random() > 0.5 // 50% chance for demo
-      
-      if (hasUpdate) {
-        setAdminSettings({
-          ...adminSettings,
-          updateStatus: 'available',
-          availableVersion: '1.3.0',
-          updateDescription: 'New features:\n• Product categories system\n• Improved inventory management\n• Bug fixes and performance improvements'
-        })
-      } else {
-        setAdminSettings({...adminSettings, updateStatus: 'up-to-date'})
-      }
-    } catch (err) {
-      setAdminSettings({...adminSettings, updateStatus: 'error'})
+    setAdminSettings(prev => prev ? { ...prev, updateStatus: 'checking' } : prev)
+    const result = await window.electronAPI?.checkForUpdates?.()
+    if (result && !result.success && result.error) {
+      showToast(result.error, 'error')
     }
   }
 
-  const downloadUpdate = async () => {
-    if (!adminSettings) return
-    
-    setAdminSettings({...adminSettings, updateStatus: 'downloading'})
-    
-    try {
-      // Simulate download progress
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      setAdminSettings({...adminSettings, updateStatus: 'ready'})
-    } catch (err) {
-      setAdminSettings({...adminSettings, updateStatus: 'error'})
-    }
-  }
+  const downloadUpdate = () => { /* auto-download is handled by electron-updater */ }
 
   const installUpdate = () => {
     openConfirmModal(
@@ -256,14 +247,13 @@ const AdminPanel: React.FC = () => {
       'Restart & Install',
       'warning',
       async () => {
-      try {
-        // TODO: Trigger actual update installation
-        showToast('Update will be installed and application will restart', 'info')
-        // In real implementation, this would trigger the installer
-      } catch (err) {
-        showToast('Failed to install update', 'error')
+        try {
+          await window.electronAPI?.installUpdate?.()
+        } catch (err) {
+          showToast('Failed to install update', 'error')
+        }
       }
-    })
+    )
   }
 
   const openLogViewer = async () => {
@@ -696,7 +686,7 @@ const AdminPanel: React.FC = () => {
                       </div>
                       <div>
                         <div className="text-xs text-slate-500 font-medium">Installed Version</div>
-                        <div className="text-xl font-bold text-slate-900 leading-none mt-0.5">v{adminSettings.currentVersion}</div>
+                        <div className="text-xl font-bold text-slate-900 leading-none mt-0.5">v{appVersion || adminSettings.currentVersion}</div>
                         <div className="text-[10px] text-emerald-600 font-medium mt-0.5">Stable Release</div>
                       </div>
                     </div>

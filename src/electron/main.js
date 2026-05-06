@@ -235,39 +235,38 @@ function setupAutoUpdater() {
     autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
 
+    const send = (event, payload) => {
+        bmsApp.mainWindow?.webContents?.send('updater-status', { event, ...payload })
+    }
+
     autoUpdater.on('checking-for-update', () => {
         console.log('[Updater] Checking for updates...')
+        send('checking')
     })
 
     autoUpdater.on('update-available', info => {
         console.log('[Updater] Update available:', info.version)
+        send('available', { version: info.version })
     })
 
     autoUpdater.on('update-not-available', () => {
         console.log('[Updater] Already up to date')
+        send('up-to-date')
     })
 
     autoUpdater.on('download-progress', progress => {
         console.log(`[Updater] Downloading... ${Math.round(progress.percent)}%`)
+        send('downloading', { percent: Math.round(progress.percent) })
     })
 
     autoUpdater.on('update-downloaded', info => {
         console.log('[Updater] Update downloaded:', info.version)
-        dialog.showMessageBox({
-            type: 'info',
-            title: 'Update Ready',
-            message: `BMS POS ${info.version} is ready to install.`,
-            detail: 'The update has been downloaded. Restart now to apply it, or wait until the next time you close the app.',
-            buttons: ['Restart Now', 'Later'],
-            defaultId: 0,
-            cancelId: 1,
-        }).then(({ response }) => {
-            if (response === 0) autoUpdater.quitAndInstall()
-        })
+        send('ready', { version: info.version })
     })
 
     autoUpdater.on('error', err => {
         console.error('[Updater] Error:', err.message)
+        send('error', { message: err.message })
     })
 
     // Check 10 seconds after launch so the window is fully loaded first,
@@ -475,6 +474,10 @@ require('./ipc/offline-queue').register(ipcMain)
 
 // Connectivity IPC (needs monitor reference)
 ipcMain.handle('get-connectivity', async () => ({ online: connectivityMonitor.isOnline }))
+
+ipcMain.handle('get-app-version', () => app.getVersion())
+
+ipcMain.handle('install-update', () => autoUpdater.quitAndInstall())
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {

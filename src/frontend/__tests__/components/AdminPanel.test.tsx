@@ -162,6 +162,10 @@ beforeEach(() => {
   ;(window as any).electronAPI = {
     getTerminalConfig: vi.fn().mockResolvedValue({ terminalId: 'T01', terminalName: 'Front Counter' }),
     setTerminalConfig: vi.fn().mockResolvedValue(undefined),
+    getAppVersion: vi.fn().mockResolvedValue('1.0.1'),
+    checkForUpdates: vi.fn().mockResolvedValue({ success: true }),
+    installUpdate: vi.fn().mockResolvedValue(undefined),
+    onUpdaterStatus: vi.fn().mockReturnValue(() => {}),
   }
 })
 
@@ -222,9 +226,9 @@ describe('AdminPanel', () => {
       expect(screen.getByText('Software Update')).toBeTruthy()
     })
 
-    it('shows installed version', async () => {
+    it('shows installed version from Electron IPC', async () => {
       await renderAndWait()
-      expect(screen.getByText('v1.2.0')).toBeTruthy()
+      expect(screen.getByText('v1.0.1')).toBeTruthy()
     })
 
     it('shows Security & Access section', async () => {
@@ -1230,14 +1234,11 @@ describe('AdminPanel', () => {
   // ── installUpdate confirm flow ────────────────────────────────────────────
 
   describe('Install Update', () => {
-    it('clicking Restart & Install shows info toast', async () => {
+    it('clicking Restart & Install calls installUpdate IPC after confirm', async () => {
       await renderAndWait({ updateStatus: 'ready' })
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Install.*Restart/ })) })
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Restart.*Install/ })) })
-      await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
-        expect.stringContaining('Update will be installed'),
-        'info'
-      ))
+      await waitFor(() => expect((window as any).electronAPI.installUpdate).toHaveBeenCalled())
     })
   })
 
@@ -1291,49 +1292,44 @@ describe('AdminPanel', () => {
   // ── checkForUpdates resolution paths ─────────────────────────────────────
 
   describe('checkForUpdates resolution', () => {
-    it('resolves to available when Math.random > 0.5', async () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0.9)
-      vi.useFakeTimers()
-      try {
-        await renderAndWait({ updateStatus: 'up-to-date' })
-        await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Check for Updates/ })) })
-        await act(async () => { await vi.runAllTimersAsync() })
-        expect(screen.getByText('v1.3.0 Available')).toBeTruthy()
-      } finally {
-        vi.useRealTimers()
-        vi.mocked(Math.random).mockRestore()
-      }
+    it('calls checkForUpdates IPC and sets checking status', async () => {
+      await renderAndWait({ updateStatus: 'up-to-date' })
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Check for Updates/ })) })
+      expect((window as any).electronAPI.checkForUpdates).toHaveBeenCalled()
+      expect(screen.getByText('Checking...')).toBeTruthy()
     })
 
-    it('resolves to up-to-date when Math.random <= 0.5', async () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0.1)
-      vi.useFakeTimers()
-      try {
-        await renderAndWait({ updateStatus: 'up-to-date' })
-        await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Check for Updates/ })) })
-        await act(async () => { await vi.runAllTimersAsync() })
-        expect(screen.getByText('Up to Date')).toBeTruthy()
-      } finally {
-        vi.useRealTimers()
-        vi.mocked(Math.random).mockRestore()
-      }
+    it('shows error toast when checkForUpdates IPC returns error', async () => {
+      ;(window as any).electronAPI.checkForUpdates = vi.fn().mockResolvedValue({ success: false, error: 'Network error' })
+      await renderAndWait({ updateStatus: 'up-to-date' })
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Check for Updates/ })) })
+      await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('Network error', 'error'))
     })
   })
 
-  // ── downloadUpdate → ready transition ────────────────────────────────────
+  // ── onUpdaterStatus listener ──────────────────────────────────────────────
 
-  describe('downloadUpdate resolution', () => {
-    it('transitions from downloading to ready after 3s', async () => {
-      vi.useFakeTimers()
-      try {
-        await renderAndWait({ updateStatus: 'available', availableVersion: '1.3.0' })
-        await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Download Update/ })) })
-        expect(screen.getByText('Downloading...')).toBeTruthy()
-        await act(async () => { await vi.runAllTimersAsync() })
-        expect(screen.getByRole('button', { name: /Install.*Restart/ })).toBeTruthy()
-      } finally {
-        vi.useRealTimers()
-      }
+  describe('onUpdaterStatus events', () => {
+    it('transitions to available state when updater fires available event', async () => {
+      let listener: ((data: any) => void) | null = null
+      ;(window as any).electronAPI.onUpdaterStatus = vi.fn().mockImplementation((cb: any) => {
+        listener = cb
+        return () => {}
+      })
+      await renderAndWait({ updateStatus: 'up-to-date' })
+      await act(async () => { listener?.({ event: 'available', version: '1.0.2' }) })
+      expect(screen.getByText(/1.0.2 Available/)).toBeTruthy()
+    })
+
+    it('transitions to ready state when updater fires ready event', async () => {
+      let listener: ((data: any) => void) | null = null
+      ;(window as any).electronAPI.onUpdaterStatus = vi.fn().mockImplementation((cb: any) => {
+        listener = cb
+        return () => {}
+      })
+      await renderAndWait({ updateStatus: 'up-to-date' })
+      await act(async () => { listener?.({ event: 'ready', version: '1.0.2' }) })
+      expect(screen.getByRole('button', { name: /Install.*Restart/ })).toBeTruthy()
     })
   })
 

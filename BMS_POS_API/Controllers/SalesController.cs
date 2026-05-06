@@ -33,17 +33,12 @@ namespace BMS_POS_API.Controllers
             if (limit > 500) limit = 500;
             if (offset < 0) offset = 0;
 
-            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
-
             var query = _context.Sales
                 .AsNoTracking()
                 .Include(s => s.Employee)
                 .Include(s => s.SaleItems)
                 .ThenInclude(si => si.Product)
                 .Where(s => s.Status == "Completed");
-
-            if (!string.IsNullOrEmpty(tid))
-                query = query.Where(s => s.TerminalId == tid);
 
             if (days.HasValue)
             {
