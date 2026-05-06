@@ -212,7 +212,7 @@ const AdminPanel: React.FC = () => {
   // Listen for real auto-updater events from main process
   React.useEffect(() => {
     if (!window.electronAPI?.onUpdaterStatus) return
-    return window.electronAPI.onUpdaterStatus(({ event, version, percent }) => {
+    return window.electronAPI.onUpdaterStatus(({ event, version }) => {
       setAdminSettings(prev => {
         if (!prev) return prev
         switch (event) {
