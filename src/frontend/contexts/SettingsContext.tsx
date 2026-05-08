@@ -68,6 +68,20 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     loadBusinessSettings()
   }, [])
 
+  // Retry when the API comes online (initial load may fail during API startup)
+  useEffect(() => {
+    if (!window.electronAPI?.onConnectivityChange) return
+    return window.electronAPI.onConnectivityChange(({ online }: { online: boolean }) => {
+      if (online) loadBusinessSettings()
+    })
+  }, [])
+
+  useEffect(() => {
+    const handler = () => loadBusinessSettings()
+    window.addEventListener('bms:logged-in', handler)
+    return () => window.removeEventListener('bms:logged-in', handler)
+  }, [])
+
   return (
     <SettingsContext.Provider value={{ businessSettings, loading, refreshBusinessSettings }}>
       {children}

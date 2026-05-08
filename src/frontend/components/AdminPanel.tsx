@@ -1124,8 +1124,8 @@ const AdminPanel: React.FC = () => {
           const errorCount = parsed.filter(e => isError(e.level)).length
           const warnCount  = parsed.filter(e => isWarn(e.level)).length
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-              <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-2xl mx-4" style={{ maxHeight: '82vh' }}>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+              <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-2xl max-h-full overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 flex-shrink-0">
                   <FileText className="w-5 h-5 text-slate-500 flex-shrink-0" />
@@ -1168,7 +1168,7 @@ const AdminPanel: React.FC = () => {
                 )}
 
                 {/* Body */}
-                <div className="overflow-y-auto flex-1 p-4 space-y-1.5">
+                <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5">
                   {logModal.loading ? (
                     <p className="text-slate-400 text-center py-10 text-sm">Loading logs…</p>
                   ) : filtered.length === 0 ? (
