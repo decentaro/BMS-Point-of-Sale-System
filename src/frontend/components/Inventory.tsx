@@ -786,12 +786,12 @@ const Inventory: React.FC = () => {
 
         {/* Product Detail Modal */}
         {viewingProduct && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={closeProductModal} />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
+            <div className="absolute inset-0" onClick={closeProductModal} />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full max-h-full flex flex-col overflow-hidden">
 
               {/* Modal header */}
-              <div className="bg-[hsl(215,65%,30%)] px-4 py-3 flex items-center justify-between rounded-t-xl">
+              <div className="flex-shrink-0 bg-[hsl(215,65%,30%)] px-4 py-3 flex items-center justify-between rounded-t-xl">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white/20">
                     <Package className="w-4 h-4 text-white" />
@@ -803,7 +803,8 @@ const Inventory: React.FC = () => {
                 </button>
               </div>
 
-              <div className="p-4">
+              {/* Scrollable body */}
+              <div className="flex-1 min-h-0 overflow-y-auto p-4">
                 {/* Image */}
                 <div className="w-full h-44 bg-slate-50 border border-slate-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
                   {viewingProduct.imageUrl && viewingProduct.imageUrl.trim() !== '' ? (
@@ -840,7 +841,7 @@ const Inventory: React.FC = () => {
                 </div>
 
                 {/* Stock status */}
-                <div className={`flex items-center gap-2 rounded-lg px-3 py-2 mb-4 ${
+                <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
                   viewingProduct.stockQuantity === 0 ? 'bg-red-50 border border-red-100' :
                   viewingProduct.stockQuantity <= viewingProduct.minStockLevel ? 'bg-amber-50 border border-amber-100' :
                   'bg-emerald-50 border border-emerald-100'
@@ -856,20 +857,20 @@ const Inventory: React.FC = () => {
                     <p className="text-[10px] text-slate-500">Low stock alert at {viewingProduct.minStockLevel} {viewingProduct.unit}</p>
                   </div>
                 </div>
+              </div>
 
-                {/* Actions */}
-                <div className="flex gap-2 pt-3 border-t border-slate-100">
-                  <Button
-                    onClick={() => { selectProduct(viewingProduct); closeProductModal() }}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
-                  >
-                    <Edit2 className="w-4 h-4" />Edit Product
-                  </Button>
-                  <Button variant="outline" onClick={closeProductModal}
-                    className="flex-1 border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">
-                    Close
-                  </Button>
-                </div>
+              {/* Actions pinned at bottom */}
+              <div className="flex-shrink-0 flex gap-2 p-4 border-t border-slate-100">
+                <Button
+                  onClick={() => { selectProduct(viewingProduct); closeProductModal() }}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-sm"
+                >
+                  <Edit2 className="w-4 h-4" />Edit Product
+                </Button>
+                <Button variant="outline" onClick={closeProductModal}
+                  className="flex-1 border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">
+                  Close
+                </Button>
               </div>
             </div>
           </div>

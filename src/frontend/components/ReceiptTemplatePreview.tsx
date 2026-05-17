@@ -106,8 +106,8 @@ const ReceiptTemplatePreview: React.FC<ReceiptTemplatePreviewProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-full flex flex-col overflow-hidden">
         
         {/* Header */}
         <div className="p-3 border-b bg-gray-50">
@@ -120,7 +120,7 @@ const ReceiptTemplatePreview: React.FC<ReceiptTemplatePreviewProps> = ({
         </div>
 
         {/* Receipt Content */}
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex-1 min-h-0 p-4 overflow-y-auto">
           <SharedReceiptRenderer 
             receiptData={sampleReceiptData}
             systemSettings={systemSettings}

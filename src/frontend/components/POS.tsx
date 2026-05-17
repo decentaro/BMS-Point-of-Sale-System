@@ -890,9 +890,9 @@ const POS: React.FC = () => {
 
       {/* ── Payment Modal ── */}
       {showPaymentModal && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" />
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-6">
+          <div className="absolute inset-0" />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full max-h-full flex flex-col overflow-hidden">
 
             {/* Modal header — navy */}
             <div
@@ -911,7 +911,7 @@ const POS: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
               {/* Order Summary */}
               <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                 <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Order Summary</div>

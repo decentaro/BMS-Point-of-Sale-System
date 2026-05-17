@@ -290,7 +290,7 @@ class SessionManager {
 
     const headers: Record<string, string> = {
       'X-User-Id': session.id.toString(),
-      'X-User-Name': session.name || session.employeeId,
+      'X-User-Name': session.name || session.role || session.employeeId,
     }
 
     if (token) {
