@@ -40,7 +40,7 @@ namespace BMS_POS_API.Controllers
         {
             try
             {
-                var settings = await _context.AdminSettings.AsNoTracking().FirstOrDefaultAsync();
+                var settings = await _context.AdminSettings.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync();
 
                 if (settings == null)
                 {
@@ -81,7 +81,7 @@ namespace BMS_POS_API.Controllers
         {
             try
             {
-                var existingSettings = await _context.AdminSettings.FirstOrDefaultAsync();
+                var existingSettings = await _context.AdminSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
                 
                 if (existingSettings == null)
                 {
@@ -227,7 +227,7 @@ namespace BMS_POS_API.Controllers
                 if (backupResult.Success)
                 {
                     // Update admin settings with backup info
-                    var settings = await _context.AdminSettings.FirstOrDefaultAsync();
+                    var settings = await _context.AdminSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
                     if (settings != null)
                     {
                         settings.LastBackup = backupResult.CreatedAt;

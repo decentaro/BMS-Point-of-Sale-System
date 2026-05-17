@@ -68,7 +68,7 @@ namespace BMS_POS_API.Controllers
             if (!string.IsNullOrEmpty(terminalId))
                 query = query.Where(cs => cs.TerminalId == terminalId);
 
-            var session = await query.FirstOrDefaultAsync();
+            var session = await query.OrderBy(cs => cs.Id).FirstOrDefaultAsync();
 
             if (session == null)
                 return Ok(null);
@@ -111,7 +111,7 @@ namespace BMS_POS_API.Controllers
             else
                 existingQuery = existingQuery.Where(cs => cs.TerminalId == null);
 
-            var existing = await existingQuery.FirstOrDefaultAsync();
+            var existing = await existingQuery.OrderBy(cs => cs.Id).FirstOrDefaultAsync();
 
             if (existing != null)
                 return Conflict(new { message = "A session already exists for today.", session = MapToResponse(existing) });

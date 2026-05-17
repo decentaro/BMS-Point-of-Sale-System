@@ -27,7 +27,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<TaxSettings>> GetTaxSettings()
         {
             // Get the single tax settings record (should only be one per business)
-            var settings = await _context.TaxSettings.AsNoTracking().FirstOrDefaultAsync();
+            var settings = await _context.TaxSettings.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync();
             
             if (settings == null)
             {
@@ -43,7 +43,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<TaxSettings>> CreateOrUpdateTaxSettings(TaxSettingsRequest request)
         {
             // Check if settings already exist
-            var existingSettings = await _context.TaxSettings.FirstOrDefaultAsync();
+            var existingSettings = await _context.TaxSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
             
             if (existingSettings != null)
             {
@@ -160,7 +160,7 @@ namespace BMS_POS_API.Controllers
         [HttpPost("calculate")]
         public async Task<ActionResult<TaxCalculationResponse>> CalculateTax(TaxCalculationRequest request)
         {
-            var settings = await _context.TaxSettings.FirstOrDefaultAsync();
+            var settings = await _context.TaxSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
             
             if (settings == null)
             {

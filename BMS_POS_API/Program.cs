@@ -26,9 +26,9 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "BMS_POS")
     .WriteTo.Console()
-    .WriteTo.File(path: "logs/comprehensive-.json", 
+    .WriteTo.File(path: "logs/comprehensive-.json",
                   rollingInterval: RollingInterval.Day,
-                  formatter: new Serilog.Formatting.Json.JsonFormatter())
+                  formatter: new Serilog.Formatting.Json.JsonFormatter(renderMessage: true))
     .CreateLogger();
 
 builder.Host.UseSerilog();

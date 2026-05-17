@@ -174,7 +174,7 @@ namespace BMS_POS_API.Controllers
                 }
 
                 // Get system settings
-                var systemSettings = await _context.SystemSettings.FirstOrDefaultAsync();
+                var systemSettings = await _context.SystemSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
                 if (systemSettings == null || !systemSettings.EnableReturns)
                 {
                     return BadRequest("Returns system is disabled.");

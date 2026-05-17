@@ -140,7 +140,7 @@ namespace BMS_POS_API.Controllers
                 .Where(cs => cs.SessionDate == reportDate || cs.SessionDate == utcMidnight);
             if (!string.IsNullOrEmpty(terminalId))
                 sessionQuery = sessionQuery.Where(cs => cs.TerminalId == terminalId);
-            var session = await sessionQuery.FirstOrDefaultAsync();
+            var session = await sessionQuery.OrderBy(cs => cs.Id).FirstOrDefaultAsync();
 
             var salesQuery = _context.Sales
                 .AsNoTracking()

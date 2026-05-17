@@ -78,7 +78,7 @@ namespace BMS_POS_API.Controllers
             try
             {
                 // Load max attempts from admin settings (default 5)
-                var adminSettings = await _context.AdminSettings.FirstOrDefaultAsync();
+                var adminSettings = await _context.AdminSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
                 var maxAttempts = adminSettings?.MaxFailedLoginAttempts ?? 5;
 
                 var employee = await _context.Employees

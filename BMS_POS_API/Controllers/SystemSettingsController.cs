@@ -27,7 +27,7 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<SystemSettings>> GetSystemSettings()
         {
             // Get the single system settings record (should only be one per system)
-            var settings = await _context.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
+            var settings = await _context.SystemSettings.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync();
             
             if (settings == null)
             {
@@ -45,7 +45,7 @@ namespace BMS_POS_API.Controllers
         {
             
             // Check if settings already exist
-            var existingSettings = await _context.SystemSettings.FirstOrDefaultAsync();
+            var existingSettings = await _context.SystemSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
             
             if (existingSettings != null)
             {

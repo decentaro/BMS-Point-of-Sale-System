@@ -140,7 +140,7 @@ namespace BMS_POS_API.Controllers
             }
 
             // Determine if approval required — thresholds come from SystemSettings
-            var settings = await _context.SystemSettings.FirstOrDefaultAsync();
+            var settings = await _context.SystemSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
             var quantityThreshold = settings?.StockAdjustmentApprovalQuantityThreshold ?? 50;
             var costThreshold = settings?.StockAdjustmentApprovalCostThreshold ?? 500m;
             var requiresApproval = Math.Abs(request.QuantityChange) > quantityThreshold ||

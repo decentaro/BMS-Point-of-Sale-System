@@ -365,7 +365,7 @@ namespace BMS_POS_API.Controllers
             if (pin.Length > 6)
                 return $"PIN is too long — maximum 6 digits (you entered {pin.Length})";
 
-            var settings = await _context.AdminSettings.FirstOrDefaultAsync();
+            var settings = await _context.AdminSettings.OrderBy(x => x.Id).FirstOrDefaultAsync();
             if (settings?.RequireStrongPins == true)
             {
                 if (pin.Length < 6)
