@@ -719,7 +719,7 @@ const AdminPanel: React.FC = () => {
                   </div>
 
                   {/* Update notes */}
-                  {adminSettings.updateStatus === 'available' && adminSettings.updateDescription && (
+                  {(adminSettings.updateStatus === 'available' || adminSettings.updateStatus === 'downloading' || adminSettings.updateStatus === 'ready') && adminSettings.updateDescription && (
                     <div className="mb-4 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800 whitespace-pre-line">
                       <p className="font-semibold mb-1">What's new in v{adminSettings.availableVersion}:</p>
                       {adminSettings.updateDescription}

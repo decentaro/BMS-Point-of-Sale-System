@@ -246,9 +246,14 @@ function setupAutoUpdater() {
 
     autoUpdater.on('update-available', info => {
         console.log('[Updater] Update available:', info.version)
-        const notes = Array.isArray(info.releaseNotes)
+        const rawNotes = Array.isArray(info.releaseNotes)
             ? info.releaseNotes.map(n => n.note).filter(Boolean).join('\n\n')
             : (info.releaseNotes || '')
+        const notes = rawNotes
+            .replace(/<[^>]*>/g, '')
+            .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+            .replace(/\n{3,}/g, '\n\n')
+            .trim()
         send('available', { version: info.version, releaseNotes: notes })
     })
 
