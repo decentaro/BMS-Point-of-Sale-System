@@ -468,3 +468,7 @@ release/
 # Published .NET API binaries (built by build:api:* scripts, not committed)
 resources/api/*
 !resources/api/.gitkeep
+landing
+scripts/debug-login.ts
+scripts/fix-screenshots.ts
+scripts/take-screenshots.ts
