@@ -171,7 +171,7 @@ export interface ElectronAPI {
   checkForUpdates: () => Promise<{ success?: boolean; message?: string; error?: string }>
   getAppVersion: () => Promise<string>
   installUpdate: () => Promise<void>
-  onUpdaterStatus: (callback: (data: { event: string; version?: string; percent?: number; message?: string }) => void) => () => void
+  onUpdaterStatus: (callback: (data: { event: string; version?: string; percent?: number; message?: string; releaseNotes?: string }) => void) => () => void
 
   // JWT token management
   setAuthToken: (token: string) => void

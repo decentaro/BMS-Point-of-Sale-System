@@ -212,12 +212,12 @@ const AdminPanel: React.FC = () => {
   // Listen for real auto-updater events from main process
   React.useEffect(() => {
     if (!window.electronAPI?.onUpdaterStatus) return
-    return window.electronAPI.onUpdaterStatus(({ event, version }) => {
+    return window.electronAPI.onUpdaterStatus(({ event, version, releaseNotes }) => {
       setAdminSettings(prev => {
         if (!prev) return prev
         switch (event) {
           case 'checking':    return { ...prev, updateStatus: 'checking' }
-          case 'available':   return { ...prev, updateStatus: 'available', availableVersion: version ?? prev.availableVersion }
+          case 'available':   return { ...prev, updateStatus: 'available', availableVersion: version ?? prev.availableVersion, updateDescription: releaseNotes ?? prev.updateDescription }
           case 'up-to-date':  return { ...prev, updateStatus: 'up-to-date' }
           case 'downloading': return { ...prev, updateStatus: 'downloading' }
           case 'ready':       return { ...prev, updateStatus: 'ready', availableVersion: version ?? prev.availableVersion }

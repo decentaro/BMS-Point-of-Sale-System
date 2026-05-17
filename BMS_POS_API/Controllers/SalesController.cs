@@ -140,7 +140,7 @@ namespace BMS_POS_API.Controllers
                 return BadRequest("Invalid employee ID");
 
             var currentTime = DateTime.UtcNow;
-            var transactionId = $"TXN-{currentTime:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
+            var transactionId = $"TXN-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
 
             // Product fetch and stock validation must happen inside the serializable transaction.
             // Doing it outside means two concurrent requests can both pass the check before either
@@ -270,14 +270,10 @@ namespace BMS_POS_API.Controllers
             var localToday = DateTime.Today;
             var today    = DateTime.SpecifyKind(localToday.ToUniversalTime(),             DateTimeKind.Utc);
             var tomorrow = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(),  DateTimeKind.Utc);
-            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
 
             var query = _context.Sales
                 .AsNoTracking()
                 .Where(s => s.SaleDate >= today && s.SaleDate < tomorrow && s.Status == "Completed");
-
-            if (!string.IsNullOrEmpty(tid))
-                query = query.Where(s => s.TerminalId == tid);
 
             var todaySales = await query
                 .Include(s => s.Employee)
@@ -305,12 +301,9 @@ namespace BMS_POS_API.Controllers
             var localToday  = DateTime.Today;
             var endOfDay    = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
             var startOfWeek = DateTime.SpecifyKind(localToday.AddDays(-(int)localToday.DayOfWeek + 1).ToUniversalTime(), DateTimeKind.Utc);
-            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
 
             var baseQuery = _context.Sales.AsNoTracking()
                 .Where(s => s.SaleDate >= startOfWeek && s.SaleDate < endOfDay);
-            if (!string.IsNullOrEmpty(tid))
-                baseQuery = baseQuery.Where(s => s.TerminalId == tid);
 
             var agg = await baseQuery
                 .GroupBy(s => 1)
@@ -342,12 +335,9 @@ namespace BMS_POS_API.Controllers
             var localToday   = DateTime.Today;
             var endOfDay     = DateTime.SpecifyKind(localToday.AddDays(1).ToUniversalTime(), DateTimeKind.Utc);
             var startOfMonth = DateTime.SpecifyKind(new DateTime(localToday.Year, localToday.Month, 1).ToUniversalTime(), DateTimeKind.Utc);
-            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
 
             var baseQuery = _context.Sales.AsNoTracking()
                 .Where(s => s.SaleDate >= startOfMonth && s.SaleDate < endOfDay);
-            if (!string.IsNullOrEmpty(tid))
-                baseQuery = baseQuery.Where(s => s.TerminalId == tid);
 
             var agg = await baseQuery
                 .GroupBy(s => 1)
@@ -377,14 +367,11 @@ namespace BMS_POS_API.Controllers
         public async Task<ActionResult<List<TopProductResponse>>> GetTopProducts([FromQuery] int days = 7)
         {
             var cutoffDate = DateTime.UtcNow.AddDays(-days);
-            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
 
             var query = _context.SaleItems
                 .AsNoTracking()
                 .Include(si => si.Product)
                 .Where(si => si.Sale.SaleDate >= cutoffDate && si.Sale.Status == "Completed");
-            if (!string.IsNullOrEmpty(tid))
-                query = query.Where(si => si.Sale.TerminalId == tid);
 
             var topProducts = await query
                 .GroupBy(si => new { si.ProductId, si.ProductName })
@@ -429,11 +416,8 @@ namespace BMS_POS_API.Controllers
                     break;
             }
             
-            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
             var paymentBaseQuery = _context.Sales.AsNoTracking()
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed");
-            if (!string.IsNullOrEmpty(tid))
-                paymentBaseQuery = paymentBaseQuery.Where(s => s.TerminalId == tid);
 
             var paymentBreakdown = await paymentBaseQuery
                 .GroupBy(s => s.PaymentMethod)
@@ -479,11 +463,8 @@ namespace BMS_POS_API.Controllers
                     break;
             }
             
-            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
             var taxBaseQuery = _context.Sales.AsNoTracking()
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed");
-            if (!string.IsNullOrEmpty(tid))
-                taxBaseQuery = taxBaseQuery.Where(s => s.TerminalId == tid);
 
             var agg = await taxBaseQuery
                 .GroupBy(s => 1)
@@ -528,12 +509,9 @@ namespace BMS_POS_API.Controllers
                     break;
             }
             
-            var tid = Request.Headers["X-Terminal-Id"].FirstOrDefault();
             var empBaseQuery = _context.Sales.AsNoTracking()
                 .Include(s => s.Employee)
                 .Where(s => s.SaleDate >= startDate && s.SaleDate < endDate && s.Status == "Completed");
-            if (!string.IsNullOrEmpty(tid))
-                empBaseQuery = empBaseQuery.Where(s => s.TerminalId == tid);
 
             var employeePerformance = await empBaseQuery
                 .GroupBy(s => new { s.EmployeeId, s.Employee.Name, EmployeeCode = s.Employee.EmployeeId })

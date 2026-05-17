@@ -246,7 +246,10 @@ function setupAutoUpdater() {
 
     autoUpdater.on('update-available', info => {
         console.log('[Updater] Update available:', info.version)
-        send('available', { version: info.version })
+        const notes = Array.isArray(info.releaseNotes)
+            ? info.releaseNotes.map(n => n.note).filter(Boolean).join('\n\n')
+            : (info.releaseNotes || '')
+        send('available', { version: info.version, releaseNotes: notes })
     })
 
     autoUpdater.on('update-not-available', () => {
@@ -268,11 +271,6 @@ function setupAutoUpdater() {
         console.error('[Updater] Error:', err.message)
         send('error', { message: err.message })
     })
-
-    // Check 10 seconds after launch so the window is fully loaded first,
-    // then every 4 hours while the app is running.
-    setTimeout(() => autoUpdater.checkForUpdates(), 10_000)
-    setInterval(() => autoUpdater.checkForUpdates(), 4 * 60 * 60 * 1000)
 }
 
 // ── Manual update check (IPC) ─────────────────────────────────────────────────
