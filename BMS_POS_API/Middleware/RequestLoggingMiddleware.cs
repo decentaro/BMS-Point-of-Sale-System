@@ -40,37 +40,43 @@ namespace BMS_POS_API.Middleware
 
             try
             {
-                // Execute the request
                 await _next(context);
-                
                 stopwatch.Stop();
-                
-                // Log successful request with structured data
-                _logger.LogInformation(
-                    "API {Method} {Path} responded {StatusCode} in {Duration}ms {RequestId} {EmployeeId} {IPAddress} {Performance}",
-                    method, 
-                    path + queryString, 
-                    context.Response.StatusCode, 
-                    stopwatch.ElapsedMilliseconds,
-                    requestId,
-                    employeeId ?? "",
-                    ipAddress,
-                    stopwatch.ElapsedMilliseconds > 2000 // Mark as performance issue
-                );
 
-                // Log business metrics for important endpoints
-                LogBusinessMetrics(context, method, path, employeeId, stopwatch.ElapsedMilliseconds);
+                var status = context.Response.StatusCode;
+                var duration = stopwatch.ElapsedMilliseconds;
+
+                // Slow request — always surfaced regardless of method
+                if (duration > 2000)
+                {
+                    _logger.LogWarning(
+                        "Slow request: {Method} {Path} {StatusCode} in {Duration}ms",
+                        method, path + queryString, status, duration);
+                    return;
+                }
+
+                // Client/server errors — always log
+                if (status >= 400)
+                {
+                    _logger.LogWarning(
+                        "API {Method} {Path} responded {StatusCode} in {Duration}ms",
+                        method, path + queryString, status, duration);
+                    return;
+                }
+
+                // Routine GETs returning 2xx — not useful in the log viewer, skip
+                if (method == "GET") return;
+
+                // State-changing operations (POST/PUT/DELETE) — log at info
+                LogBusinessEvent(context, method, path, employeeId, status, duration);
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                
-                // Log the error with full context
-                _logger.LogError(ex, 
-                    "Request failed: {Method} {Path} {RequestId} {Duration}ms {IPAddress} {EmployeeId}",
-                    method, path + queryString, requestId, stopwatch.ElapsedMilliseconds, ipAddress, employeeId ?? "");
-                
-                throw; // Re-throw to maintain normal error handling
+                _logger.LogError(ex,
+                    "Request failed: {Method} {Path} {Duration}ms",
+                    method, path + queryString, stopwatch.ElapsedMilliseconds);
+                throw;
             }
         }
 
@@ -116,37 +122,42 @@ namespace BMS_POS_API.Middleware
         }
 
         /// <summary>
-        /// Log business metrics for important operations
+        /// Log meaningful business events for state-changing operations.
         /// </summary>
-        private void LogBusinessMetrics(HttpContext context, string method, string path, string? employeeId, long duration)
+        private void LogBusinessEvent(HttpContext context, string method, string path, string? employeeId, int status, long duration)
         {
-            // Login attempts
+            var actor = string.IsNullOrEmpty(employeeId) ? "" : $" by employee {employeeId}";
+
             if (path.StartsWith("/api/auth/login"))
             {
-                var isSuccess = context.Response.StatusCode == 200;
-                _logger.LogInformation(
-                    "Business metric: {MetricType} {EmployeeId} {Success} {Duration}ms {BusinessMetric}",
-                    isSuccess ? "LOGIN_SUCCESS" : "LOGIN_FAILED",
-                    employeeId ?? "unknown",
-                    isSuccess,
-                    duration,
-                    true
-                );
+                var ok = status == 200;
+                if (ok)
+                    _logger.LogInformation("Login successful{Actor}", actor);
+                else
+                    _logger.LogWarning("Login failed{Actor} — invalid credentials", actor);
+                return;
             }
 
-            // Transaction operations
-            if (path.StartsWith("/api/sales") || path.StartsWith("/api/transactions"))
+            if (path.StartsWith("/api/sales") && method == "POST")
             {
-                _logger.LogInformation(
-                    "Business metric: TRANSACTION_API {Method} {Path} {StatusCode} {Duration}ms {EmployeeId} {BusinessMetric}",
-                    method,
-                    path,
-                    context.Response.StatusCode,
-                    duration,
-                    employeeId ?? "",
-                    true
-                );
+                _logger.LogInformation("Sale created{Actor} in {Duration}ms", actor, duration);
+                return;
             }
+
+            if (path.StartsWith("/api/returns") && method == "POST")
+            {
+                _logger.LogInformation("Return processed{Actor} in {Duration}ms", actor, duration);
+                return;
+            }
+
+            if (path.StartsWith("/api/stock") || path.StartsWith("/api/products"))
+            {
+                _logger.LogInformation("{Method} {Path} completed{Actor} in {Duration}ms", method, path, actor, duration);
+                return;
+            }
+
+            // Generic fallback for other write operations
+            _logger.LogInformation("{Method} {Path} {Status}{Actor} in {Duration}ms", method, path, status, actor, duration);
         }
 
         /// <summary>

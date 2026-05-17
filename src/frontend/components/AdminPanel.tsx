@@ -278,7 +278,7 @@ const AdminPanel: React.FC = () => {
       const obj = JSON.parse(line)
       const level = (obj.Level || obj.level || 'Information') as string
       const src = (obj.Properties?.SourceContext || '') as string
-      const isFrameworkNoise = src.startsWith('Microsoft.') || src.startsWith('System.')
+      const isFrameworkNoise = src.startsWith('Microsoft.') || src.startsWith('System.') || src.includes('RequestLoggingMiddleware')
       const ts = obj.Timestamp || obj.timestamp || ''
       const time = ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
       const msg = (obj.RenderedMessage || obj.MessageTemplate || obj.message || line).split('\n')[0].slice(0, 200)
