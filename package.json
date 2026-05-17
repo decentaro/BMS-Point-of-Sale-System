@@ -1,6 +1,6 @@
 {
   "name": "bms-pos-electron",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "BMS Point of Sale System built with Electron.js",
   "main": "src/electron/main.js",
   "scripts": {
